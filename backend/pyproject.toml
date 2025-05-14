@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "fantasy-backend"
+version = "0.1.0"
+description = ""
+authors = ["Gerald Gugger <gerald.gugger@gmail.com>"]
+readme = "README.md"
+packages = [
+    { include = "app" }
+]
+
+[tool.poetry.dependencies]
+python = ">=3.11"
+fastapi = ">=0.115.12,<0.116.0"
+uvicorn = {extras = ["standard"], version = ">=0.34.2,<0.35.0"}
+gunicorn = ">=23.0.0,<24.0.0"
+openai = ">=1.76.2,<2.0.0"
+pybaseball = ">=2.2.7,<3.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
