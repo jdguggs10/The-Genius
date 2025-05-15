@@ -158,22 +158,29 @@ try:
             team = league.teams[team_id - 1]
             
             roster_info = {
-                "team_name": team.team_name,
-                "owner": team.owners,
-                "wins": team.wins,
-                "losses": team.losses, 
+                "team_name": getattr(team, "team_name", "Unknown"),
+                "owner": getattr(team, "owners", ["Unknown"]),
+                "wins": getattr(team, "wins", 0),
+                "losses": getattr(team, "losses", 0), 
                 "roster": []
             }
             
             for player in team.roster:
-                roster_info["roster"].append({
-                    "name": player.name,
-                    "position": player.position,
-                    "proTeam": player.proTeam,
-                    "points": player.total_points,
-                    "projected_points": player.projected_total_points,
-                    "stats": player.stats
-                })
+                player_info = {
+                    "name": getattr(player, "name", "Unknown"),
+                    "position": getattr(player, "position", "Unknown"),
+                    "proTeam": getattr(player, "proTeam", "Unknown"),
+                    "stats": getattr(player, "stats", {})
+                }
+                
+                # Add optional fields that might not be available in all sports
+                if hasattr(player, "total_points"):
+                    player_info["points"] = player.total_points
+                
+                if hasattr(player, "projected_total_points"):
+                    player_info["projected_points"] = player.projected_total_points
+                
+                roster_info["roster"].append(player_info)
             
             return str(roster_info)
         except Exception as e:
@@ -205,21 +212,26 @@ try:
             
             team = league.teams[team_id - 1]
 
+            # Use getattr to safely access attributes that might not be present in all sports
             team_info = {
-                "team_name": team.team_name,
-                "owner": team.owners,
-                "wins": team.wins,
-                "losses": team.losses,
-                "ties": team.ties,
-                "points_for": team.points_for,
-                "points_against": team.points_against,
-                "acquisitions": team.acquisitions,
-                "drops": team.drops,
-                "trades": team.trades,
-                "playoff_pct": team.playoff_pct,
-                "final_standing": team.final_standing,
-                "outcomes": team.outcomes
+                "team_name": getattr(team, "team_name", "Unknown"),
+                "owner": getattr(team, "owners", ["Unknown"]),
+                "wins": getattr(team, "wins", 0),
+                "losses": getattr(team, "losses", 0),
+                "ties": getattr(team, "ties", 0),
+                "points_for": getattr(team, "points_for", 0),
+                "points_against": getattr(team, "points_against", 0),
             }
+            
+            # Add optional attributes if they exist
+            optional_attrs = [
+                "acquisitions", "drops", "trades", "playoff_pct", 
+                "final_standing", "outcomes"
+            ]
+            
+            for attr in optional_attrs:
+                if hasattr(team, attr):
+                    team_info[attr] = getattr(team, attr)
             
             return str(team_info)
 
@@ -259,16 +271,24 @@ try:
             if not player:
                 return f"Player '{player_name}' not found in {sport} league {league_id}"
             
-            # Get player stats
+            # Get player stats using safe attribute access
             stats = {
-                "name": player.name,
-                "position": player.position,
-                "team": player.proTeam,
-                "points": player.total_points,
-                "projected_points": player.projected_total_points,
-                "stats": player.stats,
-                "injured": player.injured
+                "name": getattr(player, "name", "Unknown"),
+                "position": getattr(player, "position", "Unknown"),
+                "team": getattr(player, "proTeam", "Unknown"),
+                "stats": getattr(player, "stats", {})
             }
+            
+            # Add optional fields that might not be available in all sports
+            optional_attrs = [
+                "total_points", "projected_total_points", "injured"
+            ]
+            
+            for attr in optional_attrs:
+                if hasattr(player, attr):
+                    # Map to appropriate key names
+                    key = "points" if attr == "total_points" else "projected_points" if attr == "projected_total_points" else attr
+                    stats[key] = getattr(player, attr)
             
             return str(stats)
         except Exception as e:
@@ -293,22 +313,40 @@ try:
             # Get league using stored credentials
             league = api.get_league(SESSION_ID, league_id, year, sport)
             
-            # Sort teams by wins (descending), then points (descending)
-            sorted_teams = sorted(league.teams, 
-                                key=lambda x: (x.wins, x.points_for),
-                                reverse=True)
+            # Check scoring type to determine sorting
+            scoring_type = getattr(league.settings, "scoring_type", "").lower()
+            is_roto = "roto" in scoring_type
+            
+            # Sort teams based on sport and scoring type
+            if is_roto and sport == "baseball":
+                # For rotisserie baseball, sort by roto_points if available, otherwise fall back to points_for
+                sorted_teams = sorted(league.teams, 
+                                    key=lambda x: getattr(x, "roto_points", getattr(x, "points_for", 0)),
+                                    reverse=True)
+            else:
+                # For head-to-head leagues (football or baseball), sort by wins then points
+                sorted_teams = sorted(league.teams, 
+                                    key=lambda x: (getattr(x, "wins", 0), getattr(x, "points_for", 0)),
+                                    reverse=True)
             
             standings = []
             for i, team in enumerate(sorted_teams):
-                standings.append({
+                team_standing = {
                     "rank": i + 1,
-                    "team_name": team.team_name,
-                    "owner": team.owners,
-                    "wins": team.wins,
-                    "losses": team.losses,
-                    "points_for": team.points_for,
-                    "points_against": team.points_against
-                })
+                    "team_name": getattr(team, "team_name", "Unknown"),
+                    "owner": getattr(team, "owners", ["Unknown"]),
+                }
+                
+                # Add attributes if they exist
+                for attr in ["wins", "losses", "points_for", "points_against"]:
+                    if hasattr(team, attr):
+                        team_standing[attr] = getattr(team, attr)
+                
+                # For rotisserie baseball, include roto_points if available
+                if is_roto and sport == "baseball" and hasattr(team, "roto_points"):
+                    team_standing["roto_points"] = team.roto_points
+                
+                standings.append(team_standing)
             
             return str(standings)
         except Exception as e:
@@ -335,25 +373,55 @@ try:
             league = api.get_league(SESSION_ID, league_id, year, sport)
             
             if week is None:
-                week = league.current_week
+                week = getattr(league, "current_week", 1)
             
-            # Define max week based on sport
-            max_week = 17 if sport == "football" else 25  # Football has ~17 weeks, baseball ~25
+            # Try to get max weeks from league settings if available
+            max_week = None
+            if hasattr(league, "settings") and hasattr(league.settings, "reg_season_count"):
+                max_week = league.settings.reg_season_count
+            else:
+                # Fall back to sport-specific defaults
+                max_week = 17 if sport == "football" else 25  # Football has ~17 weeks, baseball ~25
                 
-            if week < 1 or week > max_week:
+            if week < 1 or (max_week and week > max_week):
                 return f"Invalid week number for {sport}. Must be between 1 and {max_week}"
             
             matchups = league.box_scores(week)
             
             matchup_info = []
             for matchup in matchups:
-                matchup_info.append({
-                    "home_team": matchup.home_team.team_name,
-                    "home_score": matchup.home_score,
-                    "away_team": matchup.away_team.team_name if matchup.away_team else "BYE",
-                    "away_score": matchup.away_score if matchup.away_team else 0,
-                    "winner": "HOME" if matchup.home_score > matchup.away_score else "AWAY" if matchup.away_score > matchup.home_score else "TIE"
-                })
+                matchup_data = {}
+                
+                # Handle home team
+                if hasattr(matchup, "home_team") and matchup.home_team:
+                    matchup_data["home_team"] = getattr(matchup.home_team, "team_name", "Unknown")
+                    matchup_data["home_score"] = getattr(matchup, "home_score", 0)
+                else:
+                    matchup_data["home_team"] = "Unknown"
+                    matchup_data["home_score"] = 0
+                
+                # Handle away team
+                if hasattr(matchup, "away_team") and matchup.away_team:
+                    matchup_data["away_team"] = getattr(matchup.away_team, "team_name", "Unknown")
+                    matchup_data["away_score"] = getattr(matchup, "away_score", 0)
+                else:
+                    matchup_data["away_team"] = "BYE"
+                    matchup_data["away_score"] = 0
+                
+                # Determine winner
+                home_score = matchup_data["home_score"]
+                away_score = matchup_data["away_score"]
+                
+                if matchup_data["away_team"] == "BYE":
+                    matchup_data["winner"] = "HOME"
+                elif home_score > away_score:
+                    matchup_data["winner"] = "HOME"
+                elif away_score > home_score:
+                    matchup_data["winner"] = "AWAY"
+                else:
+                    matchup_data["winner"] = "TIE"
+                
+                matchup_info.append(matchup_data)
             
             return str(matchup_info)
         except Exception as e:
