@@ -1,13 +1,13 @@
 //
-//  The_Genius_iOS_appUITests.swift
-//  The Genius iOS appUITests
+//  ios_appUITests.swift
+//  ios-appUITests
 //
 //  Created by Gerald Gugger on 5/14/25.
 //
 
 import XCTest
 
-final class The_Genius_iOS_appUITests: XCTestCase {
+final class ios_appUITests: XCTestCase {
 
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.

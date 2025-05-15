@@ -1,13 +1,13 @@
 //
-//  The_Genius_iOS_appUITestsLaunchTests.swift
-//  The Genius iOS appUITests
+//  ios_appUITestsLaunchTests.swift
+//  ios-appUITests
 //
 //  Created by Gerald Gugger on 5/14/25.
 //
 
 import XCTest
 
-final class The_Genius_iOS_appUITestsLaunchTests: XCTestCase {
+final class ios_appUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

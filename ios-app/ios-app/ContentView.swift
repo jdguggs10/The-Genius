@@ -1,6 +1,6 @@
 //
 //  ContentView.swift
-//  The Genius iOS app
+//  ios-app
 //
 //  Created by Gerald Gugger on 5/14/25.
 //

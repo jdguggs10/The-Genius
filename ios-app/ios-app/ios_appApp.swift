@@ -1,6 +1,6 @@
 //
-//  The_Genius_iOS_appApp.swift
-//  The Genius iOS app
+//  ios_appApp.swift
+//  ios-app
 //
 //  Created by Gerald Gugger on 5/14/25.
 //
@@ -8,7 +8,7 @@
 import SwiftUI
 
 @main
-struct The_Genius_iOS_appApp: App {
+struct ios_appApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()

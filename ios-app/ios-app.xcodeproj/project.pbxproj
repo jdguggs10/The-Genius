@@ -7,62 +7,62 @@
 	objects = {
 
 /* Begin PBXContainerItemProxy section */
-		0B509EC82DD4E4B3002B59A6 /* PBXContainerItemProxy */ = {
+		0B3CC9DA2DD4E87F00035536 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = 0B509EB12DD4E4B1002B59A6 /* Project object */;
+			containerPortal = 0B3CC9C32DD4E87E00035536 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 0B509EB82DD4E4B1002B59A6;
-			remoteInfo = "The Genius iOS app";
+			remoteGlobalIDString = 0B3CC9CA2DD4E87E00035536;
+			remoteInfo = "ios-app";
 		};
-		0B509ED22DD4E4B3002B59A6 /* PBXContainerItemProxy */ = {
+		0B3CC9E42DD4E87F00035536 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = 0B509EB12DD4E4B1002B59A6 /* Project object */;
+			containerPortal = 0B3CC9C32DD4E87E00035536 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 0B509EB82DD4E4B1002B59A6;
-			remoteInfo = "The Genius iOS app";
+			remoteGlobalIDString = 0B3CC9CA2DD4E87E00035536;
+			remoteInfo = "ios-app";
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		0B509EB92DD4E4B1002B59A6 /* The Genius iOS app.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "The Genius iOS app.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		0B509EC72DD4E4B3002B59A6 /* The Genius iOS appTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "The Genius iOS appTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		0B509ED12DD4E4B3002B59A6 /* The Genius iOS appUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "The Genius iOS appUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		0B3CC9CB2DD4E87E00035536 /* ios-app.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "ios-app.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		0B3CC9D92DD4E87F00035536 /* ios-appTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ios-appTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		0B3CC9E32DD4E87F00035536 /* ios-appUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "ios-appUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		0B509EBB2DD4E4B1002B59A6 /* The Genius iOS app */ = {
+		0B3CC9CD2DD4E87E00035536 /* ios-app */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "The Genius iOS app";
+			path = "ios-app";
 			sourceTree = "<group>";
 		};
-		0B509ECA2DD4E4B3002B59A6 /* The Genius iOS appTests */ = {
+		0B3CC9DC2DD4E87F00035536 /* ios-appTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "The Genius iOS appTests";
+			path = "ios-appTests";
 			sourceTree = "<group>";
 		};
-		0B509ED42DD4E4B3002B59A6 /* The Genius iOS appUITests */ = {
+		0B3CC9E62DD4E87F00035536 /* ios-appUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "The Genius iOS appUITests";
+			path = "ios-appUITests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		0B509EB62DD4E4B1002B59A6 /* Frameworks */ = {
+		0B3CC9C82DD4E87E00035536 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		0B509EC42DD4E4B3002B59A6 /* Frameworks */ = {
+		0B3CC9D62DD4E87F00035536 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		0B509ECE2DD4E4B3002B59A6 /* Frameworks */ = {
+		0B3CC9E02DD4E87F00035536 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -72,22 +72,22 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		0B509EB02DD4E4B1002B59A6 = {
+		0B3CC9C22DD4E87E00035536 = {
 			isa = PBXGroup;
 			children = (
-				0B509EBB2DD4E4B1002B59A6 /* The Genius iOS app */,
-				0B509ECA2DD4E4B3002B59A6 /* The Genius iOS appTests */,
-				0B509ED42DD4E4B3002B59A6 /* The Genius iOS appUITests */,
-				0B509EBA2DD4E4B1002B59A6 /* Products */,
+				0B3CC9CD2DD4E87E00035536 /* ios-app */,
+				0B3CC9DC2DD4E87F00035536 /* ios-appTests */,
+				0B3CC9E62DD4E87F00035536 /* ios-appUITests */,
+				0B3CC9CC2DD4E87E00035536 /* Products */,
 			);
 			sourceTree = "<group>";
 		};
-		0B509EBA2DD4E4B1002B59A6 /* Products */ = {
+		0B3CC9CC2DD4E87E00035536 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				0B509EB92DD4E4B1002B59A6 /* The Genius iOS app.app */,
-				0B509EC72DD4E4B3002B59A6 /* The Genius iOS appTests.xctest */,
-				0B509ED12DD4E4B3002B59A6 /* The Genius iOS appUITests.xctest */,
+				0B3CC9CB2DD4E87E00035536 /* ios-app.app */,
+				0B3CC9D92DD4E87F00035536 /* ios-appTests.xctest */,
+				0B3CC9E32DD4E87F00035536 /* ios-appUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -95,134 +95,134 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		0B509EB82DD4E4B1002B59A6 /* The Genius iOS app */ = {
+		0B3CC9CA2DD4E87E00035536 /* ios-app */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 0B509EDB2DD4E4B3002B59A6 /* Build configuration list for PBXNativeTarget "The Genius iOS app" */;
+			buildConfigurationList = 0B3CC9ED2DD4E87F00035536 /* Build configuration list for PBXNativeTarget "ios-app" */;
 			buildPhases = (
-				0B509EB52DD4E4B1002B59A6 /* Sources */,
-				0B509EB62DD4E4B1002B59A6 /* Frameworks */,
-				0B509EB72DD4E4B1002B59A6 /* Resources */,
+				0B3CC9C72DD4E87E00035536 /* Sources */,
+				0B3CC9C82DD4E87E00035536 /* Frameworks */,
+				0B3CC9C92DD4E87E00035536 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				0B509EBB2DD4E4B1002B59A6 /* The Genius iOS app */,
+				0B3CC9CD2DD4E87E00035536 /* ios-app */,
 			);
-			name = "The Genius iOS app";
+			name = "ios-app";
 			packageProductDependencies = (
 			);
-			productName = "The Genius iOS app";
-			productReference = 0B509EB92DD4E4B1002B59A6 /* The Genius iOS app.app */;
+			productName = "ios-app";
+			productReference = 0B3CC9CB2DD4E87E00035536 /* ios-app.app */;
 			productType = "com.apple.product-type.application";
 		};
-		0B509EC62DD4E4B3002B59A6 /* The Genius iOS appTests */ = {
+		0B3CC9D82DD4E87F00035536 /* ios-appTests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 0B509EDE2DD4E4B3002B59A6 /* Build configuration list for PBXNativeTarget "The Genius iOS appTests" */;
+			buildConfigurationList = 0B3CC9F02DD4E87F00035536 /* Build configuration list for PBXNativeTarget "ios-appTests" */;
 			buildPhases = (
-				0B509EC32DD4E4B3002B59A6 /* Sources */,
-				0B509EC42DD4E4B3002B59A6 /* Frameworks */,
-				0B509EC52DD4E4B3002B59A6 /* Resources */,
+				0B3CC9D52DD4E87F00035536 /* Sources */,
+				0B3CC9D62DD4E87F00035536 /* Frameworks */,
+				0B3CC9D72DD4E87F00035536 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				0B509EC92DD4E4B3002B59A6 /* PBXTargetDependency */,
+				0B3CC9DB2DD4E87F00035536 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				0B509ECA2DD4E4B3002B59A6 /* The Genius iOS appTests */,
+				0B3CC9DC2DD4E87F00035536 /* ios-appTests */,
 			);
-			name = "The Genius iOS appTests";
+			name = "ios-appTests";
 			packageProductDependencies = (
 			);
-			productName = "The Genius iOS appTests";
-			productReference = 0B509EC72DD4E4B3002B59A6 /* The Genius iOS appTests.xctest */;
+			productName = "ios-appTests";
+			productReference = 0B3CC9D92DD4E87F00035536 /* ios-appTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		0B509ED02DD4E4B3002B59A6 /* The Genius iOS appUITests */ = {
+		0B3CC9E22DD4E87F00035536 /* ios-appUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 0B509EE12DD4E4B3002B59A6 /* Build configuration list for PBXNativeTarget "The Genius iOS appUITests" */;
+			buildConfigurationList = 0B3CC9F32DD4E87F00035536 /* Build configuration list for PBXNativeTarget "ios-appUITests" */;
 			buildPhases = (
-				0B509ECD2DD4E4B3002B59A6 /* Sources */,
-				0B509ECE2DD4E4B3002B59A6 /* Frameworks */,
-				0B509ECF2DD4E4B3002B59A6 /* Resources */,
+				0B3CC9DF2DD4E87F00035536 /* Sources */,
+				0B3CC9E02DD4E87F00035536 /* Frameworks */,
+				0B3CC9E12DD4E87F00035536 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				0B509ED32DD4E4B3002B59A6 /* PBXTargetDependency */,
+				0B3CC9E52DD4E87F00035536 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				0B509ED42DD4E4B3002B59A6 /* The Genius iOS appUITests */,
+				0B3CC9E62DD4E87F00035536 /* ios-appUITests */,
 			);
-			name = "The Genius iOS appUITests";
+			name = "ios-appUITests";
 			packageProductDependencies = (
 			);
-			productName = "The Genius iOS appUITests";
-			productReference = 0B509ED12DD4E4B3002B59A6 /* The Genius iOS appUITests.xctest */;
+			productName = "ios-appUITests";
+			productReference = 0B3CC9E32DD4E87F00035536 /* ios-appUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		0B509EB12DD4E4B1002B59A6 /* Project object */ = {
+		0B3CC9C32DD4E87E00035536 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
 				LastSwiftUpdateCheck = 1630;
 				LastUpgradeCheck = 1630;
 				TargetAttributes = {
-					0B509EB82DD4E4B1002B59A6 = {
+					0B3CC9CA2DD4E87E00035536 = {
 						CreatedOnToolsVersion = 16.3;
 					};
-					0B509EC62DD4E4B3002B59A6 = {
+					0B3CC9D82DD4E87F00035536 = {
 						CreatedOnToolsVersion = 16.3;
-						TestTargetID = 0B509EB82DD4E4B1002B59A6;
+						TestTargetID = 0B3CC9CA2DD4E87E00035536;
 					};
-					0B509ED02DD4E4B3002B59A6 = {
+					0B3CC9E22DD4E87F00035536 = {
 						CreatedOnToolsVersion = 16.3;
-						TestTargetID = 0B509EB82DD4E4B1002B59A6;
+						TestTargetID = 0B3CC9CA2DD4E87E00035536;
 					};
 				};
 			};
-			buildConfigurationList = 0B509EB42DD4E4B1002B59A6 /* Build configuration list for PBXProject "The Genius iOS app" */;
+			buildConfigurationList = 0B3CC9C62DD4E87E00035536 /* Build configuration list for PBXProject "ios-app" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
 				Base,
 			);
-			mainGroup = 0B509EB02DD4E4B1002B59A6;
+			mainGroup = 0B3CC9C22DD4E87E00035536;
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 0B509EBA2DD4E4B1002B59A6 /* Products */;
+			productRefGroup = 0B3CC9CC2DD4E87E00035536 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				0B509EB82DD4E4B1002B59A6 /* The Genius iOS app */,
-				0B509EC62DD4E4B3002B59A6 /* The Genius iOS appTests */,
-				0B509ED02DD4E4B3002B59A6 /* The Genius iOS appUITests */,
+				0B3CC9CA2DD4E87E00035536 /* ios-app */,
+				0B3CC9D82DD4E87F00035536 /* ios-appTests */,
+				0B3CC9E22DD4E87F00035536 /* ios-appUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		0B509EB72DD4E4B1002B59A6 /* Resources */ = {
+		0B3CC9C92DD4E87E00035536 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		0B509EC52DD4E4B3002B59A6 /* Resources */ = {
+		0B3CC9D72DD4E87F00035536 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		0B509ECF2DD4E4B3002B59A6 /* Resources */ = {
+		0B3CC9E12DD4E87F00035536 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -232,21 +232,21 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		0B509EB52DD4E4B1002B59A6 /* Sources */ = {
+		0B3CC9C72DD4E87E00035536 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		0B509EC32DD4E4B3002B59A6 /* Sources */ = {
+		0B3CC9D52DD4E87F00035536 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		0B509ECD2DD4E4B3002B59A6 /* Sources */ = {
+		0B3CC9DF2DD4E87F00035536 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -256,20 +256,20 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		0B509EC92DD4E4B3002B59A6 /* PBXTargetDependency */ = {
+		0B3CC9DB2DD4E87F00035536 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 0B509EB82DD4E4B1002B59A6 /* The Genius iOS app */;
-			targetProxy = 0B509EC82DD4E4B3002B59A6 /* PBXContainerItemProxy */;
+			target = 0B3CC9CA2DD4E87E00035536 /* ios-app */;
+			targetProxy = 0B3CC9DA2DD4E87F00035536 /* PBXContainerItemProxy */;
 		};
-		0B509ED32DD4E4B3002B59A6 /* PBXTargetDependency */ = {
+		0B3CC9E52DD4E87F00035536 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 0B509EB82DD4E4B1002B59A6 /* The Genius iOS app */;
-			targetProxy = 0B509ED22DD4E4B3002B59A6 /* PBXContainerItemProxy */;
+			target = 0B3CC9CA2DD4E87E00035536 /* ios-app */;
+			targetProxy = 0B3CC9E42DD4E87F00035536 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		0B509ED92DD4E4B3002B59A6 /* Debug */ = {
+		0B3CC9EB2DD4E87F00035536 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -331,7 +331,7 @@
 			};
 			name = Debug;
 		};
-		0B509EDA2DD4E4B3002B59A6 /* Release */ = {
+		0B3CC9EC2DD4E87F00035536 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -385,12 +385,12 @@
 			};
 			name = Release;
 		};
-		0B509EDC2DD4E4B3002B59A6 /* Debug */ = {
+		0B3CC9EE2DD4E87F00035536 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "The Genius iOS app/The_Genius_iOS_app.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "ios-app/ios_app.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U5K7LFH3Y5;
@@ -412,7 +412,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "ggugger.The-Genius-iOS-app";
+				PRODUCT_BUNDLE_IDENTIFIER = "ggugger.ios-app";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -424,12 +424,12 @@
 			};
 			name = Debug;
 		};
-		0B509EDD2DD4E4B3002B59A6 /* Release */ = {
+		0B3CC9EF2DD4E87F00035536 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = "The Genius iOS app/The_Genius_iOS_app.entitlements";
+				CODE_SIGN_ENTITLEMENTS = "ios-app/ios_app.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = U5K7LFH3Y5;
@@ -451,7 +451,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 15.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "ggugger.The-Genius-iOS-app";
+				PRODUCT_BUNDLE_IDENTIFIER = "ggugger.ios-app";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -463,7 +463,7 @@
 			};
 			name = Release;
 		};
-		0B509EDF2DD4E4B3002B59A6 /* Debug */ = {
+		0B3CC9F12DD4E87F00035536 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -474,19 +474,19 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
 				MACOSX_DEPLOYMENT_TARGET = 15.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "ggugger.The-Genius-iOS-appTests";
+				PRODUCT_BUNDLE_IDENTIFIER = "ggugger.ios-appTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/The Genius iOS app.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/The Genius iOS app";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ios-app.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ios-app";
 				XROS_DEPLOYMENT_TARGET = 2.4;
 			};
 			name = Debug;
 		};
-		0B509EE02DD4E4B3002B59A6 /* Release */ = {
+		0B3CC9F22DD4E87F00035536 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
@@ -497,19 +497,19 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
 				MACOSX_DEPLOYMENT_TARGET = 15.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "ggugger.The-Genius-iOS-appTests";
+				PRODUCT_BUNDLE_IDENTIFIER = "ggugger.ios-appTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/The Genius iOS app.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/The Genius iOS app";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ios-app.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ios-app";
 				XROS_DEPLOYMENT_TARGET = 2.4;
 			};
 			name = Release;
 		};
-		0B509EE22DD4E4B3002B59A6 /* Debug */ = {
+		0B3CC9F42DD4E87F00035536 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -519,19 +519,19 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
 				MACOSX_DEPLOYMENT_TARGET = 15.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "ggugger.The-Genius-iOS-appUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = "ggugger.ios-appUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_TARGET_NAME = "The Genius iOS app";
+				TEST_TARGET_NAME = "ios-app";
 				XROS_DEPLOYMENT_TARGET = 2.4;
 			};
 			name = Debug;
 		};
-		0B509EE32DD4E4B3002B59A6 /* Release */ = {
+		0B3CC9F52DD4E87F00035536 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
@@ -541,14 +541,14 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 18.4;
 				MACOSX_DEPLOYMENT_TARGET = 15.4;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "ggugger.The-Genius-iOS-appUITests";
+				PRODUCT_BUNDLE_IDENTIFIER = "ggugger.ios-appUITests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
-				TEST_TARGET_NAME = "The Genius iOS app";
+				TEST_TARGET_NAME = "ios-app";
 				XROS_DEPLOYMENT_TARGET = 2.4;
 			};
 			name = Release;
@@ -556,43 +556,43 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		0B509EB42DD4E4B1002B59A6 /* Build configuration list for PBXProject "The Genius iOS app" */ = {
+		0B3CC9C62DD4E87E00035536 /* Build configuration list for PBXProject "ios-app" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				0B509ED92DD4E4B3002B59A6 /* Debug */,
-				0B509EDA2DD4E4B3002B59A6 /* Release */,
+				0B3CC9EB2DD4E87F00035536 /* Debug */,
+				0B3CC9EC2DD4E87F00035536 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		0B509EDB2DD4E4B3002B59A6 /* Build configuration list for PBXNativeTarget "The Genius iOS app" */ = {
+		0B3CC9ED2DD4E87F00035536 /* Build configuration list for PBXNativeTarget "ios-app" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				0B509EDC2DD4E4B3002B59A6 /* Debug */,
-				0B509EDD2DD4E4B3002B59A6 /* Release */,
+				0B3CC9EE2DD4E87F00035536 /* Debug */,
+				0B3CC9EF2DD4E87F00035536 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		0B509EDE2DD4E4B3002B59A6 /* Build configuration list for PBXNativeTarget "The Genius iOS appTests" */ = {
+		0B3CC9F02DD4E87F00035536 /* Build configuration list for PBXNativeTarget "ios-appTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				0B509EDF2DD4E4B3002B59A6 /* Debug */,
-				0B509EE02DD4E4B3002B59A6 /* Release */,
+				0B3CC9F12DD4E87F00035536 /* Debug */,
+				0B3CC9F22DD4E87F00035536 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		0B509EE12DD4E4B3002B59A6 /* Build configuration list for PBXNativeTarget "The Genius iOS appUITests" */ = {
+		0B3CC9F32DD4E87F00035536 /* Build configuration list for PBXNativeTarget "ios-appUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				0B509EE22DD4E4B3002B59A6 /* Debug */,
-				0B509EE32DD4E4B3002B59A6 /* Release */,
+				0B3CC9F42DD4E87F00035536 /* Debug */,
+				0B3CC9F52DD4E87F00035536 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = 0B509EB12DD4E4B1002B59A6 /* Project object */;
+	rootObject = 0B3CC9C32DD4E87E00035536 /* Project object */;
 }

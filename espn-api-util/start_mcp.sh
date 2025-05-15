@@ -4,7 +4,7 @@ export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 # start_mcp.sh
 
 # 1) Go to the repo
-cd /Users/geraldgugger/code/gg_espn_fb
+cd /Users/geraldgugger/code/the-genius/espn-api-util
 
 # 2) Activate your virtualenv
 source .venv/bin/activate
