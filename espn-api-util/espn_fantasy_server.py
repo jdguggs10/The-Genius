@@ -20,11 +20,17 @@ try:
     mcp = FastMCP("espn-fantasy", dependancies=['espn-api'])
 
     # Constants
-    CURRENT_YEAR = datetime.datetime.now().year
-    if datetime.datetime.now().month < 7:  # If before July, use previous year
-        CURRENT_YEAR -= 1
+    current_date = datetime.datetime.now()
+    # Football season typically ends in February, new season starts in September
+    # So use previous year before July
+    FOOTBALL_YEAR = current_date.year if current_date.month >= 7 else current_date.year - 1
+    # Baseball season runs spring to fall within the same calendar year
+    # Almost always use current year except maybe in January/February
+    BASEBALL_YEAR = current_date.year
+    # Default to football for backward compatibility
+    CURRENT_YEAR = FOOTBALL_YEAR  # Keep for backwards compatibility
 
-    log_error(f"Using fantasy sports year: {CURRENT_YEAR}")
+    log_error(f"Using default years: Football={FOOTBALL_YEAR}, Baseball={BASEBALL_YEAR}")
 
     class ESPNFantasyAPI:
         def __init__(self):
@@ -32,8 +38,17 @@ try:
             # Store credentials separately per-session rather than globally
             self.credentials = {}
         
-        def get_league(self, session_id, league_id, year=CURRENT_YEAR, sport="football"):
+        def get_league(self, session_id, league_id, year=None, sport="football"):
             """Get a league instance with caching, using stored credentials if available"""
+            # Determine which year to use if none specified
+            if year is None:
+                if sport == "football":
+                    year = FOOTBALL_YEAR
+                elif sport == "baseball":
+                    year = BASEBALL_YEAR
+                else:
+                    year = CURRENT_YEAR  # Fallback
+                    
             key = f"{sport}_{league_id}_{year}"
             
             # Check if we have credentials for this session
@@ -101,16 +116,16 @@ try:
             return f"Authentication error: {str(e)}"
 
     @mcp.tool()
-    async def get_league_info(league_id: int, year: int = CURRENT_YEAR, sport: str = "football") -> str:
+    async def get_league_info(league_id: int, year: int = None, sport: str = "football") -> str:
         """Get basic information about a fantasy sports league.
         
         Args:
             league_id: The ESPN fantasy league ID
-            year: Optional year for historical data (defaults to current season)
+            year: Optional year for historical data (defaults to current season based on sport)
             sport: Sport type (football or baseball, defaults to football)
         """
         try:
-            log_error(f"Getting {sport} league info for league {league_id}, year {year}")
+            log_error(f"Getting {sport} league info for league {league_id}, year {year if year else 'current'}")
             # Get league using stored credentials
             league = api.get_league(SESSION_ID, league_id, year, sport)
             
@@ -137,17 +152,17 @@ try:
             return f"Error retrieving {sport} league: {str(e)}"
 
     @mcp.tool()
-    async def get_team_roster(league_id: int, team_id: int, year: int = CURRENT_YEAR, sport: str = "football") -> str:
+    async def get_team_roster(league_id: int, team_id: int, year: int = None, sport: str = "football") -> str:
         """Get a team's current roster.
         
         Args:
             league_id: The ESPN fantasy league ID
             team_id: The team ID in the league (usually 1-12)
-            year: Optional year for historical data (defaults to current season)
+            year: Optional year for historical data (defaults to current season based on sport)
             sport: Sport type (football or baseball, defaults to football)
         """
         try:
-            log_error(f"Getting {sport} team roster for league {league_id}, team {team_id}, year {year}")
+            log_error(f"Getting {sport} team roster for league {league_id}, team {team_id}, year {year if year else 'current'}")
             # Get league using stored credentials
             league = api.get_league(SESSION_ID, league_id, year, sport)
             
@@ -192,17 +207,17 @@ try:
             return f"Error retrieving {sport} team roster: {str(e)}"
         
     @mcp.tool()
-    async def get_team_info(league_id: int, team_id: int, year: int = CURRENT_YEAR, sport: str = "football") -> str:
+    async def get_team_info(league_id: int, team_id: int, year: int = None, sport: str = "football") -> str:
         """Get a team's general information. Including points scored, transactions, etc.
         
         Args:
             league_id: The ESPN fantasy league ID
             team_id: The team ID in the league (usually 1-12)
-            year: Optional year for historical data (defaults to current season)
+            year: Optional year for historical data (defaults to current season based on sport)
             sport: Sport type (football or baseball, defaults to football)
         """
         try:
-            log_error(f"Getting {sport} team info for league {league_id}, team {team_id}, year {year}")
+            log_error(f"Getting {sport} team info for league {league_id}, team {team_id}, year {year if year else 'current'}")
             # Get league using stored credentials
             league = api.get_league(SESSION_ID, league_id, year, sport)
 
@@ -244,17 +259,17 @@ try:
             return f"Error retrieving {sport} team info: {str(e)}"
 
     @mcp.tool()
-    async def get_player_stats(league_id: int, player_name: str, year: int = CURRENT_YEAR, sport: str = "football") -> str:
+    async def get_player_stats(league_id: int, player_name: str, year: int = None, sport: str = "football") -> str:
         """Get stats for a specific player.
         
         Args:
             league_id: The ESPN fantasy league ID
             player_name: Name of the player to search for
-            year: Optional year for historical data (defaults to current season)
+            year: Optional year for historical data (defaults to current season based on sport)
             sport: Sport type (football or baseball, defaults to football)
         """
         try:
-            log_error(f"Getting {sport} player stats for {player_name} in league {league_id}, year {year}")
+            log_error(f"Getting {sport} player stats for {player_name} in league {league_id}, year {year if year else 'current'}")
             # Get league using stored credentials
             league = api.get_league(SESSION_ID, league_id, year, sport)
             
@@ -300,16 +315,16 @@ try:
             return f"Error retrieving {sport} player stats: {str(e)}"
 
     @mcp.tool()
-    async def get_league_standings(league_id: int, year: int = CURRENT_YEAR, sport: str = "football") -> str:
+    async def get_league_standings(league_id: int, year: int = None, sport: str = "football") -> str:
         """Get current standings for a league.
         
         Args:
             league_id: The ESPN fantasy league ID
-            year: Optional year for historical data (defaults to current season)
+            year: Optional year for historical data (defaults to current season based on sport)
             sport: Sport type (football or baseball, defaults to football)
         """
         try:
-            log_error(f"Getting {sport} league standings for league {league_id}, year {year}")
+            log_error(f"Getting {sport} league standings for league {league_id}, year {year if year else 'current'}")
             # Get league using stored credentials
             league = api.get_league(SESSION_ID, league_id, year, sport)
             
@@ -358,17 +373,17 @@ try:
             return f"Error retrieving {sport} league standings: {str(e)}"
 
     @mcp.tool()
-    async def get_matchup_info(league_id: int, week: int = None, year: int = CURRENT_YEAR, sport: str = "football") -> str:
+    async def get_matchup_info(league_id: int, week: int = None, year: int = None, sport: str = "football") -> str:
         """Get matchup information for a specific week.
         
         Args:
             league_id: The ESPN fantasy league ID
             week: The week number (if None, uses current week)
-            year: Optional year for historical data (defaults to current season)
+            year: Optional year for historical data (defaults to current season based on sport)
             sport: Sport type (football or baseball, defaults to football)
         """
         try:
-            log_error(f"Getting {sport} matchup info for league {league_id}, week {week}, year {year}")
+            log_error(f"Getting {sport} matchup info for league {league_id}, week {week}, year {year if year else 'current'}")
             # Get league using stored credentials
             league = api.get_league(SESSION_ID, league_id, year, sport)
             
