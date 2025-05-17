@@ -1,0 +1,46 @@
+{
+    "folders": [
+        {
+            "path": ".."
+        }
+    ],
+    "settings": {
+        "terminal.integrated.defaultProfile.osx": "zsh",
+        "terminal.integrated.profiles.osx": {
+            "zsh": {
+                "path": "/bin/zsh",
+                "args": ["-l"]
+            }
+        }
+    },
+    "launch": {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "Start ESPN API Server",
+                "type": "node",
+                "request": "launch",
+                "preLaunchTask": "start-espn-server",
+                "cwd": "${workspaceFolder}/espn-api-util"
+            }
+        ]
+    },
+    "tasks": {
+        "version": "2.0.0",
+        "tasks": [
+            {
+                "label": "start-espn-server",
+                "type": "shell",
+                "command": "./start_mcp.sh",
+                "options": {
+                    "cwd": "${workspaceFolder}/espn-api-util"
+                },
+                "presentation": {
+                    "reveal": "always",
+                    "panel": "new"
+                },
+                "problemMatcher": []
+            }
+        ]
+    }
+} 
