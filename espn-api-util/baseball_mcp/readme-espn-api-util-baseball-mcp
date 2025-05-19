@@ -1,0 +1,242 @@
+# ESPN Fantasy Baseball MCP Server
+
+## Overview
+
+A specialized Model Context Protocol (MCP) server providing comprehensive access to ESPN Fantasy Baseball data. This modular, baseball-only server replaces the previous multi-sport version and follows a clean architectural design with separate modules for different aspects of fantasy baseball data.
+
+## Architecture
+
+The server is organized into focused modules, each handling a specific aspect of fantasy baseball:
+
+### Core Modules
+
+- **`auth.py`** - Authentication and session management
+- **`utils.py`** - League caching, serialization, and error handling  
+- **`metadata.py`** - ESPN constant mappings (positions, stats, activities)
+
+### Data Access Modules
+
+- **`league.py`** - League info, settings, standings, scoreboard
+- **`roster.py`** - Team rosters, info, and schedules
+- **`matchups.py`** - Weekly matchups and detailed box scores
+- **`transactions.py`** - Recent activity, trades, waivers, adds/drops
+- **`players.py`** - Player stats, free agents, search functionality
+- **`draft.py`** - Draft results and analysis
+
+### Main Server
+
+- **`baseball_mcp_server.py`** - FastMCP server that ties all modules together
+
+## Data Coverage
+
+This server provides complete access to all ESPN Fantasy Baseball data types:
+
+| Data Type | Coverage |
+|-----------|----------|
+| **League** | Info, settings, standings, scoreboard, free agents |
+| **Team** | Roster, schedule, record, transactions |
+| **Player** | Stats, projections, injury status, ownership |
+| **Matchups** | Weekly scores, detailed box scores, category breakdowns |
+| **Transactions** | Recent activity, adds, drops, trades, waivers |
+| **Draft** | Complete draft results, analysis, position scarcity |
+| **Metadata** | Position maps, stat IDs, activity types |
+
+## Installation & Setup
+
+### Prerequisites
+
+- Python 3.12 or higher
+- `uv` package manager
+- Claude Desktop (for the best MCP experience)
+
+### Setup Instructions
+
+1. **Create the baseball_mcp directory** in your existing espn-api-util folder:
+   ```bash
+   cd espn-api-util
+   mkdir baseball_mcp
+   ```
+
+2. **Copy all the module files** into the `baseball_mcp` directory:
+   - `auth.py`
+   - `utils.py` 
+   - `metadata.py`
+   - `league.py`
+   - `roster.py`
+   - `matchups.py`
+   - `transactions.py`
+   - `players.py`
+   - `draft.py`
+   - `baseball_mcp_server.py`
+
+3. **Copy the startup script** to the main espn-api-util directory:
+   - `start_baseball_mcp.sh`
+
+4. **Make the script executable**:
+   ```bash
+   chmod +x start_baseball_mcp.sh
+   ```
+
+5. **Install dependencies** (if not already done):
+   ```bash
+   uv pip install -e .
+   ```
+
+### Running the Server
+
+#### Option 1: Direct execution
+```bash
+cd espn-api-util
+./start_baseball_mcp.sh
+```
+
+#### Option 2: From the baseball_mcp directory
+```bash
+cd espn-api-util/baseball_mcp
+source ../.venv/bin/activate
+python3 baseball_mcp_server.py
+```
+
+## Available Tools
+
+The server exposes comprehensive tools organized by functionality:
+
+### Authentication
+- `auth_store_credentials` - Store ESPN S2 and SWID cookies
+- `auth_logout` - Clear stored credentials
+
+### League Data
+- `league_get_info` - Basic league information
+- `league_get_settings` - Detailed league configuration
+- `league_get_standings` - Current standings
+- `league_get_scoreboard` - Weekly matchup overview
+
+### Team Data
+- `team_get_roster` - Detailed roster with player info
+- `team_get_info` - Team metadata and stats
+- `team_get_schedule` - Full season schedule and results
+
+### Matchup Data
+- `matchup_get_week_results` - High-level weekly results
+- `matchup_get_boxscore` - Detailed box score with player-by-player breakdown
+
+### Transaction Data
+- `transaction_get_recent_activity` - All recent transactions
+- `transaction_get_waiver_activity` - Waiver wire moves
+- `transaction_get_trade_activity` - Trade activity
+- `transaction_get_add_drop_activity` - Adds and drops
+- `transaction_get_team_transactions` - Team-specific transactions
+- `transaction_get_player_history` - Player transaction history
+
+### Player Data
+- `player_get_stats` - Individual player statistics
+- `player_get_free_agents` - Available free agents with filtering
+- `player_get_top_performers` - League-wide performance rankings
+- `player_search` - Search players by name
+
+### Draft Data
+- `draft_get_results` - Complete draft results
+- `draft_get_round` - Specific round picks
+- `draft_get_team_picks` - Team's draft picks
+- `draft_get_analysis` - Draft statistics and insights
+- `draft_get_scarcity_analysis` - Position scarcity analysis
+
+### Metadata
+- `metadata_get_positions` - Position ID mappings
+- `metadata_get_stats` - Stat ID mappings
+- `metadata_get_activity_types` - Activity type mappings
+
+## Claude Desktop Integration
+
+Update your Claude Desktop configuration to use the new baseball server:
+
+**macOS:** `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "espn-baseball": {
+      "command": "/path/to/espn-api-util/start_baseball_mcp.sh"
+    }
+  }
+}
+```
+
+## Usage Examples
+
+### Basic League Information
+```
+Get info about league 123456:
+league_get_info(league_id=123456)
+```
+
+### Team Analysis
+```
+Get team 1's roster:
+team_get_roster(league_id=123456, team_id=1)
+
+Check their recent transactions:
+transaction_get_team_transactions(league_id=123456, team_id=1)
+```
+
+### Player Research
+```
+Find free agent catchers:
+player_get_free_agents(league_id=123456, position="C", limit=20)
+
+Search for a specific player:
+player_search(league_id=123456, search_term="Mike Trout")
+```
+
+### Matchup Analysis
+```
+Get this week's results:
+matchup_get_week_results(league_id=123456)
+
+Detailed box score for a specific matchup:
+matchup_get_boxscore(league_id=123456, week=10, home_team_id=1)
+```
+
+### Draft Analysis
+```
+Review the full draft:
+draft_get_results(league_id=123456)
+
+Analyze position scarcity:
+draft_get_scarcity_analysis(league_id=123456)
+```
+
+## Authentication
+
+For private leagues, authenticate first:
+```
+Store credentials:
+auth_store_credentials(espn_s2="AEBxxxxxxxxx", swid="{XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}")
+
+Clear when done:
+auth_logout()
+```
+
+## Benefits of the Modular Architecture
+
+1. **Maintainability** - Each module has a single responsibility
+2. **Extensibility** - Easy to add new features or modify existing ones
+3. **Testability** - Modules can be tested independently
+4. **Clarity** - Clean separation of concerns
+5. **Reusability** - Modules can be reused in other contexts
+
+## Migrating from the Old Server
+
+The new modular server provides all the functionality of the original `espn_fantasy_server.py` but with:
+
+- Better organization and code structure
+- More comprehensive data access
+- Enhanced error handling
+- Complete ESPN API coverage
+- Baseball-focused optimization
+
+Simply update your Claude Desktop config to point to the new `start_baseball_mcp.sh` script and you'll have access to all the improved functionality.
+
+## License
+
+MIT License - see the original LICENSE file for details.
