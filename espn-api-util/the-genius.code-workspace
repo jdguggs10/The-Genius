@@ -40,6 +40,18 @@
                     "panel": "new"
                 },
                 "problemMatcher": []
+            },
+            {
+                "label": "start-baseball-server",
+                "type": "shell",
+                "command": "./start_baseball_mcp.sh",
+                "options": {
+                    "cwd": "${workspaceFolder}/espn-api-util"
+                },
+                "presentation": {
+                    "reveal": "always",
+                    "panel": "new"
+                }
             }
         ]
     }
