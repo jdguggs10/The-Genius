@@ -5,6 +5,64 @@ from app.services.openai_client import get_response  # Only import the new funct
 
 app = FastAPI()
 
+from fastapi.middleware.cors import CORSMiddleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
+from fastapi.responses import HTMLResponse
+
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    """Provides a welcome page with information about how to use the API."""
+    return """
+    <html>
+        <head>
+            <title>Fantasy AI Backend</title>
+            <style>
+                body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; }
+                h1 { color: #4a4a4a; }
+                code { background-color: #f4f4f4; padding: 2px 5px; border-radius: 3px; }
+                pre { background-color: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto; }
+                .endpoint { margin-bottom: 30px; border-left: 4px solid #0366d6; padding-left: 15px; }
+            </style>
+        </head>
+        <body>
+            <h1>Fantasy AI Backend</h1>
+            <p>Welcome to the Fantasy AI Backend API. This API provides AI-powered fantasy sports advice using OpenAI's GPT-4.1.</p>
+            
+            <h2>API Endpoints:</h2>
+            
+            <div class="endpoint">
+                <h3>POST /advice</h3>
+                <p>Get AI advice using the default GPT-4.1 model.</p>
+                <h4>Example Request:</h4>
+                <pre>
+curl -X POST "http://localhost:8000/advice" \\
+  -H "Content-Type: application/json" \\
+  -d '{"conversation":[{"role":"user","content":"Which quarterback should I start this week?"}]}'
+                </pre>
+            </div>
+            
+            <div class="endpoint">
+                <h3>POST /custom-advice</h3>
+                <p>Get AI advice with a specified model.</p>
+                <h4>Example Request:</h4>
+                <pre>
+curl -X POST "http://localhost:8000/custom-advice?model=gpt-4o" \\
+  -H "Content-Type: application/json" \\
+  -d '{"conversation":[{"role":"user","content":"Should I trade for Christian McCaffrey?"}]}'
+                </pre>
+            </div>
+            
+            <p>For more information, check the <a href="/docs">API documentation</a>.</p>
+        </body>
+    </html>
+    """
 
 @app.post("/advice", response_model=AdviceResponse)
 async def get_advice(body: AdviceRequest) -> AdviceResponse:
