@@ -18,15 +18,23 @@ async def get_advice(body: AdviceRequest) -> AdviceResponse:
     # Get the model name if specified in the request, otherwise use default (gpt-4.1)
     model_name = body.model if body.model else "gpt-4.1"
     
+    # Check if web search is enabled for this request
+    enable_web_search = body.enable_web_search if hasattr(body, 'enable_web_search') else False
+    
     # Call the helper function with the specified model
-    reply, model_used = get_response(body.conversation[-1].content, model=model_name)
+    reply, model_used = get_response(
+        prompt=body.conversation[-1].content, 
+        model=model_name,
+        enable_web_search=enable_web_search
+    )
     return AdviceResponse(reply=reply, model=model_used)
 
 
 @app.post("/custom-advice", response_model=AdviceResponse)
 async def get_custom_advice(
     body: AdviceRequest, 
-    model: str = Query("gpt-4.1", description="OpenAI model to use (e.g., gpt-4.1)")
+    model: str = Query("gpt-4.1", description="OpenAI model to use (e.g., gpt-4.1)"),
+    enable_web_search: bool = Query(False, description="Enable web search capability")
 ) -> AdviceResponse:
     """
     Similar to /advice but allows specifying which OpenAI model to use.
@@ -34,7 +42,12 @@ async def get_custom_advice(
     • Expects `AdviceRequest` with a `conversation` list.
     • Uses the last user message as the prompt.
     • Allows specifying the model via query parameter.
+    • Allows enabling web search via query parameter.
     • Returns an `AdviceResponse` with the model's reply.
     """
-    reply, model_used = get_response(body.conversation[-1].content, model=model)
+    reply, model_used = get_response(
+        prompt=body.conversation[-1].content, 
+        model=model,
+        enable_web_search=enable_web_search
+    )
     return AdviceResponse(reply=reply, model=model_used)

@@ -9,6 +9,7 @@ class AdviceRequest(BaseModel):
     conversation: List[Message]
     players: list[str] | None = None
     model: Optional[str] = None  # Optional model specification
+    enable_web_search: Optional[bool] = False  # Option to enable web search
 
 class AdviceResponse(BaseModel):
     reply: str
