@@ -1,8 +1,12 @@
 import os
+from dotenv import load_dotenv
 from openai import OpenAI
 from typing import Tuple
  
 import logging
+
+# Load environment variables from .env file
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 
@@ -59,3 +63,16 @@ def get_response(
     
     # Extract the text response from the Responses API
     return resp.output_text, actual_model
+
+if __name__ == "__main__":
+    system_prompt = os.getenv("SYSTEM_PROMPT", "You are a helpful assistant.")
+    print("Starting chat. Type 'exit' to quit.")
+    while True:
+        user_input = input("You: ")
+        if user_input.lower() == "exit":
+            break
+        response_text, used_model = get_response(
+            prompt=user_input,
+            instructions=system_prompt
+        )
+        print(f"Bot ({used_model}): {response_text}")
