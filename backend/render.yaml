@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: genius-backend
+    runtime: docker
+    region: oregon
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /docs
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: genius-redis
+          property: connectionString
+    autoDeploy: true
+
+  - type: redis
+    name: genius-redis
+    plan: free

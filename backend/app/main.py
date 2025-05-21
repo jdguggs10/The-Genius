@@ -1,9 +1,22 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Depends
+from fastapi_limiter import FastAPILimiter, RateLimiter
+import redis.asyncio as redis
+import os
 
 from app.models import AdviceRequest, AdviceResponse
-from app.services.openai_client import get_response  # Only import the new function
+from app.services.openai_client import get_response
 
 app = FastAPI()
+
+@app.on_event("startup")
+async def startup():
+    # Connect to Redis on startup
+    redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
+    r = redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
+    await FastAPILimiter.init(r, prefix="rl")
+
+# Define rate limiter: 5 requests per day
+daily = RateLimiter(times=5, seconds=86_400)  # 86,400 seconds = 24 hours
 
 from fastapi.middleware.cors import CORSMiddleware
 app.add_middleware(
@@ -64,7 +77,7 @@ curl -X POST "http://localhost:8000/custom-advice?model=gpt-4o" \\
     </html>
     """
 
-@app.post("/advice", response_model=AdviceResponse)
+@app.post("/advice", response_model=AdviceResponse, dependencies=[Depends(daily)])
 async def get_advice(body: AdviceRequest) -> AdviceResponse:
     """
     Echoes advice back from the OpenAI Responses API using GPT-4.1.
@@ -88,7 +101,7 @@ async def get_advice(body: AdviceRequest) -> AdviceResponse:
     return AdviceResponse(reply=reply, model=model_used)
 
 
-@app.post("/custom-advice", response_model=AdviceResponse)
+@app.post("/custom-advice", response_model=AdviceResponse, dependencies=[Depends(daily)])
 async def get_custom_advice(
     body: AdviceRequest, 
     model: str = Query("gpt-4.1", description="OpenAI model to use (e.g., gpt-4.1)"),
