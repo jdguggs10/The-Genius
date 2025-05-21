@@ -19,3 +19,4 @@ services:
   - type: redis
     name: genius-redis
     plan: free
+    ipAllowList: []
