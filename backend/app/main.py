@@ -160,7 +160,7 @@ async def get_custom_advice(
     body: AdviceRequest, 
     model: str = Query("gpt-4.1", description="OpenAI model to use"),
     enable_web_search: bool = Query(False, description="Enable web search capability"),
-    rate_limit: None = Depends(daily_limit)
+    # rate_limit: None = Depends(daily_limit)
 ) -> AdviceResponse:
     """
     Get AI advice with custom model and settings
