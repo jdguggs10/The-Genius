@@ -1,9 +1,6 @@
-from fastapi import FastAPI, Query, Depends, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
-from fastapi_limiter import FastAPILimiter
-from fastapi_limiter.depends import RateLimiter
-import redis.asyncio as redis
 import os
 import logging
 import psutil
@@ -17,57 +14,41 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="The Genius Backend",
-    description="AI-powered fantasy advice using OpenAI's GPT-4.1",
+    title="Fantasy AI Backend",
+    description="AI-powered fantasy sports advice using OpenAI's GPT-4.1",
     version="1.0.0"
 )
 
-# CORS middleware - allows your web app to talk to your backend
+# CORS middleware with very permissive settings for debugging
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://genius-frontend-updy.onrender.com",  # Your actual frontend URL
-        "http://localhost:5173",  # For local development
-        "http://localhost:3000",  # Alternative local port
-        "*"  # Allow all for now - you can restrict this later
-    ],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=[
-        "Accept",
-        "Accept-Language",
-        "Content-Language",
-        "Content-Type",
-        "Authorization",
-        "X-Requested-With"
-    ],
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=False,  # Must be False when allow_origins=["*"]
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
 )
 
+# Add manual CORS headers to all responses
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
+
+# Handle all OPTIONS requests
 @app.options("/{full_path:path}")
-async def options_handler(full_path: str):
-    """Handle CORS preflight requests"""
-    return {"message": "OK"}
-
-#@app.on_event("startup")
-#async def startup():
-#    """Initialize Redis connection for rate limiting when the app starts"""
-#    try:
-        # Try to connect to Redis (for rate limiting)
-#        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
-#        logger.info(f"Attempting to connect to Redis at: {redis_url}")
-#        r = redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
-#        await FastAPILimiter.init(r, prefix="rl")
-#        logger.info("Redis connected successfully for rate limiting")
-#    except Exception as e:
-#        logger.warning(f"Redis connection failed: {e} - rate limiting disabled")
-#        logger.warning(f"REDIS_URL environment variable: {os.environ.get('REDIS_URL', 'not set')}")
-        # Set a flag to indicate rate limiting is disabled
-#        app.state.rate_limiting_enabled = False
-#    else:
-#        app.state.rate_limiting_enabled = True
-
-# Rate limiter: 5 requests per day per IP
-#daily_limit = RateLimiter(times=5, seconds=86_400)  # 86,400 seconds = 24 hours
+async def options_handler(request: Request, full_path: str):
+    """Handle all CORS preflight requests"""
+    return Response(
+        status_code=200,
+        headers={
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -113,9 +94,7 @@ async def health_check():
                 "memory_usage": f"{psutil.Process().memory_info().rss / 1024 / 1024:.2f} MB",
                 "cpu_percent": psutil.Process().cpu_percent(),
             },
-            "redis": {
-                "connected": app.state.rate_limiting_enabled if hasattr(app.state, 'rate_limiting_enabled') else False
-            }
+            "cors_enabled": True
         }
         logger.info(f"Health check response: {system_info}")
         return system_info
@@ -129,10 +108,7 @@ async def healthz_check():
     return await health_check()
 
 @app.post("/advice")
-async def get_advice(
-    body: AdviceRequest, 
-    # rate_limit: None = Depends(daily_limit)
-) -> AdviceResponse:
+async def get_advice(body: AdviceRequest) -> AdviceResponse:
     """
     Get AI-powered fantasy sports advice
     
@@ -140,15 +116,19 @@ async def get_advice(
     1. Takes a user's question about fantasy sports
     2. Sends it to OpenAI's GPT-4.1
     3. Returns the AI's response
-    4. Limits users to 5 requests per day
     """
     try:
+        logger.info("=== ADVICE REQUEST RECEIVED ===")
+        logger.info(f"Request body: {body}")
+        
         # Get the user's question (last message in conversation)
         if not body.conversation:
+            logger.error("No conversation provided")
             raise HTTPException(status_code=400, detail="No conversation provided")
         
         user_question = body.conversation[-1].content
         if not user_question.strip():
+            logger.error("Empty question provided")
             raise HTTPException(status_code=400, detail="Empty question provided")
         
         # Use specified model or default to GPT-4.1
@@ -159,6 +139,14 @@ async def get_advice(
         
         logger.info(f"Processing request with model: {model_name}, web_search: {enable_web_search}")
         
+        # Check if OpenAI API key is available
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            logger.error("OPENAI_API_KEY not found in environment variables")
+            raise HTTPException(status_code=500, detail="OpenAI API key not configured")
+        
+        logger.info("OpenAI API key found, calling get_response...")
+        
         # Get response from OpenAI
         reply, model_used = get_response(
             prompt=user_question, 
@@ -166,18 +154,26 @@ async def get_advice(
             enable_web_search=enable_web_search
         )
         
-        return AdviceResponse(reply=reply, model=model_used)
+        logger.info(f"Got response from OpenAI: {reply[:100]}...")  # Log first 100 chars
+        logger.info(f"Model used: {model_used}")
+        
+        response = AdviceResponse(reply=reply, model=model_used)
+        logger.info(f"Returning response: {response}")
+        
+        return response
         
     except Exception as e:
         logger.error(f"Error processing advice request: {str(e)}")
+        logger.error(f"Exception type: {type(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
 
 @app.post("/custom-advice")
 async def get_custom_advice(
     body: AdviceRequest, 
     model: str = Query("gpt-4.1", description="OpenAI model to use"),
-    enable_web_search: bool = Query(False, description="Enable web search capability"),
-    # rate_limit: None = Depends(daily_limit)
+    enable_web_search: bool = Query(False, description="Enable web search capability")
 ) -> AdviceResponse:
     """
     Get AI advice with custom model and settings
@@ -203,11 +199,6 @@ async def get_custom_advice(
     except Exception as e:
         logger.error(f"Error processing custom advice request: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
-
-# Handle rate limit exceeded
-@app.exception_handler(429)
-async def rate_limit_handler(request, exc):
-    return {"error": "Daily limit of 5 messages exceeded. Please try again tomorrow or download our iOS app for unlimited access."}
 
 if __name__ == "__main__":
     import uvicorn
