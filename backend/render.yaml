@@ -1,7 +1,7 @@
 services:
   # Your backend API server
   - type: web
-    name: genius-backend
+    name: the-genius
     runtime: docker
     region: oregon  # You can change this to a region closer to you
     plan: free      # Free tier - perfect for getting started
