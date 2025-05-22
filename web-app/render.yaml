@@ -1,5 +1,5 @@
 services:
-- type: static
+- type: web
   name: genius-frontend
   buildCommand: npm install && npm run build
   staticPublishPath: dist
