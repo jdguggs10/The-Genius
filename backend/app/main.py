@@ -6,6 +6,8 @@ from fastapi_limiter.depends import RateLimiter
 import redis.asyncio as redis
 import os
 import logging
+import psutil
+import platform
 
 from app.models import AdviceRequest, AdviceResponse
 from app.services.openai_client import get_response
@@ -82,8 +84,27 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Simple health check endpoint"""
-    return {"status": "healthy", "message": "Backend is running"}
+    """Enhanced health check endpoint with system information"""
+    try:
+        # Get system information
+        system_info = {
+            "status": "healthy",
+            "message": "Backend is running",
+            "system": {
+                "platform": platform.platform(),
+                "python_version": platform.python_version(),
+                "memory_usage": f"{psutil.Process().memory_info().rss / 1024 / 1024:.2f} MB",
+                "cpu_percent": psutil.Process().cpu_percent(),
+            },
+            "redis": {
+                "connected": app.state.rate_limiting_enabled if hasattr(app.state, 'rate_limiting_enabled') else False
+            }
+        }
+        logger.info(f"Health check response: {system_info}")
+        return system_info
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return {"status": "unhealthy", "error": str(e)}
 
 @app.post("/advice")
 async def get_advice(

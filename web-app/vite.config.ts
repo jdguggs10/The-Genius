@@ -8,9 +8,8 @@ export default defineConfig({
   server: {
     proxy: {
       // During development, forward API calls to your backend
-      // Replace this URL with your actual Render backend URL once deployed
       '/api': {
-        target: 'https://the-genius-backend.onrender.com',  // Your backend URL
+        target: 'https://the-genius.onrender.com',  // Updated backend URL
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')  // Remove /api prefix
       }

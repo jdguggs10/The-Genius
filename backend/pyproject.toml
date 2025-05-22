@@ -19,6 +19,7 @@ redis = "^5.0"
 fastapi-limiter = "^0.1.5"
 loguru = "^0.7.2"
 python-dotenv = "^1.0"
+psutil = "^5.9.8"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
