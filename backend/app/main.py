@@ -17,40 +17,57 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
-    title="Fantasy AI Backend",
-    description="AI-powered fantasy sports advice using OpenAI's GPT-4.1",
+    title="The Genius Backend",
+    description="AI-powered fantasy advice using OpenAI's GPT-4.1",
     version="1.0.0"
 )
 
 # CORS middleware - allows your web app to talk to your backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, you'd want to be more specific
+    allow_origins=[
+        "https://genius-frontend-updy.onrender.com",  # Your actual frontend URL
+        "http://localhost:5173",  # For local development
+        "http://localhost:3000",  # Alternative local port
+        "*"  # Allow all for now - you can restrict this later
+    ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Accept",
+        "Accept-Language",
+        "Content-Language",
+        "Content-Type",
+        "Authorization",
+        "X-Requested-With"
+    ],
 )
 
-@app.on_event("startup")
-async def startup():
-    """Initialize Redis connection for rate limiting when the app starts"""
-    try:
+@app.options("/{full_path:path}")
+async def options_handler(full_path: str):
+    """Handle CORS preflight requests"""
+    return {"message": "OK"}
+
+#@app.on_event("startup")
+#async def startup():
+#    """Initialize Redis connection for rate limiting when the app starts"""
+#    try:
         # Try to connect to Redis (for rate limiting)
-        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
-        logger.info(f"Attempting to connect to Redis at: {redis_url}")
-        r = redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
-        await FastAPILimiter.init(r, prefix="rl")
-        logger.info("Redis connected successfully for rate limiting")
-    except Exception as e:
-        logger.warning(f"Redis connection failed: {e} - rate limiting disabled")
-        logger.warning(f"REDIS_URL environment variable: {os.environ.get('REDIS_URL', 'not set')}")
+#        redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
+#        logger.info(f"Attempting to connect to Redis at: {redis_url}")
+#        r = redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
+#        await FastAPILimiter.init(r, prefix="rl")
+#        logger.info("Redis connected successfully for rate limiting")
+#    except Exception as e:
+#        logger.warning(f"Redis connection failed: {e} - rate limiting disabled")
+#        logger.warning(f"REDIS_URL environment variable: {os.environ.get('REDIS_URL', 'not set')}")
         # Set a flag to indicate rate limiting is disabled
-        app.state.rate_limiting_enabled = False
-    else:
-        app.state.rate_limiting_enabled = True
+#        app.state.rate_limiting_enabled = False
+#    else:
+#        app.state.rate_limiting_enabled = True
 
 # Rate limiter: 5 requests per day per IP
-daily_limit = RateLimiter(times=5, seconds=86_400)  # 86,400 seconds = 24 hours
+#daily_limit = RateLimiter(times=5, seconds=86_400)  # 86,400 seconds = 24 hours
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
