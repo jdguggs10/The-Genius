@@ -114,7 +114,7 @@ async def healthz_check():
 @app.post("/advice")
 async def get_advice(
     body: AdviceRequest, 
-    rate_limit: None = Depends(daily_limit)
+    # rate_limit: None = Depends(daily_limit)
 ) -> AdviceResponse:
     """
     Get AI-powered fantasy sports advice
