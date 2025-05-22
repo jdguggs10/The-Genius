@@ -106,6 +106,11 @@ async def health_check():
         logger.error(f"Health check failed: {str(e)}")
         return {"status": "unhealthy", "error": str(e)}
 
+@app.get("/healthz")
+async def healthz_check():
+    """Health check endpoint for Render compatibility"""
+    return await health_check()
+
 @app.post("/advice")
 async def get_advice(
     body: AdviceRequest, 
