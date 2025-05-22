@@ -1,0 +1,13 @@
+services:
+- type: static
+  name: genius-frontend
+  buildCommand: npm install && npm run build
+  staticPublishPath: dist
+  routes:
+    - type: rewrite
+      source: /api/(.*)
+      destination: https://genius-backend.onrender.com/$1
+  headers:
+    - path: /*
+      name: Cache-Control
+      value: max-age=31536000, immutable
