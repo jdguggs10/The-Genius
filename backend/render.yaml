@@ -1,7 +1,7 @@
 services:
   # Your backend API server
   - type: web
-    name: the-genius-backend
+    name: genius-backend
     runtime: docker
     region: oregon  # You can change this to a region closer to you
     plan: free      # Free tier - perfect for getting started
@@ -14,13 +14,13 @@ services:
       - key: REDIS_URL
         fromService:
           type: redis
-          name: the-genius-redis
+          name: genius-redis
           property: connectionString
     autoDeploy: true  # Automatically deploy when you push to GitHub
 
   # Redis database for rate limiting (keeps track of how many messages each user has sent)
   - type: redis
-    name: the-genius-redis
+    name: genius-redis
     plan: free
     ipAllowList: []  # Allow access from anywhere (needed for your backend)
 
