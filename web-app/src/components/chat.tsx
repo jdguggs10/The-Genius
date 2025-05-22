@@ -54,7 +54,22 @@ export default function Chat() {
         throw new Error('Failed to get response');
       }
       
-      const data = await response.json();
+      // Debug: Let's see what we're actually getting
+      console.log('Response status:', response.status);
+      console.log('Response headers:', [...response.headers.entries()]);
+
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse JSON:', e);
+        console.error('Response text was:', responseText);
+        throw new Error(`Server returned non-JSON response: ${responseText}`);
+      }
+      
       increment(); // Increment the quota count
       
       setMessages(prev => [...prev, { 
