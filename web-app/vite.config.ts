@@ -7,7 +7,13 @@ export default defineConfig({
   plugins: [react(), compression()],
   server: {
     proxy: {
-      '/api': 'https://genius-backend.onrender.com'
+      // During development, forward API calls to your backend
+      // Replace this URL with your actual Render backend URL once deployed
+      '/api': {
+        target: 'https://the-genius-backend.onrender.com',  // Your backend URL
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, '')  // Remove /api prefix
+      }
     }
   },
   build: {

@@ -35,11 +35,13 @@ async def startup():
     try:
         # Try to connect to Redis (for rate limiting)
         redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
+        logger.info(f"Attempting to connect to Redis at: {redis_url}")
         r = redis.from_url(redis_url, encoding="utf-8", decode_responses=True)
         await FastAPILimiter.init(r, prefix="rl")
-        logger.info("Redis connected for rate limiting")
+        logger.info("Redis connected successfully for rate limiting")
     except Exception as e:
         logger.warning(f"Redis connection failed: {e} - rate limiting disabled")
+        logger.warning(f"REDIS_URL environment variable: {os.environ.get('REDIS_URL', 'not set')}")
         # Set a flag to indicate rate limiting is disabled
         app.state.rate_limiting_enabled = False
     else:
