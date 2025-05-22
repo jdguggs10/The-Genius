@@ -1,22 +1,26 @@
 services:
+  # Your backend API server
   - type: web
-    name: genius-backend
+    name: the-genius-backend
     runtime: docker
-    region: oregon
-    plan: free
+    region: oregon  # You can change this to a region closer to you
+    plan: free      # Free tier - perfect for getting started
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /docs
+    healthCheckPath: /health
     envVars:
+      # This is where you'll add your OpenAI API key securely
       - key: OPENAI_API_KEY
-        sync: false
+        sync: false  # This means you'll set it manually in Render's dashboard
       - key: REDIS_URL
         fromService:
           type: redis
-          name: genius-redis
+          name: the-genius-redis
           property: connectionString
-    autoDeploy: true
+    autoDeploy: true  # Automatically deploy when you push to GitHub
 
+  # Redis database for rate limiting (keeps track of how many messages each user has sent)
   - type: redis
-    name: genius-redis
+    name: the-genius-redis
     plan: free
-    ipAllowList: []
+    ipAllowList: []  # Allow access from anywhere (needed for your backend)
+
