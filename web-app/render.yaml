@@ -5,8 +5,8 @@ services:
   staticPublishPath: dist
   routes:
     - type: rewrite
-      source: /api/(.*)
-      destination: https://genius-backend-nhl3.onrender.com/$1
+      source: /api/*
+      destination: https://genius-backend-nhl3.onrender.com/:splat
   headers:
     - path: /*
       name: Cache-Control
