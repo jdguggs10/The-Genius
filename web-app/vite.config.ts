@@ -9,7 +9,7 @@ export default defineConfig({
     proxy: {
       // During development, forward API calls to your backend
       '/api': {
-        target: 'https://the-genius.onrender.com',  // Updated backend URL
+        target: 'https://genius-backend-nhl3.onrender.com',  // Updated backend URL
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')  // Remove /api prefix
       }

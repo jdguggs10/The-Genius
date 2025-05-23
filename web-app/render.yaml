@@ -6,7 +6,7 @@ services:
   routes:
     - type: rewrite
       source: /api/(.*)
-      destination: https://the-genius.onrender.com/$1
+      destination: https://genius-backend-nhl3.onrender.com/$1
   headers:
     - path: /*
       name: Cache-Control
