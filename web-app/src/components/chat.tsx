@@ -39,9 +39,13 @@ export default function Chat() {
     setIsLoading(true);
     
     try {
-      const response = await fetch('/api/advice', {
+      const response = await fetch('https://genius-backend-nhl3.onrender.com/advice', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        mode: 'cors',
         body: JSON.stringify({ 
           conversation: [userMessage],
           enable_web_search: input.toLowerCase().includes('stats') || 
