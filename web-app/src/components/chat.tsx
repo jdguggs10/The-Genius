@@ -39,13 +39,14 @@ export default function Chat() {
     setIsLoading(true);
     
     try {
+      console.log('Sending request to backend...');
+      
       const response = await fetch('https://genius-backend-nhl3.onrender.com/advice', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        mode: 'cors',
         body: JSON.stringify({ 
           conversation: [userMessage],
           enable_web_search: input.toLowerCase().includes('stats') || 
@@ -54,24 +55,22 @@ export default function Chat() {
         })
       });
       
+      console.log('Response received:', response);
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+    
       if (!response.ok) {
-        throw new Error('Failed to get response');
+        const errorText = await response.text();
+        console.error('Backend error response:', errorText);
+        throw new Error(`Backend returned ${response.status}: ${errorText}`);
       }
       
-      // Debug: Let's see what we're actually getting
-      console.log('Response status:', response.status);
-      console.log('Response headers:', [...response.headers.entries()]);
-
-      const responseText = await response.text();
-      console.log('Raw response:', responseText);
-
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (e) {
-        console.error('Failed to parse JSON:', e);
-        console.error('Response text was:', responseText);
-        throw new Error(`Server returned non-JSON response: ${responseText}`);
+      const data = await response.json();
+      console.log('Parsed response data:', data);
+      
+      if (!data.reply) {
+        console.error('Response missing reply field:', data);
+        throw new Error('Invalid response format from backend');
       }
       
       increment(); // Increment the quota count
@@ -80,12 +79,29 @@ export default function Chat() {
         role: 'assistant', 
         content: data.reply 
       }]);
-    } catch (error) {
-      console.error('Error:', error);
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: 'Sorry, I encountered an error. Please try again later.' 
-      }]);
+      
+    } catch (error: unknown) {
+      console.error('Detailed error:', error);
+      
+      // More specific error messages
+      if (error instanceof Error) {
+        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: 'Network error: Unable to connect to the AI service. Please check your internet connection and try again.' 
+          }]);
+        } else {
+          setMessages(prev => [...prev, { 
+            role: 'assistant', 
+            content: `Connection error: ${error.message}. Please try again.` 
+          }]);
+        }
+      } else {
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: 'An unexpected error occurred. Please try again.' 
+        }]);
+      }
     } finally {
       setIsLoading(false);
     }
