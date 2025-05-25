@@ -1,0 +1,7 @@
+---
+description: All code in the Swift language for the iOS application (ios-app)
+globs: 
+alwaysApply: false
+---
+This rule links to Apple's Swift programming language documention. All Swift code in the ios-app subfolder should reference this documentation. Always use this as a resource for building the iOS application.
+https://developer.apple.com/documentation/swift

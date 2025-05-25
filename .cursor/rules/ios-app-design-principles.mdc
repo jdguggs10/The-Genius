@@ -1,0 +1,7 @@
+---
+description: Apple UI Design Tips
+globs: 
+alwaysApply: false
+---
+These links reference the most up-to-date Apple iOS design principles. For any code related to the iOS application, always reference these design principles. All ios-app sub-folder code should stick with these design principles unless clearly stated otherwise. See links below:
+https://developer.apple.com/design/tips/
