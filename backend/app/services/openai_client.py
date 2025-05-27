@@ -54,13 +54,17 @@ def get_response(
         # Add web search tool if enabled
         if enable_web_search:
             logging.info("Enabling web search tool for this request")
-            # Define the web search tool
+            # Define the web search tool (updated for GPT 4.1 compatibility)
             web_search_tool = {
-                "type": "web_search"
+                "type": "web_search_preview"
             }
             params["tools"] = [web_search_tool]
+            logging.info(f"Web search tool added to params: {params['tools']}")
+        else:
+            logging.info("Web search not enabled for this request")
         
         # Call the OpenAI Responses API
+        logging.info(f"Making OpenAI API call with params: {params}")
         resp = client.responses.create(**params)
         
         status = getattr(resp, "http_response", None)
@@ -78,7 +82,39 @@ def get_response(
         raise
     
     # Extract the text response from the Responses API
-    return resp.output_text, actual_model
+    # Try multiple ways to get the response text
+    response_text = "No response generated"
+    
+    # Method 1: Try output_text field (some responses have this)
+    if hasattr(resp, 'output_text') and resp.output_text:
+        response_text = resp.output_text
+        logging.info("Used output_text field for response")
+    
+    # Method 2: Try output[0].content[0].text structure
+    elif hasattr(resp, 'output') and resp.output and len(resp.output) > 0:
+        output_item = resp.output[0]
+        if hasattr(output_item, 'content') and output_item.content and len(output_item.content) > 0:
+            content_item = output_item.content[0]
+            if hasattr(content_item, 'text'):
+                response_text = content_item.text
+                logging.info("Used output[0].content[0].text structure for response")
+        
+        # Method 3: Try to get text from message type output
+        elif hasattr(output_item, 'type') and output_item.type == 'message':
+            if hasattr(output_item, 'content') and output_item.content:
+                for content in output_item.content:
+                    if hasattr(content, 'text'):
+                        response_text = content.text
+                        logging.info("Used message content text for response")
+                        break
+    
+    # Method 4: Last resort - convert to string
+    if response_text == "No response generated" and hasattr(resp, 'output'):
+        response_text = str(resp.output)
+        logging.info("Used string conversion as fallback for response")
+    
+    logging.info(f"Final response text length: {len(response_text)}")
+    return response_text, actual_model
 
 if __name__ == "__main__":
     system_prompt = os.getenv("SYSTEM_PROMPT", "You are a helpful assistant.")

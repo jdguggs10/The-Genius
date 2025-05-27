@@ -1,0 +1,6 @@
+---
+description: Documentation on the Responses API for Open AI and GPT 4.1
+globs: 
+alwaysApply: false
+---
+Review this documentation for any request to code relating to the Responses API or the openai_client.py file or related files: https://platform.openai.com/docs/api-reference/responses

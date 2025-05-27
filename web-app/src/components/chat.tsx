@@ -33,13 +33,58 @@ export default function Chat() {
   const handleSend = async () => {
     if (!input.trim() || isLoading || isLimitReached) return;
     
-    const userMessage = { role: 'user', content: input } as MessageType;
+    // Check if user wants to enable web search
+    let actualInput = input;
+    let enableWebSearch = false;
+    
+    // Handle explicit "search:" prefix
+    if (input.toLowerCase().startsWith('search:')) {
+      enableWebSearch = true;
+      actualInput = input.slice(7).trim(); // Remove "search:" prefix
+    } else {
+      // Auto-detect if web search should be enabled based on keywords
+      const inputLower = input.toLowerCase();
+      const webSearchKeywords = [
+        'stats', 'current', 'latest', 'today', 'now', 'recent', 'this week',
+        'who plays', 'schedule', 'game', 'match', 'upcoming', 'when',
+        'injury report', 'news', 'update', 'status', 'live', 'real-time',
+        'search', 'find', 'look up', 'check', 'what happened'
+      ];
+      
+      // Also check for common search phrases
+      const searchPhrases = [
+        'search the internet',
+        'search for',
+        'look up',
+        'find out',
+        'check online',
+        'browse the web',
+        'get current',
+        'get latest',
+        'real time',
+        'live data'
+      ];
+      
+      enableWebSearch = webSearchKeywords.some(keyword => 
+        inputLower.includes(keyword)
+      ) || searchPhrases.some(phrase => 
+        inputLower.includes(phrase)
+      );
+    }
+    
+    // Add debug logging for web search detection
+    console.log('Input:', input);
+    console.log('Web search enabled:', enableWebSearch);
+    console.log('Actual input to send:', actualInput);
+    
+    const userMessage = { role: 'user', content: actualInput } as MessageType;
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
     
     try {
       console.log('Sending request to backend...');
+      console.log('Web search enabled:', enableWebSearch);
       
       const response = await fetch('https://genius-backend-nhl3.onrender.com/advice', {
         method: 'POST',
@@ -49,9 +94,7 @@ export default function Chat() {
         },
         body: JSON.stringify({ 
           conversation: [userMessage],
-          enable_web_search: input.toLowerCase().includes('stats') || 
-                            input.toLowerCase().includes('current') ||
-                            input.toLowerCase().includes('latest')
+          enable_web_search: enableWebSearch
         })
       });
       
@@ -120,7 +163,11 @@ export default function Chat() {
               <li>"Should I start Patrick Mahomes or Josh Allen this week?"</li>
               <li>"Who are the top sleeper picks for fantasy baseball?"</li>
               <li>"Is Christian McCaffrey worth trading for?"</li>
+              <li>"search: who do the Yankees play today" (enables web search)</li>
             </ul>
+            <p className="mt-3 text-xs text-blue-600">
+              💡 Tip: Start your message with "search:" to get live data, or use keywords like "today", "current", "stats"
+            </p>
           </div>
         ) : (
           messages.map((msg, index) => (
@@ -141,7 +188,7 @@ export default function Chat() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-          placeholder="Type your message..."
+          placeholder="Type your message... (prefix with 'search:' for live data)"
           disabled={isLimitReached || isLoading}
           className="flex-1 p-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />

@@ -120,6 +120,8 @@ async def get_advice(body: AdviceRequest) -> AdviceResponse:
     try:
         logger.info("=== ADVICE REQUEST RECEIVED ===")
         logger.info(f"Request body: {body}")
+        logger.info(f"Web search enabled in request: {body.enable_web_search}")
+        logger.info(f"Web search field type: {type(body.enable_web_search)}")
         
         # Get the user's question (last message in conversation)
         if not body.conversation:
