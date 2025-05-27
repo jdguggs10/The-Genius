@@ -105,8 +105,11 @@ STATS_MAP: Dict[int, str] = {
 }
 
 # Activity type mapping from friendly names to ESPN message type codes
-# Based on espn_api.baseball.constant.ACTIVITY_MAP
+# NOTE: ESPN API currently returns "NO_TYPE" for most baseball activities,
+# so numeric codes are mostly unused. The activity_to_dict function
+# uses action parsing and other attributes to determine activity types.
 ACTIVITY_MAP: Dict[str, list] = {
+    # ESPN numeric codes (historical/rarely used)
     "ADD": [180, 181, 182, 183, 184],           # Free agent pickup, waiver claim, etc.
     "DROP": [171, 172, 173, 174, 175],         # Drop player
     "TRADE_ACCEPTED": [244],                    # Trade completed
@@ -120,6 +123,41 @@ ACTIVITY_MAP: Dict[str, list] = {
     "KEEPER_SELECT": [226],                     # Keeper selection
     "LEAGUE_EDIT": [254],                       # League settings change
     "TEAM_EDIT": [253],                         # Team settings change
+}
+
+# String-based activity type mapping for current ESPN API behavior
+# ESPN baseball uses action tuples instead of msg_type codes
+ESPN_ACTION_TYPE_MAP: Dict[str, str] = {
+    # ESPN baseball action strings from the actions tuples
+    "FA ADDED": "ADD",              # Free agent pickup
+    "WAIVER ADDED": "ADD",          # Waiver pickup (also an add)  
+    "DROPPED": "DROP",              # Player drop
+    "TRADED": "TRADE_ACCEPTED",     # Trade completion
+    "WAIVER": "WAIVER_MOVED",       # Waiver claim
+    "DRAFT": "DRAFT_PICK",          # Draft selection
+    "KEEPER": "KEEPER_SELECT",      # Keeper selection
+    # Additional possible ESPN action types
+    "MOVED TO IL": "INJURY_LIST",   # Injury list moves
+    "MOVED FROM IL": "INJURY_LIST", # Return from injury list
+    "LINEUP SET": "LINEUP_SET",     # Lineup changes
+    "SETTINGS CHANGED": "LEAGUE_EDIT", # League settings changes
+    "TEAM SETTINGS": "TEAM_EDIT",   # Team settings changes
+    "CLAIMED": "WAIVER_MOVED",      # Waiver claim processed
+    "BID": "WAIVER_BUDGET_USED",    # FAAB bid
+}
+
+# Legacy string mapping (kept for compatibility)
+STRING_ACTIVITY_MAP: Dict[str, str] = {
+    "NO_TYPE": "UNKNOWN_ACTIVITY",  # Default for unspecified activities
+    "ROSTER_MOVE": "ROSTER_MOVE", 
+    "TRADE": "TRADE_ACCEPTED",
+    "ADD": "ADD",
+    "DROP": "DROP",
+    "WAIVER": "WAIVER_MOVED",
+    "DRAFT": "DRAFT_PICK",
+    "KEEPER": "KEEPER_SELECT",
+    "LEAGUE_SETTINGS": "LEAGUE_EDIT",
+    "TEAM_SETTINGS": "TEAM_EDIT",
 }
 
 # Reverse mapping for activity types (ESPN code to friendly name)
@@ -179,14 +217,23 @@ def get_stat_name(stat_id: int) -> str:
     """
     return STATS_MAP.get(stat_id, f"stat_{stat_id}")
 
-def get_activity_name(msg_type: int) -> str:
+def get_activity_name(msg_type) -> str:
     """
     Get friendly activity name for a given ESPN message type
     
     Args:
-        msg_type: ESPN message type code
+        msg_type: ESPN message type (int code or string)
         
     Returns:
         Friendly activity name
     """
-    return ACTIVITY_REVERSE_MAP.get(msg_type, f"UNKNOWN_{msg_type}")
+    # Handle string msg_type (current ESPN API behavior)
+    if isinstance(msg_type, str):
+        return STRING_ACTIVITY_MAP.get(msg_type, f"UNKNOWN_{msg_type}")
+    
+    # Handle numeric msg_type (legacy/rare ESPN API behavior) 
+    if isinstance(msg_type, int):
+        return ACTIVITY_REVERSE_MAP.get(msg_type, f"UNKNOWN_{msg_type}")
+    
+    # Handle None or other types
+    return f"UNKNOWN_{msg_type}"

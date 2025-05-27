@@ -1,0 +1,7 @@
+---
+description: Call this rule for anything relating to the espn-api-util
+globs: 
+alwaysApply: false
+---
+This rule provides a link to the most recent unofficial ESPN API documentation via a Github repo. Review this codebase when making edits to the espn-api-util:
+https://github.com/cwendt94/espn-api/tree/master

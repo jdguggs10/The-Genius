@@ -358,3 +358,74 @@ def search_players(league_id: int, search_term: str, include_rostered: bool = Tr
     
     except Exception as e:
         return [handle_error(e, "search_players")]
+
+def get_waiver_claims(league_id: int, limit: int = 25, year: Optional[int] = None,
+                     session_id: str = "default_session") -> List[Dict[str, Any]]:
+    """
+    Get recent waiver claims and FAAB bids information.
+    
+    Args:
+        league_id: The ESPN fantasy baseball league ID
+        limit: Maximum number of claims to return
+        year: Optional year for historical data (defaults to current season)
+        session_id: Session identifier for authentication
+    
+    Returns:
+        List of waiver claim dictionaries
+    """
+    try:
+        # Get credentials for this session
+        credentials = auth_service.get_credentials(session_id)
+        espn_s2 = credentials.get('espn_s2') if credentials else None
+        swid = credentials.get('swid') if credentials else None
+        
+        # Get league instance
+        league = league_service.get_league(league_id, year, espn_s2, swid)
+        
+        # Try to get waiver claims through different ESPN API methods
+        waiver_claims = []
+        
+        # Method 1: Check if league has a waiver method
+        if hasattr(league, 'waiver_claims'):
+            try:
+                claims = league.waiver_claims(limit=limit)
+                for claim in claims:
+                    try:
+                        claim_dict = {
+                            "type": "WAIVER_CLAIM",
+                            "player": player_to_dict(claim.player) if hasattr(claim, 'player') else None,
+                            "team": claim.team.team_name if hasattr(claim, 'team') else None,
+                            "bid_amount": getattr(claim, 'bid_amount', None),
+                            "priority": getattr(claim, 'priority', None),
+                            "status": getattr(claim, 'status', 'UNKNOWN'),
+                            "date": getattr(claim, 'date', None)
+                        }
+                        waiver_claims.append(claim_dict)
+                    except Exception as e:
+                        from utils import log_error
+                        log_error(f"Error processing waiver claim: {str(e)}")
+                        continue
+            except Exception as e:
+                from utils import log_error
+                log_error(f"Error fetching waiver claims: {str(e)}")
+        
+        # Method 2: Fallback to activity filtering
+        if not waiver_claims:
+            from transactions import get_waiver_activity
+            waiver_activities = get_waiver_activity(league_id, limit, year, session_id)
+            
+            for activity in waiver_activities:
+                if activity.get("source") == "WAIVERS":
+                    waiver_claims.append({
+                        "type": "WAIVER_ACTIVITY",
+                        "activity_type": activity.get("type"),
+                        "player": activity.get("added_player"),
+                        "team": activity.get("team", {}).get("team_name"),
+                        "date": activity.get("date"),
+                        "source": "ACTIVITY_LOG"
+                    })
+        
+        return waiver_claims
+    
+    except Exception as e:
+        return [handle_error(e, "get_waiver_claims")]

@@ -17,8 +17,8 @@ from auth import authenticate, logout
 from league import get_league_info, get_league_settings, get_league_standings, get_league_scoreboard  
 from roster import get_team_roster, get_team_info, get_team_schedule
 from matchups import get_week_matchups, get_matchup_boxscore
-from transactions import get_recent_activity, get_waiver_activity, get_trade_activity, get_add_drop_activity, get_team_transactions, get_player_transaction_history
-from players import get_player_stats, get_free_agents, get_top_performers, search_players
+from transactions import get_recent_activity, get_waiver_activity, get_trade_activity, get_add_drop_activity, get_team_transactions, get_player_transaction_history, get_lineup_activity, get_settings_activity, get_keeper_activity
+from players import get_player_stats, get_free_agents, get_top_performers, search_players, get_waiver_claims
 from draft import get_draft_results, get_draft_by_round, get_team_draft_picks, get_draft_analysis, get_position_scarcity_analysis
 from metadata import get_positions, get_stat_map, get_activity_types
 
@@ -348,6 +348,57 @@ try:
             traceback.print_exc(file=sys.stderr)
             return f"Error getting player transaction history: {str(e)}"
 
+    @mcp.tool()
+    async def transaction_get_lineup_activity(league_id: int, limit: int = 25, year: int = None) -> str:
+        """Get recent lineup change activity.
+        
+        Args:
+            league_id: The ESPN fantasy baseball league ID
+            limit: Maximum number of activities to return (default 25)
+            year: Optional year for historical data (defaults to current season)
+        """
+        try:
+            result = get_lineup_activity(league_id, limit, year, SESSION_ID)
+            return str(result)
+        except Exception as e:
+            log_error(f"Error getting lineup activity: {str(e)}")
+            traceback.print_exc(file=sys.stderr)
+            return f"Error getting lineup activity: {str(e)}"
+
+    @mcp.tool()
+    async def transaction_get_settings_activity(league_id: int, limit: int = 25, year: int = None) -> str:
+        """Get recent league/team settings change activity.
+        
+        Args:
+            league_id: The ESPN fantasy baseball league ID
+            limit: Maximum number of activities to return (default 25)
+            year: Optional year for historical data (defaults to current season)
+        """
+        try:
+            result = get_settings_activity(league_id, limit, year, SESSION_ID)
+            return str(result)
+        except Exception as e:
+            log_error(f"Error getting settings activity: {str(e)}")
+            traceback.print_exc(file=sys.stderr)
+            return f"Error getting settings activity: {str(e)}"
+
+    @mcp.tool()
+    async def transaction_get_keeper_activity(league_id: int, limit: int = 25, year: int = None) -> str:
+        """Get recent keeper/dynasty league activity.
+        
+        Args:
+            league_id: The ESPN fantasy baseball league ID
+            limit: Maximum number of activities to return (default 25)
+            year: Optional year for historical data (defaults to current season)
+        """
+        try:
+            result = get_keeper_activity(league_id, limit, year, SESSION_ID)
+            return str(result)
+        except Exception as e:
+            log_error(f"Error getting keeper activity: {str(e)}")
+            traceback.print_exc(file=sys.stderr)
+            return f"Error getting keeper activity: {str(e)}"
+
     # =============================================================================
     # PLAYER TOOLS
     # =============================================================================
@@ -429,6 +480,23 @@ try:
             log_error(f"Error searching players: {str(e)}")
             traceback.print_exc(file=sys.stderr)
             return f"Error searching players: {str(e)}"
+
+    @mcp.tool()
+    async def player_get_waiver_claims(league_id: int, limit: int = 25, year: int = None) -> str:
+        """Get recent waiver claims and FAAB bids information.
+        
+        Args:
+            league_id: The ESPN fantasy baseball league ID
+            limit: Maximum number of claims to return (default 25)
+            year: Optional year for historical data (defaults to current season)
+        """
+        try:
+            result = get_waiver_claims(league_id, limit, year, SESSION_ID)
+            return str(result)
+        except Exception as e:
+            log_error(f"Error getting waiver claims: {str(e)}")
+            traceback.print_exc(file=sys.stderr)
+            return f"Error getting waiver claims: {str(e)}"
 
     # =============================================================================
     # DRAFT TOOLS

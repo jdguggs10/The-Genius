@@ -45,8 +45,8 @@ def get_draft_results(league_id: int, year: Optional[int] = None,
                 log_error(f"Error processing draft pick: {str(e)}")
                 continue
         
-        # Sort by overall pick number to ensure correct order
-        draft_picks.sort(key=lambda p: p.get("overall_pick", 0))
+        # Sort by overall pick number to ensure correct order with null safety
+        draft_picks.sort(key=lambda p: p.get("overall_pick", 0) or 0)
         
         return draft_picks
     
@@ -77,8 +77,8 @@ def get_draft_by_round(league_id: int, round_num: int, year: Optional[int] = Non
             if isinstance(pick, dict) and pick.get("round_num") == round_num:
                 round_picks.append(pick)
         
-        # Sort by pick number within the round
-        round_picks.sort(key=lambda p: p.get("round_pick", 0))
+        # Sort by pick number within the round with null safety
+        round_picks.sort(key=lambda p: p.get("round_pick", 0) or 0)
         
         return round_picks
     
@@ -112,8 +112,8 @@ def get_team_draft_picks(league_id: int, team_id: int, year: Optional[int] = Non
                 pick["team"].get("team_id") == team_id):
                 team_picks.append(pick)
         
-        # Sort by overall pick number
-        team_picks.sort(key=lambda p: p.get("overall_pick", 0))
+        # Sort by overall pick number with null safety
+        team_picks.sort(key=lambda p: p.get("overall_pick", 0) or 0)
         
         return team_picks
     
@@ -286,8 +286,8 @@ def get_position_scarcity_analysis(league_id: int, year: Optional[int] = None,
             if not picks:
                 continue
             
-            # Sort by overall pick
-            picks.sort(key=lambda p: p["overall_pick"])
+            # Sort by overall pick with null safety
+            picks.sort(key=lambda p: p.get("overall_pick", 0) or 0)
             
             # Calculate scarcity metrics
             total_drafted = len(picks)
