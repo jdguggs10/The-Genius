@@ -21,7 +21,7 @@ def get_response(
     prompt: str,
     model: str = "gpt-4.1",
     instructions: str = "You are a helpful assistant.",
-    max_tokens: int = 150,
+    max_tokens: int = 1000,
     temperature: float = 0.7,
     enable_web_search: bool = False
 ) -> Tuple[str, str]:
@@ -43,11 +43,14 @@ def get_response(
     """
     try:
         # Define parameters for the API call
+        # Use higher token limit for web search responses as they tend to be longer
+        actual_max_tokens = max_tokens if not enable_web_search else max(max_tokens, 1500)
+        
         params = {
             "model": model,
             "instructions": instructions,
             "input": prompt,
-            "max_output_tokens": max_tokens,
+            "max_output_tokens": actual_max_tokens,
             "temperature": temperature,
         }
         
