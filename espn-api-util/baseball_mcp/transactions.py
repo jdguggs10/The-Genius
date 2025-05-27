@@ -34,15 +34,48 @@ def get_recent_activity(league_id: int, limit: int = 25, activity_type: Optional
         league = league_service.get_league(league_id, year, espn_s2, swid)
         
         # Get recent activity from the league
-        # The ESPN API typically provides a recent_activity method with a size parameter
-        try:
-            # Try to get more activities than requested to allow for filtering
-            fetch_size = min(limit + offset + 50, 100)  # ESPN API usually limits to 100
-            activities = league.recent_activity(size=fetch_size)
-        except Exception:
-            # If that fails, try without size parameter
-            activities = league.recent_activity()
+        activities = None
+        fetch_size = min(limit + offset + 50, 100)  # ESPN API usually limits to 100
         
+        try:
+            # First, try fetching activities without the size parameter
+            activities_no_size = league.recent_activity()
+            
+            # Check if a decent number of activities were returned
+            if activities_no_size and len(activities_no_size) > 50: # Threshold of 50
+                activities = activities_no_size
+            else:
+                # If few or no activities returned, try with fetch_size
+                try:
+                    activities_with_size = league.recent_activity(size=fetch_size)
+                    activities = activities_with_size
+                except Exception as e_size:
+                    from utils import log_error
+                    log_error(f"Error calling league.recent_activity(size={fetch_size}): {str(e_size)}")
+                    # If the call with size fails, and the initial call returned some (but few) activities, use those.
+                    # If initial call also returned None or empty, activities will remain None.
+                    if activities_no_size is not None: # Check if activities_no_size had content
+                        activities = activities_no_size
+                    else: # Both calls essentially failed to return data
+                        activities = [] # Ensure activities is an empty list not None
+                        
+        except Exception as e_no_size:
+            from utils import log_error
+            log_error(f"Error calling league.recent_activity() (no size): {str(e_no_size)}")
+            # If the first call (no size) fails, try the call with fetch_size
+            try:
+                activities = league.recent_activity(size=fetch_size)
+            except Exception as e_size_after_fail:
+                log_error(f"Error calling league.recent_activity(size={fetch_size}) after initial fail: {str(e_size_after_fail)}")
+                # If both calls fail, activities will be None or what was assigned before second try block
+                # We want to ensure it's an empty list to avoid issues downstream before the main error handling
+                activities = []
+
+        # If after all attempts, activities is still None or empty, it will be handled by the main try-except
+        # or by subsequent checks. For safety, ensure it's a list.
+        if activities is None:
+            activities = []
+
         # Process and filter activities
         processed_activities = []
         for activity in activities:
