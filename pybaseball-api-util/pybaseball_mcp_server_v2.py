@@ -12,19 +12,6 @@ from datetime import datetime
 import contextlib
 import io
 
-# Redirect stdout to stderr in MCP mode to prevent JSON parsing issues
-if os.environ.get("MCP_STDIO_MODE") == "1":
-    # Create a custom stdout that redirects to stderr
-    class StderrRedirect:
-        def write(self, text):
-            sys.stderr.write(text)
-            sys.stderr.flush()
-        def flush(self):
-            sys.stderr.flush()
-    
-    # Replace stdout with stderr redirect
-    sys.stdout = StderrRedirect()
-
 # Try importing MCP Server
 try:
     from mcp.server import Server
