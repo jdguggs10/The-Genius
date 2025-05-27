@@ -1,13 +1,9 @@
 {
   "mcpServers": {
     "espn-baseball": {
-      "command": "python3",
-      "args": ["baseball_mcp_server.py"],
-      "cwd": "/Users/geraldgugger/Code/the-genius/espn-api-util/baseball_mcp",
-      "env": {
-        "PYTHONPATH": "/Users/geraldgugger/Code/the-genius/espn-api-util/baseball_mcp",
-        "PATH": "/Users/geraldgugger/Code/the-genius/espn-api-util/.venv/bin:/usr/local/bin:/usr/bin:/bin"
-      }
+      "command": "/Users/geraldgugger/Code/the-genius/espn-api-util/start_claude_mcp.sh",
+      "args": [],
+      "cwd": "/Users/geraldgugger/Code/the-genius/espn-api-util"
     }
   }
 } 
