@@ -221,50 +221,229 @@ def boxplayer_to_dict(boxplayer: Any) -> Dict[str, Any]:
         log_error(f"Error serializing boxplayer: {str(e)}")
         return {"error": f"Error serializing boxplayer: {str(e)}"}
 
+# Define a speculative map for common action types found in espn-api
+# This map might need adjustment based on actual data from activity.actions
+# Key: action.type (or similar attribute from an action object/dict)
+# Value: The standardized activity_type we want to use
+SPECULATIVE_ACTION_TYPE_MAP = {
+    # Common action types from espn_api (these are guesses)
+    "PLAYERMOVED": "TRADE_ACCEPTED", # Often used for trades
+    "PLAYERADDED": "ADD",
+    "PLAYERDROPPED": "DROP",
+    "FAAB_BID_PROCESSED": "WAIVER_MOVED", # Or just ADD if player is added
+    "ROSTER_ORDER_CHANGED": "SETTINGS_CHANGED", # Or a more specific type
+    # Potential dict keys if action is a dict and 'type' is a string
+    "ADD": "ADD",
+    "DROP": "DROP",
+    "TRADED": "TRADE_ACCEPTED",
+    "WAIVER": "WAIVER_MOVED", # Could also be ADD if player is involved
+}
+
 def activity_to_dict(activity: Any) -> Dict[str, Any]:
-    """Convert an Activity object to a dictionary"""
+    """Convert an Activity object to a dictionary, with fallback to activity.actions"""
     try:
-        # Convert activity type from ESPN code to friendly name
-        activity_type = None
-        for friendly_name, espn_codes in ACTIVITY_MAP.items():
-            if hasattr(activity, "msg_type") and activity.msg_type in espn_codes:
-                activity_type = friendly_name
-                break
+        original_msg_type = getattr(activity, 'msg_type', 'NO_TYPE')
+        derived_activity_type = None
+
+        # 1. Primary type determination (from activity.msg_type)
+        if hasattr(activity, "msg_type"):
+            for friendly_name, espn_codes in ACTIVITY_MAP.items():
+                if activity.msg_type in espn_codes:
+                    derived_activity_type = friendly_name
+                    break
         
-        if not activity_type:
-            activity_type = f"UNKNOWN_{getattr(activity, 'msg_type', 'NO_TYPE')}"
-        
+        # Initialize basic dict
         activity_dict = {
-            "type": activity_type,
+            "type": derived_activity_type, # Will be updated if None or UNKNOWN after this
             "date": getattr(activity, "date", None),
-            "team": team_to_dict(activity.team) if hasattr(activity, "team") else None,
+            # Use activity.team if it exists and is not None
+            "team": team_to_dict(activity.team) if hasattr(activity, "team") and activity.team else None
         }
+
+        # Store data derived from actions separately for clarity before merging
+        action_derived_data = {
+            "type": None,
+            "team": None,
+            "added_player": None,
+            "dropped_player": None,
+            "players_in": [],
+            "players_out": [],
+            "source": None, # e.g. for waiver source from action
+            "bid_amount": None, # e.g. for waiver bid from action
+        }
+        actions_parsed_type = None
+        parsed_actions = False
+
+
+        # 2. Secondary Type and Data Extraction from activity.actions
+        if (not derived_activity_type or derived_activity_type.startswith("UNKNOWN_")) and \
+           hasattr(activity, 'actions') and activity.actions and isinstance(activity.actions, list):
+            
+            parsed_actions = True # Flag that we've entered action parsing logic
+
+            for action_item in activity.actions:
+                if not action_item: continue
+
+                current_action_type_str = None
+                # Try to get type from action_item (could be obj.type or dict['type'])
+                if hasattr(action_item, 'type'):
+                    current_action_type_str = str(getattr(action_item, 'type')).upper()
+                elif isinstance(action_item, dict) and 'type' in action_item:
+                    current_action_type_str = str(action_item.get('type')).upper()
+
+                # A. Infer activity type from action_item.type
+                if actions_parsed_type is None and current_action_type_str:
+                    actions_parsed_type = SPECULATIVE_ACTION_TYPE_MAP.get(current_action_type_str)
+
+                # B. Infer activity type from action_item attributes if type still unknown
+                if actions_parsed_type is None:
+                    if hasattr(action_item, 'playerAdded') and getattr(action_item, 'playerAdded'):
+                        actions_parsed_type = 'ADD'
+                    elif hasattr(action_item, 'playerDropped') and getattr(action_item, 'playerDropped'):
+                        actions_parsed_type = 'DROP'
+                    # Add more specific inferences if needed, e.g. for trades by checking for fromTeamId/toTeamId
+
+                # C. Extract team from action (if main team is missing)
+                if action_derived_data["team"] is None: # Only take first one found
+                    action_team_id = None
+                    if hasattr(action_item, 'teamId'): action_team_id = getattr(action_item, 'teamId')
+                    elif isinstance(action_item, dict) and 'teamId' in action_item: action_team_id = action_item.get('teamId')
+                    
+                    if action_team_id is not None: # Check for not None, as teamId could be 0
+                        action_derived_data["team"] = {"team_id": action_team_id, "team_name": f"Team {action_team_id} (from action)"}
+
+                # D. Extract player details based on action_item (for ADD/DROP/TRADE)
+                # This part is tricky because one activity can have multiple actions (e.g. a trade)
+                # We'll focus on populating based on what the action_item directly provides.
+                # This logic will be further refined in step 6 for fallbacks.
+
+                action_player_obj = getattr(action_item, 'player', None)
+                action_player_id = getattr(action_item, 'playerId', None)
+                if isinstance(action_item, dict): # If action_item is a dict
+                    action_player_obj = action_item.get('player', action_player_obj)
+                    action_player_id = action_item.get('playerId', action_player_id)
+
+                # Simplistic player extraction for now, will be refined
+                # If the action type (or inferred type) is ADD:
+                if (actions_parsed_type == 'ADD' or current_action_type_str == 'PLAYERADDED') and not action_derived_data["added_player"]:
+                    if action_player_obj:
+                        action_derived_data["added_player"] = player_to_dict(action_player_obj)
+                    elif action_player_id:
+                        action_derived_data["added_player"] = {"player_id": action_player_id, "name": "Player (from action)"}
+                
+                # If the action type (or inferred type) is DROP:
+                elif (actions_parsed_type == 'DROP' or current_action_type_str == 'PLAYERDROPPED') and not action_derived_data["dropped_player"]:
+                    if action_player_obj:
+                        action_derived_data["dropped_player"] = player_to_dict(action_player_obj)
+                    elif action_player_id:
+                        action_derived_data["dropped_player"] = {"player_id": action_player_id, "name": "Player (from action)"}
+
+                # For trades, collect all involved players from actions
+                # This assumes an action in a trade might have 'playerId', 'fromTeamId', 'toTeamId'
+                # The main activity.team (or action_derived_data["team"]) is the perspective.
+                if (actions_parsed_type == 'TRADE_ACCEPTED' or current_action_type_str == 'PLAYERMOVED'):
+                    player_for_trade = None
+                    if action_player_obj: player_for_trade = player_to_dict(action_player_obj)
+                    elif action_player_id: player_for_trade = {"player_id": action_player_id, "name": "Player (from action)"}
+
+                    if player_for_trade:
+                        # Determine if player is 'in' or 'out' based on team IDs in action
+                        # This requires knowing the perspective team (activity_dict["team"] or action_derived_data["team"])
+                        perspective_team_id = (activity_dict["team"] or action_derived_data["team"] or {}).get("team_id")
+                        
+                        from_team_id = getattr(action_item, 'fromTeamId', None)
+                        to_team_id = getattr(action_item, 'toTeamId', None)
+                        if isinstance(action_item, dict):
+                            from_team_id = action_item.get('fromTeamId', from_team_id)
+                            to_team_id = action_item.get('toTeamId', to_team_id)
+
+                        if perspective_team_id is not None:
+                            if to_team_id == perspective_team_id:
+                                action_derived_data["players_in"].append(player_for_trade)
+                            elif from_team_id == perspective_team_id:
+                                action_derived_data["players_out"].append(player_for_trade)
+                        # If perspective_team_id is None, we might not be able to categorize, or might add to a generic "involved_players"
+
+                # Extract source and bid_amount if available from actions (e.g., for waivers)
+                if hasattr(action_item, 'source') and not action_derived_data["source"]:
+                    action_derived_data["source"] = getattr(action_item, 'source')
+                if hasattr(action_item, 'bidAmount') and not action_derived_data["bid_amount"]: # espn-api often uses bidAmount
+                    action_derived_data["bid_amount"] = getattr(action_item, 'bidAmount')
+
+
+            # Update derived_activity_type if actions provided one
+            if actions_parsed_type:
+                derived_activity_type = actions_parsed_type
         
-        # Handle different activity types
-        if activity_type in ["ADD", "WAIVER_MOVED"]:
-            if hasattr(activity, "player"):
-                activity_dict["added_player"] = player_to_dict(activity.player)
-            if hasattr(activity, "source"):
-                activity_dict["source"] = activity.source
-            if hasattr(activity, "bid_amount"):
-                activity_dict["bid_amount"] = activity.bid_amount
-        
-        elif activity_type == "DROP":
-            if hasattr(activity, "player"):
-                activity_dict["dropped_player"] = player_to_dict(activity.player)
-        
-        elif activity_type in ["TRADE_ACCEPTED", "TRADE_PENDING"]:
-            if hasattr(activity, "trade_partner"):
-                activity_dict["trade_partner"] = team_to_dict(activity.trade_partner)
-            if hasattr(activity, "players_in"):
-                activity_dict["players_in"] = [player_to_dict(p) for p in activity.players_in]
-            if hasattr(activity, "players_out"):
-                activity_dict["players_out"] = [player_to_dict(p) for p in activity.players_out]
-        
+        # 3. Final type assignment in activity_dict
+        if not derived_activity_type: # If still no type after msg_type and actions
+            activity_dict["type"] = f"UNKNOWN_{original_msg_type}"
+        else:
+            activity_dict["type"] = derived_activity_type
+
+        # Update team from actions if primary team was None
+        if activity_dict["team"] is None and action_derived_data["team"]:
+            activity_dict["team"] = action_derived_data["team"]
+
+
+        # 4. Populate standard fields based on primary attributes (activity.player, etc.)
+        # This uses the now finalized activity_dict["type"]
+        current_type = activity_dict["type"]
+        if not current_type.startswith("UNKNOWN_"):
+            if current_type in ["ADD", "WAIVER_MOVED"]:
+                if hasattr(activity, "player"): # Primary source
+                    activity_dict["added_player"] = player_to_dict(activity.player)
+                if hasattr(activity, "source"): activity_dict["source"] = activity.source
+                if hasattr(activity, "bid_amount"): activity_dict["bid_amount"] = activity.bid_amount
+            
+            elif current_type == "DROP":
+                if hasattr(activity, "player"): # Primary source
+                    activity_dict["dropped_player"] = player_to_dict(activity.player)
+            
+            elif current_type in ["TRADE_ACCEPTED", "TRADE_PENDING"]: # TRADE_PENDING might not have all details
+                if hasattr(activity, "trade_partner"):
+                    activity_dict["trade_partner"] = team_to_dict(activity.trade_partner)
+                if hasattr(activity, "players_in"): # Primary source
+                    activity_dict["players_in"] = [player_to_dict(p) for p in activity.players_in if p]
+                if hasattr(activity, "players_out"): # Primary source
+                    activity_dict["players_out"] = [player_to_dict(p) for p in activity.players_out if p]
+
+        # 5. Fallback Player/Trade Data Population (using action_derived_data)
+        # If primary attributes didn't populate these fields, try with data from actions.
+        if parsed_actions: # Only if we actually parsed actions
+            if current_type in ["ADD", "WAIVER_MOVED"] and not activity_dict.get("added_player"):
+                if action_derived_data["added_player"]: activity_dict["added_player"] = action_derived_data["added_player"]
+                # Fallback for source/bid if not set by primary attributes
+                if not activity_dict.get("source") and action_derived_data["source"]:
+                     activity_dict["source"] = action_derived_data["source"]
+                if not activity_dict.get("bid_amount") and action_derived_data["bid_amount"]:
+                     activity_dict["bid_amount"] = action_derived_data["bid_amount"]
+
+            elif current_type == "DROP" and not activity_dict.get("dropped_player"):
+                if action_derived_data["dropped_player"]: activity_dict["dropped_player"] = action_derived_data["dropped_player"]
+
+            elif current_type == "TRADE_ACCEPTED":
+                # For trades, action data for players_in/out might be more reliable or the only source
+                # The API might represent all trade legs in actions.
+                # If primary attributes (activity.players_in/out) were empty, use action_derived ones.
+                if not activity_dict.get("players_in") and action_derived_data["players_in"]:
+                    activity_dict["players_in"] = action_derived_data["players_in"]
+                if not activity_dict.get("players_out") and action_derived_data["players_out"]:
+                    activity_dict["players_out"] = action_derived_data["players_out"]
+                
+                # Trade partner might also be inferred from actions if not directly available
+                # (This is complex: requires identifying other team in actions. Skipped for now.)
+
         return activity_dict
+        
     except Exception as e:
         log_error(f"Error serializing activity: {str(e)}")
-        return {"error": f"Error serializing activity: {str(e)}"}
+        # In case of error, still try to return basic info if possible
+        return {
+            "error": f"Error serializing activity: {str(e)}",
+            "type": f"ERROR_PROCESSING_{getattr(activity, 'msg_type', 'NO_TYPE')}", # Keep original_msg_type if available
+            "date": getattr(activity, "date", None) # Attempt to get date even in error
+        }
 
 def pick_to_dict(pick: Any) -> Dict[str, Any]:
     """Convert a Pick object to a dictionary"""
