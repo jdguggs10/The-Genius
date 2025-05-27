@@ -1,30 +1,63 @@
-# ESPN API Server Quick Start Guide
+# ESPN Fantasy Baseball MCP Server - Quick Start Guide
 
-## First Time Setup (After Git Sync)
-1. Open terminal in Cursor (`Ctrl+` `)
-2. Run: `cd espn-api-util && ./setup.sh`
-3. Wait for the setup to complete
+## 🚀 First Time Setup
 
-## Starting the Server
+### 1. Install Dependencies
+```bash
+cd espn-api-util
+source .venv/bin/activate
+pip install -e .
+```
 
-### Option 1: Using the Workspace File (Recommended)
-1. Double-click `the-genius.code-workspace`
-2. Once Cursor opens, press `Cmd+Shift+P` (Mac) or `Ctrl+Shift+P` (Windows/Linux)
-3. Type "Run Task" and select "Tasks: Run Task"
-4. Select "start-espn-server"
+### 2. Configure Claude Desktop (Automatic Startup)
+```bash
+./setup_claude_desktop.sh
+```
 
-### Option 2: Using Launch Configuration
-1. Open the project in Cursor
-2. Press `F5` or click the "Run and Debug" button in the sidebar
-3. Select "Start ESPN API Server" from the dropdown
+### 3. Restart Claude Desktop
+- Quit Claude Desktop completely
+- Relaunch Claude Desktop
+- The `espn-baseball` server will now start automatically
 
-### Manual Start (Fallback)
-If the automated methods don't work:
-1. Open terminal in Cursor (`Ctrl+` `)
-2. Run: `cd espn-api-util && ./start_mcp.sh`
+## ✅ Verification
 
-## Troubleshooting
-- If you see "Permission denied": Run `chmod +x start_mcp.sh setup.sh`
-- If Python 3.12 isn't found: Make sure Python 3.12 is installed on your system
-- If dependencies fail to install: Check your internet connection and try again
-- If import errors persist after git sync: Run `./setup.sh` again 
+### Check Server Status
+The server should appear in Claude Desktop as `espn-baseball`. You can verify it's working by asking Claude to:
+- `Use the metadata_get_positions tool to show available positions`
+- `Get league info for league ID [your-league-id]`
+
+### Manual Testing (Optional)
+```bash
+# Test server independently
+./start_baseball_mcp.sh
+
+# Run JSON validation tests
+python3 test_mcp_json.py
+```
+
+## 🔧 Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Server not appearing in Claude Desktop | Run `./setup_claude_desktop.sh` again, then restart Claude Desktop |
+| Permission denied | Run `chmod +x setup_claude_desktop.sh start_baseball_mcp.sh` |
+| Python/import errors | Ensure virtual environment is activated: `source .venv/bin/activate` |
+| Authentication needed | Use the `auth_store_credentials` tool with your ESPN_S2 and SWID cookies |
+
+## 📝 Available Tools
+
+The server provides tools for:
+- **Authentication**: Store ESPN credentials
+- **League Info**: Standings, settings, scoreboard
+- **Teams**: Rosters, schedules, team info  
+- **Players**: Stats, free agents, search
+- **Transactions**: Recent activity, trades, waivers
+- **Draft**: Results, analysis, team picks
+- **Metadata**: Positions, stats, activity types
+
+## 🔄 Re-setup Required If:
+- You move the project directory
+- You change Python versions
+- You reinstall Claude Desktop
+
+Simply run `./setup_claude_desktop.sh` again. 

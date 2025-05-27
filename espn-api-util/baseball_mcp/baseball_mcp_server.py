@@ -33,7 +33,7 @@ def log_error(message):
 try:
     # Initialize FastMCP server
     log_error("Initializing ESPN Fantasy Baseball MCP server...")
-    mcp = FastMCP("espn-baseball", dependancies=['espn-api'])
+    mcp = FastMCP("espn-baseball", dependencies=['espn-api'])
 
     # Constants for current year calculation
     current_date = datetime.datetime.now()
