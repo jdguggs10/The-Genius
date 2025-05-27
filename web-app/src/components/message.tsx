@@ -10,23 +10,23 @@ type MessageProps = {
 
 export default function Message({ message }: MessageProps) {
   const isUser = message.role === 'user';
-  
+
   return (
-    <div className={`my-2 ${isUser ? 'text-right' : ''}`}>
+    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
       <div
-        className={`inline-block max-w-[80%] p-3 rounded-lg ${
+        className={`max-w-[85%] px-4 py-2.5 rounded-xl shadow-sm ${ // Increased max-width slightly, adjusted padding
           isUser
-            ? 'bg-blue-500 text-white rounded-br-none'
-            : 'bg-gray-100 text-gray-800 rounded-bl-none'
+            ? 'bg-sky-600 text-white'
+            : 'bg-white text-gray-800 border border-gray-200' // Solid border for assistant
         }`}
       >
         {isUser ? (
-          <p>{message.content}</p>
+          <p className="text-sm whitespace-pre-wrap">{message.content}</p> // User message as plain text, respects newlines
         ) : (
-          <div className="prose prose-sm max-w-none">
-            <ReactMarkdown>
-              {message.content}
-            </ReactMarkdown>
+          // For assistant messages, ensure the prose styles don't override base text color too aggressively
+          // or clash with the bubble. Tailwind Prose usually tries to adapt.
+          <div className="prose prose-sm max-w-none [&_p]:my-0"> {/* Targeting prose p margin specifically if needed */}
+            <ReactMarkdown>{message.content}</ReactMarkdown>
           </div>
         )}
       </div>
