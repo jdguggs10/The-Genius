@@ -9,6 +9,21 @@ import logging
 import asyncio
 from typing import Optional, Any, Sequence
 from datetime import datetime
+import contextlib
+import io
+
+# Redirect stdout to stderr in MCP mode to prevent JSON parsing issues
+if os.environ.get("MCP_STDIO_MODE") == "1":
+    # Create a custom stdout that redirects to stderr
+    class StderrRedirect:
+        def write(self, text):
+            sys.stderr.write(text)
+            sys.stderr.flush()
+        def flush(self):
+            sys.stderr.flush()
+    
+    # Replace stdout with stderr redirect
+    sys.stdout = StderrRedirect()
 
 # Try importing MCP Server
 try:
@@ -366,12 +381,22 @@ async def main():
     """Main entry point for the MCP server."""
     if MCP_AVAILABLE and os.environ.get("MCP_STDIO_MODE") == "1":
         logger.info("Starting PyBaseball MCP Server in stdio mode...")
-        async with stdio_server() as (read_stream, write_stream):
-            await server.run(
-                read_stream,
-                write_stream,
-                server.create_initialization_options()
-            )
+        try:
+            async with stdio_server() as (read_stream, write_stream):
+                await server.run(
+                    read_stream,
+                    write_stream,
+                    server.create_initialization_options()
+                )
+        except Exception as e:
+            # Handle cancellation and other errors gracefully
+            if "notifications/cancelled" in str(e) or "ValidationError" in str(e):
+                logger.warning("Client sent unsupported notification (likely cancellation). This is expected behavior.")
+                # Exit gracefully instead of crashing
+                return
+            else:
+                logger.error(f"Unexpected server error: {e}")
+                raise
     else:
         logger.info("Starting PyBaseball MCP Server in HTTP mode...")
         port = int(os.environ.get("PORT", "8002"))

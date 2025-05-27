@@ -9,6 +9,9 @@ import logging
 import pybaseball as pyb
 import os
 from pathlib import Path
+import sys
+import contextlib
+import io
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +19,21 @@ logger = logging.getLogger(__name__)
 _cache = {}
 _cache_timestamps = {}
 CACHE_TTL_SECONDS = 300  # 5 minutes
+
+@contextlib.contextmanager
+def suppress_stdout():
+    """Context manager to suppress stdout output from PyBaseball operations."""
+    if os.environ.get("MCP_STDIO_MODE") == "1":
+        # In MCP mode, redirect any stdout to stderr to prevent JSON parsing issues
+        old_stdout = sys.stdout
+        sys.stdout = sys.stderr
+        try:
+            yield
+        finally:
+            sys.stdout = old_stdout
+    else:
+        # In non-MCP mode, just yield without suppression
+        yield
 
 def setup_cache():
     """Configure PyBaseball cache for better performance."""

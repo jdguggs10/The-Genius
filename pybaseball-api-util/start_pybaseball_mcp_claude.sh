@@ -1,40 +1,26 @@
 #!/usr/bin/env bash
 
 # PyBaseball MCP Server Startup Script for Claude Desktop
-
-# Set error handling
-set -e
+set -euo pipefail
 
 # Get the absolute path to the script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Export PATH to include common locations
-export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:/usr/bin:/bin:$PATH"
-
-# Define paths
-VENV_PATH="$SCRIPT_DIR/venv"
-SERVER_SCRIPT="$SCRIPT_DIR/pybaseball_mcp_server.py"
-
 # Log startup attempt
 echo "Starting PyBaseball MCP Server..." >&2
 echo "Script directory: $SCRIPT_DIR" >&2
-echo "Virtual environment: $VENV_PATH" >&2
-echo "Server script: $SERVER_SCRIPT" >&2
+
+# Change to the script directory first
+cd "$SCRIPT_DIR"
+
+# Define paths
+VENV_PATH="$SCRIPT_DIR/venv"
+SERVER_SCRIPT="$SCRIPT_DIR/pybaseball_mcp_server_v2.py"
 
 # Check if virtual environment exists
 if [ ! -f "$VENV_PATH/bin/activate" ]; then
     echo "Error: Virtual environment not found at $VENV_PATH" >&2
-    echo "Creating virtual environment..." >&2
-    python3 -m venv "$VENV_PATH"
-fi
-
-# Activate the virtual environment
-source "$VENV_PATH/bin/activate"
-
-# Install dependencies if requirements.txt exists
-if [ -f "$SCRIPT_DIR/requirements.txt" ]; then
-    echo "Installing/updating dependencies..." >&2
-    pip install -r "$SCRIPT_DIR/requirements.txt" -q >&2
+    exit 1
 fi
 
 # Check if server script exists
@@ -43,17 +29,27 @@ if [ ! -f "$SERVER_SCRIPT" ]; then
     exit 1
 fi
 
-# Change to the script directory
-cd "$SCRIPT_DIR"
+# Activate the virtual environment
+source "$VENV_PATH/bin/activate"
 
-# Add current directory to Python path for module imports
-export PYTHONPATH="$SCRIPT_DIR:$PYTHONPATH"
+# Verify Python and MCP are available
+if ! python -c "import mcp" 2>/dev/null; then
+    echo "Error: MCP library not found in virtual environment" >&2
+    exit 1
+fi
 
-echo "Python path: $(which python)" >&2
-echo "Working directory: $(pwd)" >&2
+# Verify our modules are available
+if ! python -c "import pybaseball_mcp_server_v2" 2>/dev/null; then
+    echo "Error: PyBaseball MCP server module not found" >&2
+    exit 1
+fi
 
-# Set environment variable to run in MCP stdio mode instead of HTTP server mode
+echo "Virtual environment activated successfully" >&2
+echo "Starting MCP server in stdio mode..." >&2
+
+# Set environment variables
 export MCP_STDIO_MODE=1
+export PYTHONPATH="${SCRIPT_DIR}:${PYTHONPATH:-}"
 
-# Start the PyBaseball MCP server in stdio mode
-exec python pybaseball_mcp_server_v2.py 
+# Start the PyBaseball MCP server
+exec python "$SERVER_SCRIPT" 

@@ -16,7 +16,7 @@ from functools import wraps
 logger = logging.getLogger(__name__)
 
 # Import cache utilities
-from .utils import setup_cache
+from .utils import setup_cache, suppress_stdout
 
 # Initialize cache
 setup_cache()
@@ -65,7 +65,8 @@ def _get_player_stats_impl(player_name: str, year: int = None) -> str:
     
     # Look up player ID
     logger.info(f"Looking up player: {first_name} {last_name}")
-    player_lookup = playerid_lookup(last_name, first_name)
+    with suppress_stdout():
+        player_lookup = playerid_lookup(last_name, first_name)
     
     if player_lookup.empty:
         return f"Player '{player_name}' not found in database"
@@ -76,7 +77,8 @@ def _get_player_stats_impl(player_name: str, year: int = None) -> str:
     
     # Try batting stats first
     try:
-        batting_df = batting_stats(year, qual=1)
+        with suppress_stdout():
+            batting_df = batting_stats(year, qual=1)
         player_batting = batting_df[batting_df['IDfg'] == player_info['key_fangraphs']]
         
         if not player_batting.empty:
@@ -101,7 +103,8 @@ def _get_player_stats_impl(player_name: str, year: int = None) -> str:
         
     # Try pitching stats if no batting stats found
     try:
-        pitching_df = pitching_stats(year, qual=1)
+        with suppress_stdout():
+            pitching_df = pitching_stats(year, qual=1)
         player_pitching = pitching_df[pitching_df['IDfg'] == player_info['key_fangraphs']]
         
         if not player_pitching.empty:
@@ -159,7 +162,8 @@ def _get_player_recent_stats_impl(player_name: str, days: int = 30) -> str:
         last_name = " ".join(name_parts[1:])
         
         # Look up player
-        player_lookup = playerid_lookup(last_name, first_name)
+        with suppress_stdout():
+            player_lookup = playerid_lookup(last_name, first_name)
         if player_lookup.empty:
             return f"Player '{player_name}' not found"
             
@@ -169,11 +173,12 @@ def _get_player_recent_stats_impl(player_name: str, days: int = 30) -> str:
         # Get statcast data for recent games
         try:
             # Try as a batter first
-            recent_data = statcast_batter(
-                start_dt=start_date.strftime('%Y-%m-%d'),
-                end_dt=end_date.strftime('%Y-%m-%d'),
-                player_id=player_id
-            )
+            with suppress_stdout():
+                recent_data = statcast_batter(
+                    start_dt=start_date.strftime('%Y-%m-%d'),
+                    end_dt=end_date.strftime('%Y-%m-%d'),
+                    player_id=player_id
+                )
             
             if not recent_data.empty:
                 # Calculate batting stats
@@ -197,11 +202,12 @@ def _get_player_recent_stats_impl(player_name: str, days: int = 30) -> str:
                 
         except:
             # Try as pitcher
-            recent_data = statcast_pitcher(
-                start_dt=start_date.strftime('%Y-%m-%d'),
-                end_dt=end_date.strftime('%Y-%m-%d'),
-                player_id=player_id
-            )
+            with suppress_stdout():
+                recent_data = statcast_pitcher(
+                    start_dt=start_date.strftime('%Y-%m-%d'),
+                    end_dt=end_date.strftime('%Y-%m-%d'),
+                    player_id=player_id
+                )
             
             if not recent_data.empty:
                 # Calculate pitching stats
@@ -244,7 +250,8 @@ def _search_player_impl(search_term: str) -> str:
         
         # Search in recent batting stats
         current_year = datetime.now().year
-        batting_df = batting_stats(current_year, qual=1)
+        with suppress_stdout():
+            batting_df = batting_stats(current_year, qual=1)
         
         # Search for matches in player names
         matches = batting_df[batting_df['Name'].str.contains(search_term, case=False, na=False)]
