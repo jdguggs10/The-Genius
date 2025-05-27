@@ -100,7 +100,7 @@ from pybaseball_mcp.teams import (
     get_league_leaders,
     get_team_stats
 )
-from pybaseball_mcp.utils import clear_cache
+from pybaseball_mcp.utils import clear_cache, get_cache_info
 
 # Set up logging - ensure it goes to stderr in MCP mode
 if os.environ.get("MCP_STDIO_MODE") == "1":

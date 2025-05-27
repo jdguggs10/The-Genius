@@ -8,14 +8,39 @@ import pandas as pd
 from datetime import datetime, timedelta
 import json
 import logging
+import asyncio
+import concurrent.futures
+from functools import wraps
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
-# Cache configuration
-pyb.cache.enable()
+# Import cache utilities
+from .utils import setup_cache
 
-def get_player_stats(player_name: str, year: int = None) -> str:
+# Initialize cache
+setup_cache()
+
+# Timeout decorator for long-running operations
+def timeout_handler(timeout_seconds=30):
+    """Decorator to add timeout handling to functions"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(func, *args, **kwargs)
+                    return future.result(timeout=timeout_seconds)
+            except concurrent.futures.TimeoutError:
+                logger.error(f"Function {func.__name__} timed out after {timeout_seconds} seconds")
+                return f"Error: Request timed out after {timeout_seconds} seconds. Please try again later."
+            except Exception as e:
+                logger.error(f"Error in {func.__name__}: {str(e)}")
+                return f"Error: {str(e)}"
+        return wrapper
+    return decorator
+
+def _get_player_stats_impl(player_name: str, year: int = None) -> str:
     """
     Get season statistics for a specific player.
     
@@ -26,89 +51,90 @@ def get_player_stats(player_name: str, year: int = None) -> str:
     Returns:
         JSON string with player stats or error message
     """
+    # Default to current year if not specified
+    if year is None:
+        year = datetime.now().year
+        
+    # Split name into first and last
+    name_parts = player_name.strip().split()
+    if len(name_parts) < 2:
+        return f"Error: Please provide both first and last name for '{player_name}'"
+        
+    first_name = name_parts[0]
+    last_name = " ".join(name_parts[1:])  # Handle names like "De La Cruz"
+    
+    # Look up player ID
+    logger.info(f"Looking up player: {first_name} {last_name}")
+    player_lookup = playerid_lookup(last_name, first_name)
+    
+    if player_lookup.empty:
+        return f"Player '{player_name}' not found in database"
+        
+    # Get the most recent player entry (in case of multiple matches)
+    player_info = player_lookup.iloc[0]
+    player_id = int(player_info['key_mlbam'])
+    
+    # Try batting stats first
     try:
-        # Default to current year if not specified
-        if year is None:
-            year = datetime.now().year
-            
-        # Split name into first and last
-        name_parts = player_name.strip().split()
-        if len(name_parts) < 2:
-            return f"Error: Please provide both first and last name for '{player_name}'"
-            
-        first_name = name_parts[0]
-        last_name = " ".join(name_parts[1:])  # Handle names like "De La Cruz"
+        batting_df = batting_stats(year, qual=1)
+        player_batting = batting_df[batting_df['IDfg'] == player_info['key_fangraphs']]
         
-        # Look up player ID
-        logger.info(f"Looking up player: {first_name} {last_name}")
-        player_lookup = playerid_lookup(last_name, first_name)
-        
-        if player_lookup.empty:
-            return f"Player '{player_name}' not found in database"
-            
-        # Get the most recent player entry (in case of multiple matches)
-        player_info = player_lookup.iloc[0]
-        player_id = int(player_info['key_mlbam'])
-        
-        # Try batting stats first
-        try:
-            batting_df = batting_stats(year, qual=1)
-            player_batting = batting_df[batting_df['IDfg'] == player_info['key_fangraphs']]
-            
-            if not player_batting.empty:
-                stats = player_batting.iloc[0]
-                return json.dumps({
-                    "player": player_name,
-                    "year": year,
-                    "type": "batting",
-                    "games": int(stats.get('G', 0)),
-                    "avg": round(float(stats.get('AVG', 0)), 3),
-                    "obp": round(float(stats.get('OBP', 0)), 3),
-                    "slg": round(float(stats.get('SLG', 0)), 3),
-                    "ops": round(float(stats.get('OPS', 0)), 3),
-                    "hr": int(stats.get('HR', 0)),
-                    "rbi": int(stats.get('RBI', 0)),
-                    "runs": int(stats.get('R', 0)),
-                    "sb": int(stats.get('SB', 0)),
-                    "war": round(float(stats.get('WAR', 0)), 1)
-                }, indent=2)
-        except Exception as e:
-            logger.debug(f"No batting stats found: {e}")
-            
-        # Try pitching stats if no batting stats found
-        try:
-            pitching_df = pitching_stats(year, qual=1)
-            player_pitching = pitching_df[pitching_df['IDfg'] == player_info['key_fangraphs']]
-            
-            if not player_pitching.empty:
-                stats = player_pitching.iloc[0]
-                return json.dumps({
-                    "player": player_name,
-                    "year": year,
-                    "type": "pitching",
-                    "games": int(stats.get('G', 0)),
-                    "games_started": int(stats.get('GS', 0)),
-                    "wins": int(stats.get('W', 0)),
-                    "losses": int(stats.get('L', 0)),
-                    "saves": int(stats.get('SV', 0)),
-                    "era": round(float(stats.get('ERA', 0)), 2),
-                    "whip": round(float(stats.get('WHIP', 0)), 3),
-                    "ip": round(float(stats.get('IP', 0)), 1),
-                    "so": int(stats.get('SO', 0)),
-                    "k9": round(float(stats.get('K/9', 0)), 1),
-                    "war": round(float(stats.get('WAR', 0)), 1)
-                }, indent=2)
-        except Exception as e:
-            logger.debug(f"No pitching stats found: {e}")
-            
-        return f"No stats found for {player_name} in {year}"
-        
+        if not player_batting.empty:
+            stats = player_batting.iloc[0]
+            return json.dumps({
+                "player": player_name,
+                "year": year,
+                "type": "batting",
+                "games": int(stats.get('G', 0)),
+                "avg": round(float(stats.get('AVG', 0)), 3),
+                "obp": round(float(stats.get('OBP', 0)), 3),
+                "slg": round(float(stats.get('SLG', 0)), 3),
+                "ops": round(float(stats.get('OPS', 0)), 3),
+                "hr": int(stats.get('HR', 0)),
+                "rbi": int(stats.get('RBI', 0)),
+                "runs": int(stats.get('R', 0)),
+                "sb": int(stats.get('SB', 0)),
+                "war": round(float(stats.get('WAR', 0)), 1)
+            }, indent=2)
     except Exception as e:
-        logger.error(f"Error fetching stats for {player_name}: {str(e)}")
-        return f"Error retrieving stats: {str(e)}"
+        logger.debug(f"No batting stats found: {e}")
+        
+    # Try pitching stats if no batting stats found
+    try:
+        pitching_df = pitching_stats(year, qual=1)
+        player_pitching = pitching_df[pitching_df['IDfg'] == player_info['key_fangraphs']]
+        
+        if not player_pitching.empty:
+            stats = player_pitching.iloc[0]
+            return json.dumps({
+                "player": player_name,
+                "year": year,
+                "type": "pitching",
+                "games": int(stats.get('G', 0)),
+                "games_started": int(stats.get('GS', 0)),
+                "wins": int(stats.get('W', 0)),
+                "losses": int(stats.get('L', 0)),
+                "saves": int(stats.get('SV', 0)),
+                "era": round(float(stats.get('ERA', 0)), 2),
+                "whip": round(float(stats.get('WHIP', 0)), 3),
+                "ip": round(float(stats.get('IP', 0)), 1),
+                "so": int(stats.get('SO', 0)),
+                "k9": round(float(stats.get('K/9', 0)), 1),
+                "war": round(float(stats.get('WAR', 0)), 1)
+            }, indent=2)
+    except Exception as e:
+        logger.debug(f"No pitching stats found: {e}")
+        
+    return f"No stats found for {player_name} in {year}"
+
+# Wrapper function with timeout handling
+@timeout_handler(timeout_seconds=30)
+def get_player_stats(player_name: str, year: int = None) -> str:
+    """Get season statistics for a specific player with timeout handling."""
+    return _get_player_stats_impl(player_name, year)
 
 
-def get_player_recent_stats(player_name: str, days: int = 30) -> str:
+def _get_player_recent_stats_impl(player_name: str, days: int = 30) -> str:
     """
     Get recent game statistics for a player.
     
@@ -195,8 +221,13 @@ def get_player_recent_stats(player_name: str, days: int = 30) -> str:
         logger.error(f"Error fetching recent stats: {str(e)}")
         return f"Error retrieving recent stats: {str(e)}"
 
+@timeout_handler(timeout_seconds=20)        
+def get_player_recent_stats(player_name: str, days: int = 30) -> str:
+    """Get recent game statistics for a player with timeout handling."""
+    return _get_player_recent_stats_impl(player_name, days)
 
-def search_player(search_term: str) -> str:
+
+def _search_player_impl(search_term: str) -> str:
     """
     Search for players by partial name match.
     
@@ -235,3 +266,8 @@ def search_player(search_term: str) -> str:
     except Exception as e:
         logger.error(f"Error searching for players: {str(e)}")
         return f"Error searching: {str(e)}"
+
+@timeout_handler(timeout_seconds=15)
+def search_player(search_term: str) -> str:
+    """Search for players by partial name match with timeout handling."""
+    return _search_player_impl(search_term)

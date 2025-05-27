@@ -6,6 +6,9 @@ import json
 from datetime import datetime, timedelta
 from functools import lru_cache
 import logging
+import pybaseball as pyb
+import os
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +16,45 @@ logger = logging.getLogger(__name__)
 _cache = {}
 _cache_timestamps = {}
 CACHE_TTL_SECONDS = 300  # 5 minutes
+
+def setup_cache():
+    """Configure PyBaseball cache for better performance."""
+    # Enable caching
+    pyb.cache.enable()
+    
+    # Set cache directory to a specific location
+    cache_dir = Path.home() / ".pybaseball" / "cache"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Configure cache settings if available
+    try:
+        # Set cache expiry to 1 day for better performance
+        pyb.cache.config.cache_expiry = 86400  # 24 hours in seconds
+        logger.info(f"PyBaseball cache configured at: {cache_dir}")
+    except AttributeError:
+        # Older versions might not have these settings
+        logger.info("PyBaseball cache enabled with default settings")
+
+def clear_cache():
+    """Clear the PyBaseball cache."""
+    try:
+        pyb.cache.purge()
+        logger.info("PyBaseball cache cleared")
+    except Exception as e:
+        logger.error(f"Error clearing cache: {e}")
+        raise
+
+def get_cache_info():
+    """Get information about the cache status."""
+    try:
+        enabled = pyb.cache.is_enabled()
+        return {
+            "enabled": enabled,
+            "cache_directory": str(pyb.cache.config.cache_directory) if hasattr(pyb.cache.config, 'cache_directory') else "Default",
+        }
+    except Exception as e:
+        logger.error(f"Error getting cache info: {e}")
+        return {"enabled": False, "error": str(e)}
 
 def get_cached_result(key: str):
     """Get cached result if still valid."""
@@ -27,12 +69,6 @@ def set_cached_result(key: str, value: any):
     _cache[key] = value
     _cache_timestamps[key] = datetime.now()
     logger.debug(f"Cached result for key: {key}")
-
-def clear_cache():
-    """Clear all cached results."""
-    _cache.clear()
-    _cache_timestamps.clear()
-    logger.info("Cache cleared")
 
 def format_error(error_msg: str) -> str:
     """Format error messages consistently."""
@@ -132,3 +168,6 @@ def parse_date_range(date_str: str) -> tuple:
             start_date = end_date - timedelta(days=30)
             
     return start_date, end_date
+
+# Initialize cache on import
+setup_cache()
