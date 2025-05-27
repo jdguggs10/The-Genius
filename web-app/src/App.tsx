@@ -3,13 +3,10 @@ import Chat from './components/chat';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>The Genius</h1>
-      </header>
-      <main>
-        <Chat />
-      </main>
+    // Use Tailwind classes for basic structure, ensuring it can go full height
+    <div className="h-screen flex flex-col">
+      {/* The Chat component now handles its own header/title and layout */}
+      <Chat />
     </div>
   );
 }

@@ -150,24 +150,28 @@ export default function Chat() {
     }
   };
 
+  // Main container: Full height, flex column
   return (
-    <div className="flex flex-col h-screen max-w-3xl mx-auto p-4">
-      <h1 className="text-2xl font-bold text-center mb-4">Fantasy AI Assistant</h1>
-      
-      <div className="flex-1 overflow-auto bg-white rounded-lg shadow p-4 mb-4">
-        {messages.length === 0 ? (
-          <div className="text-center text-gray-500 my-20">
-            <p>Ask me anything about fantasy sports!</p>
-            <p className="mt-2 text-sm">Examples:</p>
-            <ul className="mt-1 text-sm">
-              <li>"Should I start Patrick Mahomes or Josh Allen this week?"</li>
-              <li>"Who are the top sleeper picks for fantasy baseball?"</li>
-              <li>"Is Christian McCaffrey worth trading for?"</li>
-              <li>"search: who do the Yankees play today" (enables web search)</li>
-            </ul>
-            <p className="mt-3 text-xs text-blue-600">
-              💡 Tip: Start your message with "search:" to get live data, or use keywords like "today", "current", "stats"
-            </p>
+    <div className="flex flex-col h-full max-h-screen">
+      {/* 1. Header/Title Area */}
+      <header className="p-4 border-b border-gray-200 bg-white">
+        <h1 className="text-lg font-semibold text-gray-800">Fantasy AI Assistant</h1>
+      </header>
+
+      {/* 2. Message Display Area (Scrollable) */}
+      <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-gray-50">
+        {messages.length === 0 && !isLoading ? ( // Show placeholder only if no messages and not loading
+          <div className="flex flex-col items-center justify-center h-full text-gray-500">
+            {/* Optional: <SomeIcon className="w-12 h-12 mb-4 text-gray-300" /> */}
+            <h2 className="text-xl font-medium mb-2">Fantasy AI Assistant</h2>
+            <p className="text-sm mb-1">Ask me anything about fantasy sports!</p>
+            <div className="text-xs text-gray-400 text-center">
+              <p>E.g., "Should I start Patrick Mahomes or Josh Allen?"</p>
+              <p>Prefix with "search:" for live data: "search: who do the Yankees play today?"</p>
+              <p className="mt-1">
+                Or use keywords like "today", "current", "stats" for web search.
+              </p>
+            </div>
           </div>
         ) : (
           messages.map((msg, index) => (
@@ -175,34 +179,40 @@ export default function Chat() {
           ))
         )}
         {isLoading && (
-          <div className="flex items-center text-gray-500 mt-2">
+          <div className="flex items-center justify-center text-gray-500 p-4"> {/* Centered loading */}
+            {/* Consider a more structured loading message, like a special bubble */}
             <div className="animate-pulse">AI is thinking...</div>
           </div>
         )}
-        <div ref={messagesEndRef} />
+        <div ref={messagesEndRef} /> {/* For scrolling to bottom */}
       </div>
-      
-      <div className="flex items-center">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-          placeholder="Type your message... (prefix with 'search:' for live data)"
-          disabled={isLimitReached || isLoading}
-          className="flex-1 p-2 border border-gray-300 rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          onClick={handleSend}
-          disabled={!input.trim() || isLoading || isLimitReached}
-          className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-r-lg disabled:opacity-50"
-        >
-          <PaperAirplaneIcon className="h-5 w-5" />
-        </button>
-      </div>
-      
-      <div className="text-center text-sm text-gray-500 mt-2">
-        {count} of {5} messages used today
+
+      {/* 3. Message Input Area (Fixed at Bottom) */}
+      <div className="p-3 border-t border-gray-200 bg-white"> {/* Adjusted padding */}
+        <div className="flex items-center">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+            placeholder="Type your message... (prefix with 'search:' for live data)"
+            disabled={isLimitReached || isLoading}
+            // Modernized input field:
+            className="flex-1 w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+          />
+          <button
+            onClick={handleSend}
+            disabled={!input.trim() || isLoading || isLimitReached}
+            // Modernized send button:
+            className="ml-2 p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 flex items-center justify-center"
+          >
+            <PaperAirplaneIcon className="h-5 w-5" /> {/* Icon size is okay, can be adjusted if needed */}
+          </button>
+        </div>
+        {/* Quota Display - relocated and styled */}
+        <div className="text-xs text-gray-400 text-center mt-2">
+          {count} of {5} messages used today
+        </div>
       </div>
       
       {showQuotaModal && (
