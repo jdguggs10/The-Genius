@@ -27,6 +27,7 @@ This web app provides:
 - **React 19**: Latest version of the most popular web framework
 - **TypeScript**: Adds type safety to prevent bugs and improve development
 - **Vite**: Super fast build tool that makes development smooth and quick
+- **pnpm**: Fast, disk space efficient package manager
 
 ### Styling & UI
 - **Tailwind CSS**: Utility-first CSS framework for consistent, beautiful styling
@@ -74,13 +75,20 @@ web-app/
    npm --version   # Should show 8 or higher
    ```
 
-**Install pnpm** (faster than npm):
+**Install pnpm** (recommended for this project for faster and more efficient package management):
+Unless you have a specific reason to use npm or Yarn, using pnpm is advised.
 ```bash
-# Install pnpm globally
+# Install pnpm globally using npm (if you haven't already)
 npm install -g pnpm
 
 # Verify it works
-pnpm --version  # Should show version number
+pnpm --version  # Should show a version number
+```
+Alternatively, if you are using Node.js version 16.9 or later, you can enable Corepack, which is a built-in Node.js tool to manage package managers:
+```bash
+corepack enable
+corepack prepare pnpm@latest --activate
+pnpm --version
 ```
 
 ### Step 2: Get the Code and Install Dependencies
@@ -93,23 +101,36 @@ cd web-app
 pnpm install
 
 # You should see it download lots of packages - this is normal!
+# If you encounter issues, ensure your Node.js and pnpm versions are up to date.
 ```
 
 ### Step 3: Configure the Backend Connection
 
-**Check the backend URL** in `src/components/chat.tsx`:
-```typescript
-// Look for this line around line 44:
-const response = await fetch('https://genius-backend-nhl3.onrender.com/advice', {
-```
+The web app needs to know where your backend API is running. This is configured using an environment variable.
 
-**If you're running your own backend**, change the URL to match:
-```typescript
-// For local development:
-const response = await fetch('http://localhost:8000/advice', {
+1.  **Create an environment file**:
+    In the `web-app` directory, create a new file named `.env`.
+    If you have a `.env.example` file in the `web-app` directory, you can copy it:
+    ```bash
+    cp .env.example .env
+    ```
+    If `.env.example` doesn't exist, create `.env` and add the following line, customizing the URL as needed:
+    ```env
+    VITE_BACKEND_URL=http://localhost:8000/advice
+    ```
+    *(Note: As `.env` files are typically in `.gitignore`, an `.env.example` might not be present in the repository. You might need to create `.env` manually.)*
 
-// For your own deployed backend:
-const response = await fetch('https://your-backend-url.com/advice', {
+2.  **Edit the `.env` file**:
+    Open the newly created `.env` file and set `VITE_BACKEND_URL` to the correct URL for your backend:
+    *   If you are running the backend locally (e.g., after following the backend setup guide), the URL is usually `http://localhost:8000/advice`.
+    *   If you are using the publicly deployed backend, the URL is `https://genius-backend-nhl3.onrender.com/advice`.
+    *   If you have deployed your own version of the backend, use its specific URL.
+
+    The `web-app/src/components/chat.tsx` file is coded to use this environment variable (`import.meta.env.VITE_BACKEND_URL`). The public Render URL (`https://genius-backend-nhl3.onrender.com/advice`) acts as a fallback if the variable isn't set, but explicitly setting it in your `.env` file is the recommended and most reliable method.
+
+Your `web-app/.env` file should look something like this (replace with your actual backend URL):
+```env
+VITE_BACKEND_URL=https://your-actual-backend-url.com/advice
 ```
 
 ### Step 4: Start the Development Server
@@ -146,11 +167,11 @@ pnpm run dev
 - **Auto-scroll**: Always shows the latest message
 - **Loading indicators**: Shows "AI is thinking..." while waiting
 - **Error handling**: Shows helpful error messages if something goes wrong
-- **Smart web search**: Automatically enables web search for questions about "stats", "current", or "latest"
+- **Smart web search**: Automatically enables web search for questions that include keywords like "stats", "current", "latest", "today", "who plays", or if the message is prefixed with "search:". For example, asking *"search: latest injury report for the Lakers"* or *"current stats for Josh Allen"* will trigger a web search to fetch up-to-date information.
 
 **Message flow**:
 ```
-User types → Press Enter → Send to backend → Get AI response → Display in chat
+User types message (e.g., "search: who won the game last night?") → Press Enter → Web app detects "search:" prefix or keywords → Sends request to backend with web search enabled → Backend fetches live data if needed & queries AI → Get AI response → Display in chat
 ```
 
 ### Daily Quota System (`src/hooks/useDailyQuota.ts`)
@@ -563,159 +584,3 @@ const response = await fetch(/* ... */);
 const responseTime = Date.now() - startTime;
 console.log(`Backend response time: ${responseTime}ms`);
 ```
-
-### Error Tracking
-
-**Track errors systematically**:
-```typescript
-// Add this to chat.tsx:
-const trackError = (error: Error, context: string) => {
-  console.error(`Error in ${context}:`, error);
-  // In production, send to error tracking service:
-  // errorTracker.capture(error, { context });
-};
-
-// Use in error handling:
-} catch (error) {
-  trackError(error as Error, 'API_REQUEST');
-  // ... existing error handling
-}
-```
-
-## 🔄 Updates & Maintenance
-
-### Updating Dependencies
-
-**Check for updates**:
-```bash
-# See outdated packages
-pnpm outdated
-
-# Update specific package
-pnpm update react
-
-# Update all packages (be careful!)
-pnpm update
-```
-
-**Major version updates**:
-```bash
-# Update React to next major version
-pnpm install react@latest react-dom@latest
-
-# Update TypeScript
-pnpm install -D typescript@latest
-```
-
-### Framework Updates
-
-**Vite updates**:
-- Check [Vite changelog](https://github.com/vitejs/vite/blob/main/packages/vite/CHANGELOG.md)
-- Test thoroughly after updates
-- Update vite.config.ts if needed
-
-**React updates**:
-- Follow [React upgrade guide](https://react.dev/blog)
-- Test all components after major updates
-- Update TypeScript types if needed
-
-### Security Updates
-
-**Regular maintenance**:
-```bash
-# Check for security vulnerabilities
-pnpm audit
-
-# Fix automatically fixable issues
-pnpm audit --fix
-
-# Update packages with known vulnerabilities
-pnpm update
-```
-
-### Content Updates
-
-**Regularly update**:
-- Example questions in the chat interface
-- Placeholder text and help messages
-- Links to mobile app or premium features
-- Terms of service or privacy policy links
-
-## 🚀 Advanced Features
-
-### Adding User Authentication
-
-**Basic structure** (you'll need backend changes too):
-1. **Add auth context** (`src/contexts/AuthContext.tsx`)
-2. **Add login/signup forms** 
-3. **Store user tokens** in localStorage
-4. **Send tokens** with API requests
-5. **Handle token expiration**
-
-### Adding Payment Integration
-
-**For premium features**:
-1. **Install Stripe**: `pnpm install @stripe/stripe-js`
-2. **Add payment components**
-3. **Handle subscription status**
-4. **Remove daily limits for paid users**
-
-### Real-time Features
-
-**WebSocket connection** for live updates:
-1. **Install socket.io**: `pnpm install socket.io-client`
-2. **Connect to WebSocket server**
-3. **Handle real-time messages**
-4. **Show typing indicators**
-
-### PWA (Progressive Web App)
-
-**Make it installable**:
-1. **Add PWA plugin**: `pnpm install -D vite-plugin-pwa`
-2. **Configure service worker**
-3. **Add app manifest**
-4. **Enable offline functionality**
-
----
-
-## 📞 Support & Contributing
-
-### Getting Help
-
-1. **Check this README** for solutions to common problems
-2. **Look at browser console** (F12) for error messages  
-3. **Test each component separately** to isolate issues
-4. **Check the backend connection** first if chat isn't working
-
-### Contributing
-
-**To add features or fix bugs**:
-1. **Fork the repository** on GitHub
-2. **Create a feature branch**: `git checkout -b feature-name`
-3. **Make your changes and test thoroughly**
-4. **Update this README** if you add new features
-5. **Submit a pull request** with clear description
-
-### Code Style Guidelines
-
-- **Use TypeScript**: Add types for better code safety
-- **Follow React best practices**: Use hooks, functional components
-- **Keep components small**: Break large components into smaller pieces
-- **Use meaningful names**: Variables and functions should be descriptive
-- **Add comments**: Explain complex logic or unusual code
-- **Test your changes**: Make sure everything works before submitting
-
-### Reporting Issues
-
-**When reporting bugs, include**:
-1. **Steps to reproduce** the problem
-2. **Expected vs actual behavior**
-3. **Browser and version** (Chrome 120, Safari 17, etc.)
-4. **Console errors** (from F12 developer tools)
-5. **Screenshots** if the issue is visual
-
----
-
-**🎨 Ready to create an amazing chat experience? Let's make your frontend shine!**
-
-*Your users will love the clean, fast interface for getting fantasy sports advice!*

@@ -37,7 +37,7 @@ The Genius Project
 
 ### 1. Web App (`/web-app`)
 - **What it is**: The website people visit
-- **What it does**: Provides a clean chat interface
+- **What it does**: Provides a clean chat interface. Users can prefix messages with "search:" or use keywords like "stats", "current", "today" to have the AI perform a web search for up-to-date information.
 - **Technology**: React (modern web framework)
 - **Special feature**: Limits free users to 5 messages per day
 
@@ -95,10 +95,21 @@ cp .env.example .env
 cd web-app
 
 # 2. Install web dependencies (one-time setup)
-npm install
+# Recommended: Use pnpm for faster installs
+npm install -g pnpm # Install pnpm if you haven't already
+pnpm install
 
-# 3. Start the development server
-npm run dev
+# Alternative: If you prefer npm
+# npm install
+
+# 3. Create your environment file for the web app
+# In the web-app directory, create a .env file (e.g., by copying .env.example if it exists)
+# Add the following line, adjusting the URL if your backend is not local:
+# VITE_BACKEND_URL=http://localhost:8000/advice
+# Refer to web-app/README.md for more details on .env setup.
+
+# 4. Start the development server
+pnpm run dev # or npm run dev
 ```
 
 #### Step 4: Test Everything
