@@ -28,28 +28,6 @@ app.add_middleware(
     allow_headers=["*"],  # Allow all headers
 )
 
-# Add manual CORS headers to all responses
-@app.middleware("http")
-async def add_cors_headers(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "*"
-    return response
-
-# Handle all OPTIONS requests
-@app.options("/{full_path:path}")
-async def options_handler(request: Request, full_path: str):
-    """Handle all CORS preflight requests"""
-    return Response(
-        status_code=200,
-        headers={
-            "Access-Control-Allow-Origin": "*",
-            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-            "Access-Control-Allow-Headers": "*",
-        }
-    )
-
 @app.get("/", response_class=HTMLResponse)
 async def root():
     """Welcome page that shows your API is working"""
@@ -133,21 +111,14 @@ async def get_advice(body: AdviceRequest) -> AdviceResponse:
             logger.error("Empty question provided")
             raise HTTPException(status_code=400, detail="Empty question provided")
         
-        # Use specified model or default to GPT-4.1
-        model_name = body.model if body.model else "gpt-4.1"
+        # Use specified model or default to environment variable or fallback
+        default_model = os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4.1")
+        model_name = body.model if body.model else default_model
         
         # Check if web search should be enabled
         enable_web_search = getattr(body, 'enable_web_search', False)
         
         logger.info(f"Processing request with model: {model_name}, web_search: {enable_web_search}")
-        
-        # Check if OpenAI API key is available
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            logger.error("OPENAI_API_KEY not found in environment variables")
-            raise HTTPException(status_code=500, detail="OpenAI API key not configured")
-        
-        logger.info("OpenAI API key found, calling get_response...")
         
         # Get response from OpenAI
         reply, model_used = get_response(
@@ -169,37 +140,6 @@ async def get_advice(body: AdviceRequest) -> AdviceResponse:
         logger.error(f"Exception type: {type(e)}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
-
-@app.post("/custom-advice")
-async def get_custom_advice(
-    body: AdviceRequest, 
-    model: str = Query("gpt-4.1", description="OpenAI model to use"),
-    enable_web_search: bool = Query(False, description="Enable web search capability")
-) -> AdviceResponse:
-    """
-    Get AI advice with custom model and settings
-    """
-    try:
-        if not body.conversation:
-            raise HTTPException(status_code=400, detail="No conversation provided")
-        
-        user_question = body.conversation[-1].content
-        if not user_question.strip():
-            raise HTTPException(status_code=400, detail="Empty question provided")
-        
-        logger.info(f"Custom advice request with model: {model}, web_search: {enable_web_search}")
-        
-        reply, model_used = get_response(
-            prompt=user_question, 
-            model=model,
-            enable_web_search=enable_web_search
-        )
-        
-        return AdviceResponse(reply=reply, model=model_used)
-        
-    except Exception as e:
-        logger.error(f"Error processing custom advice request: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
 
 if __name__ == "__main__":

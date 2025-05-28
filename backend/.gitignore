@@ -1,1 +1,12 @@
 .env
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+*.log
+.DS_Store
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
