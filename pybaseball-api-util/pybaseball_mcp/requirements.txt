@@ -1,8 +1,0 @@
-pybaseball==2.2.7
-pandas==2.2.3
-pyarrow==20.0.0
-mcp>=1.5.0
-uvicorn==0.34.2
-fastapi==0.115.12
-pydantic==2.11.4
-python-dotenv==1.1.0
