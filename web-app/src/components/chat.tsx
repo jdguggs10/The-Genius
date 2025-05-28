@@ -4,11 +4,8 @@ import { useDailyQuota } from '../hooks/useDailyQuota';
 import { PaperAirplaneIcon } from '@heroicons/react/24/solid';
 import QuotaModal from './QuotaModal.tsx';
 import Message from './message';
-
-type MessageType = {
-  role: 'user' | 'assistant';
-  content: string;
-};
+import type { MessageType } from '../types';
+import { shouldEnableWebSearch, getActualInput } from '../utils/webSearch'; // Import utilities
 
 export default function Chat() {
   const [messages, setMessages] = useState<MessageType[]>([]);
@@ -33,44 +30,8 @@ export default function Chat() {
   const handleSend = async () => {
     if (!input.trim() || isLoading || isLimitReached) return;
     
-    // Check if user wants to enable web search
-    let actualInput = input;
-    let enableWebSearch = false;
-    
-    // Handle explicit "search:" prefix
-    if (input.toLowerCase().startsWith('search:')) {
-      enableWebSearch = true;
-      actualInput = input.slice(7).trim(); // Remove "search:" prefix
-    } else {
-      // Auto-detect if web search should be enabled based on keywords
-      const inputLower = input.toLowerCase();
-      const webSearchKeywords = [
-        'stats', 'current', 'latest', 'today', 'now', 'recent', 'this week',
-        'who plays', 'schedule', 'game', 'match', 'upcoming', 'when',
-        'injury report', 'news', 'update', 'status', 'live', 'real-time',
-        'search', 'find', 'look up', 'check', 'what happened'
-      ];
-      
-      // Also check for common search phrases
-      const searchPhrases = [
-        'search the internet',
-        'search for',
-        'look up',
-        'find out',
-        'check online',
-        'browse the web',
-        'get current',
-        'get latest',
-        'real time',
-        'live data'
-      ];
-      
-      enableWebSearch = webSearchKeywords.some(keyword => 
-        inputLower.includes(keyword)
-      ) || searchPhrases.some(phrase => 
-        inputLower.includes(phrase)
-      );
-    }
+    const enableWebSearch = shouldEnableWebSearch(input);
+    const actualInput = getActualInput(input);
     
     // Add debug logging for web search detection
     console.log('Input:', input);
@@ -86,7 +47,9 @@ export default function Chat() {
       console.log('Sending request to backend...');
       console.log('Web search enabled:', enableWebSearch);
       
-      const response = await fetch('https://genius-backend-nhl3.onrender.com/advice', {
+      // TODO: Use environment variable for backend URL
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://genius-backend-nhl3.onrender.com/advice';
+      const response = await fetch(backendUrl, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
