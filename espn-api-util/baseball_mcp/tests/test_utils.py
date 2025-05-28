@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import patch, Mock, MagicMock
+import json
 
 from baseball_mcp.utils import activity_to_dict, ACTIVITY_MAP # Assuming ACTIVITY_MAP is in utils or accessible
 # If ACTIVITY_MAP is in metadata, the import would be: from baseball_mcp.metadata import ACTIVITY_MAP
@@ -334,6 +335,126 @@ class TestActivityToDict(unittest.TestCase):
         self.assertTrue(result["error"].startswith("Error serializing activity: Action Player failed!"))
         self.assertEqual(result["type"], "ERROR_PROCESSING_NO_TYPE") # original_msg_type was None
         self.assertEqual(result["date"], activity_with_action_player.date)
+
+
+class TestUtilsJSONSerialization(unittest.TestCase):
+    """Tests for JSON serialization of player_to_dict and team_to_dict."""
+
+    def test_player_to_dict_json_serializable(self):
+        """Test that player_to_dict output is JSON serializable."""
+        # Create a mock or simple player object suitable for player_to_dict
+        # This depends on the structure player_to_dict expects.
+        # For simplicity, let's assume player_to_dict can handle a basic dict or a simple object.
+        mock_player_data = {
+            'id': 123,
+            'fullName': 'Test Player',
+            'eligibleSlots': [0, 1, 2], # Example values
+            'defaultPositionId': 1,
+            'proTeamId': 5,
+            'stats': {
+                'LTS': {'appliedStats': {'0': 7, '1': 8}}, # Example structure
+                '002024': {'appliedStats': {'0': 10, '1': 12}},
+            }
+            # Add other fields that player_to_dict processes
+        }
+        # If player_to_dict expects an object with attributes:
+        # class MockESPNPlayer:
+        #     def __init__(self, data):
+        #         self.__dict__.update(data)
+        #         self.playerId = data.get('id') # if it uses playerId attribute
+        # player_obj = MockESPNPlayer(mock_player_data)
+
+        # Assuming player_to_dict can be called directly for this test
+        # and doesn't rely on a full League object or complex context
+        # If it does, this test might need more elaborate mocking or setup.
+        from baseball_mcp.utils import player_to_dict 
+        
+        # Scenario 1: Basic player data
+        try:
+            # We need to simulate how player_to_dict is called. It might expect an actual player object
+            # from the espn_api. If so, we need a more realistic mock or a fixture.
+            # For this example, let's assume a simplified path or mock its internal dependencies if necessary.
+            # This test will likely need refinement based on player_to_dict's actual implementation.
+            
+            # Simplistic assumption: player_to_dict can accept raw-ish dict data for some paths
+            # OR that we mock the espn_api.Player object effectively.
+            
+            # Let's create a mock espn_api.Player object more closely
+            player_mock = unittest.mock.Mock()
+            player_mock.playerId = mock_player_data['id']
+            player_mock.name = mock_player_data['fullName']
+            player_mock.eligibleSlots = mock_player_data['eligibleSlots']
+            player_mock.defaultPositionId = mock_player_data['defaultPositionId']
+            player_mock.proTeamId = mock_player_data['proTeamId']
+            player_mock.stats = mock_player_data['stats']
+            # Add any other attributes player_to_dict accesses
+            player_mock.onTeamId = 10 # Example
+            player_mock.lineupSlot = 'BE' # Example
+            player_mock.availabilityStatus = 'NORMAL' # Example
+            player_mock.injuryStatus = 'ACTIVE' # Example
+            player_mock.auctionValue = 0 # Example
+            player_mock.acquisitionType = 'DRAFT' # Example
+            player_mock.position_name = "Pitcher" # Example, if added by other processing first
+            player_mock.espn_link = "http://example.com" # Example
+
+            dict_output = player_to_dict(player_mock, year=2024, details=True, league_id=12345) # Call with typical params
+            json_output = json.dumps(dict_output)
+            self.assertIsNotNone(json_output)
+        except TypeError as e:
+            self.fail(f"player_to_dict output is not JSON serializable: {e} - Output was {dict_output}")
+        except Exception as e:
+            self.fail(f"player_to_dict failed during test: {e}")
+        print("✅ player_to_dict() is JSON serializable (basic check)")
+
+    def test_team_to_dict_json_serializable(self):
+        """Test that team_to_dict output is JSON serializable."""
+        # Similar to player_to_dict, create mock data or object for team_to_dict
+        mock_team_data = {
+            'team_id': 1,
+            'team_name': 'Test Team',
+            'team_abbrev': 'TT',
+            'division_id': 0,
+            'wins': 10,
+            'losses': 5,
+            'ties': 1,
+            'logo_url': 'http://example.com/logo.png',
+            'roster': [], # Simplified, team_to_dict might expect player objects here
+            'owners': [{ 'firstName': 'User', 'lastName': 'Name'}] # Example structure
+            # Add other fields processed by team_to_dict
+        }
+        from baseball_mcp.utils import team_to_dict
+
+        # Create a mock espn_api.Team object
+        team_mock = unittest.mock.Mock()
+        team_mock.team_id = mock_team_data['team_id']
+        team_mock.team_name = mock_team_data['team_name']
+        team_mock.team_abbrev = mock_team_data['team_abbrev']
+        team_mock.division_id = mock_team_data['division_id']
+        team_mock.wins = mock_team_data['wins']
+        team_mock.losses = mock_team_data['losses']
+        team_mock.ties = mock_team_data['ties']
+        team_mock.logo_url = mock_team_data['logo_url']
+        team_mock.roster = mock_team_data['roster'] # This would normally be list of Player objects
+        team_mock.owners = mock_team_data['owners']
+        team_mock.points = 100 # Example
+        team_mock.standing = 1 # Example
+        team_mock.division_name = "East" # Example
+        team_mock.streak_type = "WIN" # Example
+        team_mock.streak_length = 3 # Example
+
+        try:
+            # Assuming team_to_dict is called with the team object and year
+            # If team_to_dict calls player_to_dict for roster, that needs to be mocked or handled
+            with unittest.mock.patch('baseball_mcp.utils.player_to_dict') as mock_p2d:
+                mock_p2d.return_value = {"player_id": 999, "name": "Mocked Roster Player"} # Ensure roster players are serializable
+                dict_output = team_to_dict(team_mock, year=2024) # Call with typical params
+            json_output = json.dumps(dict_output)
+            self.assertIsNotNone(json_output)
+        except TypeError as e:
+            self.fail(f"team_to_dict output is not JSON serializable: {e} - Output was {dict_output}")
+        except Exception as e:
+            self.fail(f"team_to_dict failed during test: {e}")
+        print("✅ team_to_dict() is JSON serializable (basic check)")
 
 
 if __name__ == '__main__':

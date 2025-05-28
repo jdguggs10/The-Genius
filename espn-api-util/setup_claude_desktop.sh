@@ -7,19 +7,22 @@ echo "======================================================="
 
 # Get the absolute path to this directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BASEBALL_MCP_DIR="$SCRIPT_DIR/baseball_mcp"
-VENV_DIR="$SCRIPT_DIR/.venv"
+# VENV_DIR and BASEBALL_MCP_DIR are not directly needed here if start_claude_mcp.sh handles its paths
 
-# Check if virtual environment exists
-if [ ! -d "$VENV_DIR" ]; then
-    echo "❌ Virtual environment not found at $VENV_DIR"
-    echo "   Please run ./setup.sh first to create the virtual environment"
+# Check if start_claude_mcp.sh exists (this will be the command)
+START_SCRIPT_PATH="$SCRIPT_DIR/start_claude_mcp.sh"
+if [ ! -f "$START_SCRIPT_PATH" ]; then
+    echo "❌ Startup script not found at $START_SCRIPT_PATH"
+    echo "   Ensure start_claude_mcp.sh is present in the same directory as this setup script."
     exit 1
 fi
 
-# Check if baseball_mcp_server.py exists
-if [ ! -f "$BASEBALL_MCP_DIR/baseball_mcp_server.py" ]; then
-    echo "❌ Baseball MCP server not found at $BASEBALL_MCP_DIR/baseball_mcp_server.py"
+# Check if virtual environment exists (as start_claude_mcp.sh will need it)
+# This is an indirect check to ensure the target script has what it needs
+VENV_DIR_CHECK="$SCRIPT_DIR/.venv"
+if [ ! -d "$VENV_DIR_CHECK" ]; then
+    echo "❌ Virtual environment not found at $VENV_DIR_CHECK (needed by $START_SCRIPT_PATH)"
+    echo "   Please run ./setup.sh or ./start_baseball_mcp.sh (which includes setup) first."
     exit 1
 fi
 
@@ -47,17 +50,13 @@ echo "📄 Claude Desktop config file: $CLAUDE_CONFIG_FILE"
 mkdir -p "$CLAUDE_CONFIG_DIR"
 
 # Create the configuration JSON
+# The command will now be the start_claude_mcp.sh script.
+# It is responsible for setting its own CWD, PYTHONPATH, and activating the venv.
 cat > "$CLAUDE_CONFIG_FILE" << EOF
 {
   "mcpServers": {
     "espn-baseball": {
-      "command": "$VENV_DIR/bin/python3",
-      "args": ["baseball_mcp_server.py"],
-      "cwd": "$BASEBALL_MCP_DIR",
-      "env": {
-        "PYTHONPATH": "$BASEBALL_MCP_DIR",
-        "PATH": "$VENV_DIR/bin:/usr/local/bin:/usr/bin:/bin"
-      }
+      "command": "$START_SCRIPT_PATH"
     }
   }
 }
@@ -68,8 +67,8 @@ echo "✅ Claude Desktop configuration created successfully!"
 echo ""
 echo "📋 Configuration Details:"
 echo "   Server Name: espn-baseball"
-echo "   Command: $VENV_DIR/bin/python3"
-echo "   Working Directory: $BASEBALL_MCP_DIR"
+echo "   Command: $START_SCRIPT_PATH"
+echo "   Working Directory: $SCRIPT_DIR"
 echo "   Config File: $CLAUDE_CONFIG_FILE"
 echo ""
 echo "🚀 Next Steps:"

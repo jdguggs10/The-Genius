@@ -10,6 +10,13 @@ from espn_api import baseball
 import datetime
 from metadata import POSITION_MAP, STATS_MAP, ACTIVITY_MAP, get_activity_name, ESPN_ACTION_TYPE_MAP
 
+# Apply ESPN API authentication patch to fix None cookies bug
+try:
+    from espn_api_patch import apply_espn_api_patch
+    apply_espn_api_patch()
+except Exception as e:
+    print(f"⚠ ESPN API patch not applied: {str(e)}", file=sys.stderr)
+
 def log_error(message: str):
     """Add stderr logging for Claude Desktop to see"""
     print(message, file=sys.stderr)
@@ -264,8 +271,6 @@ def boxplayer_to_dict(boxplayer: Any) -> Dict[str, Any]:
     except Exception as e:
         log_error(f"Error serializing boxplayer: {str(e)}")
         return {"error": f"Error serializing boxplayer: {str(e)}"}
-
-
 
 def activity_to_dict(activity: Any) -> Dict[str, Any]:
     """

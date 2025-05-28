@@ -1,23 +1,34 @@
 #!/usr/bin/env bash
+# Script to run the generic espn_fantasy_server.py
+# Assumes ./setup.sh has been run to create .venv and install dependencies.
+
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
 
-# start_mcp.sh
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR" # Ensure we are in espn-api-util root
 
-# 1) Go to the repo
-cd /Users/geraldgugger/code/the-genius/espn-api-util
+echo "Running in directory: $(pwd)"
 
-# 2) Check if virtualenv exists, create if it doesn't
-if [ ! -d ".venv" ]; then
-    echo "Creating virtual environment..."
-    python3.12 -m venv .venv
+# Define paths
+VENV_PATH="$SCRIPT_DIR/.venv"
+SERVER_SCRIPT="$SCRIPT_DIR/espn_fantasy_server.py"
+
+# Check if virtualenv exists
+if [ ! -f "$VENV_PATH/bin/activate" ]; then
+    echo "❌ Virtual environment not found at $VENV_PATH"
+    echo "   Please run ./setup.sh from the espn-api-util directory first."
+    exit 1
 fi
 
-# 3) Activate your virtualenv
-source .venv/bin/activate
+# Activate virtual environment
+source "$VENV_PATH/bin/activate"
 
-# 4) Ensure dependencies are installed
-echo "Checking dependencies..."
-python3 -m pip install -e .
+# Check if server script exists
+if [ ! -f "$SERVER_SCRIPT" ]; then
+    echo "❌ Server script not found at $SERVER_SCRIPT" >&2
+    exit 1
+fi
 
-# 5) Run the MCP server
+# Run the MCP server using uv
+echo "Starting generic ESPN Fantasy MCP Server (espn_fantasy_server.py) using uv..."
 exec uv run espn_fantasy_server.py

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Test script to validate MCP JSON output
+Test script to validate MCP Server Protocol Compliance
 """
 
 import json
@@ -10,15 +10,31 @@ import os
 import signal
 import time
 
-def test_mcp_server():
-    """Test that the MCP server outputs valid JSON"""
+def test_mcp_server_initialization():
+    """Test that the MCP server responds correctly to an initialize message"""
     
-    print("Testing ESPN Fantasy Baseball MCP Server JSON compliance...")
-    print("=" * 60)
+    print("Testing ESPN Fantasy Baseball MCP Server Initialization...")
+    print("=" * 60) # Corrected print length
     
     # Change to the baseball_mcp directory
     baseball_mcp_dir = os.path.join(os.path.dirname(__file__), 'baseball_mcp')
-    os.chdir(baseball_mcp_dir)
+    original_dir = os.getcwd()
+    process = None # Initialize process to None
+
+    if os.path.exists(baseball_mcp_dir) and os.path.isdir(baseball_mcp_dir):
+        os.chdir(baseball_mcp_dir)
+    else:
+        print(f"❌ Could not change to directory: {baseball_mcp_dir}. Ensure it exists relative to the script.")
+        if not os.path.exists('baseball_mcp_server.py'): # Check in original_dir if chdir failed
+            # Check if script is already in baseball_mcp folder
+            if os.path.basename(original_dir) == 'baseball_mcp' and os.path.exists('baseball_mcp_server.py'):
+                 print(f"⚠️ Running from current directory: {original_dir} (seems to be baseball_mcp).")
+            else:
+                print("❌ baseball_mcp_server.py not found in current directory or expected relative path. Aborting.")
+                return False
+        else: # baseball_mcp_server.py found in original_dir
+            print(f"⚠️ Running from current directory: {original_dir} as baseball_mcp_server.py found here. This might have unintended consequences if other relative paths are expected.")
+
     
     # Start the server process
     cmd = [
@@ -35,7 +51,8 @@ def test_mcp_server():
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            env={**os.environ, 'PYTHONPATH': '.'}
+            # env={**os.environ, 'PYTHONPATH': '.'} # PYTHONPATH '.' is implicit when cwd is baseball_mcp_dir
+            # If not in baseball_mcp_dir, PYTHONPATH might need adjustment or direct path to modules
         )
         
         # Give the server a moment to start up
@@ -65,7 +82,7 @@ def test_mcp_server():
         print("Reading server response...")
         
         # Check if the process has any stderr output (errors)
-        if process.poll() is not None:
+        if process and process.poll() is not None:
             stdout, stderr = process.communicate()
             if stderr:
                 print(f"❌ Server stderr output:")
@@ -88,6 +105,11 @@ def test_mcp_server():
                 return True
             else:
                 print("❌ No response received from server")
+                # Check stderr if no response
+                if process:
+                    stderr_output = process.stderr.read()
+                    if stderr_output:
+                        print(f"Stderr from server: {stderr_output}")
                 return False
                 
         except json.JSONDecodeError as e:
@@ -97,6 +119,8 @@ def test_mcp_server():
             
     except Exception as e:
         print(f"❌ Error testing server: {e}")
+        import traceback
+        traceback.print_exc() # Print stack trace for better debugging
         return False
         
     finally:
@@ -108,58 +132,21 @@ def test_mcp_server():
                 process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 process.kill()
-
-def test_json_serialization():
-    """Test that our utility functions produce valid JSON"""
-    print("\nTesting JSON serialization of utility functions...")
-    print("-" * 40)
-    
-    sys.path.insert(0, 'baseball_mcp')
-    
-    try:
-        from utils import team_to_dict, player_to_dict
-        from metadata import get_positions, get_stat_map, get_activity_types
-        
-        # Test metadata functions
-        positions = get_positions()
-        stats = get_stat_map()
-        activities = get_activity_types()
-        
-        # Try to serialize each as JSON
-        json.dumps(positions)
-        print("✅ Positions metadata serializes to valid JSON")
-        
-        json.dumps(stats)
-        print("✅ Stats metadata serializes to valid JSON")
-        
-        json.dumps(activities)
-        print("✅ Activity types metadata serializes to valid JSON")
-        
-        print("✅ All utility functions produce valid JSON")
-        return True
-        
-    except Exception as e:
-        print(f"❌ JSON serialization error: {e}")
-        return False
+        os.chdir(original_dir) # Change back to original directory
 
 if __name__ == "__main__":
-    print("ESPN Fantasy Baseball MCP JSON Validation Test")
+    print("ESPN Fantasy Baseball MCP Server Protocol Test")
     print("=" * 50)
     
-    # Test 1: JSON serialization utilities
-    json_test_passed = test_json_serialization()
-    
-    # Test 2: MCP server protocol compliance
-    mcp_test_passed = test_mcp_server()
+    mcp_test_passed = test_mcp_server_initialization()
     
     print("\n" + "=" * 50)
     print("TEST RESULTS:")
-    print(f"JSON Serialization: {'✅ PASSED' if json_test_passed else '❌ FAILED'}")
-    print(f"MCP Server Protocol: {'✅ PASSED' if mcp_test_passed else '❌ FAILED'}")
+    print(f"MCP Server Protocol Initialization: {'✅ PASSED' if mcp_test_passed else '❌ FAILED'}")
     
-    if json_test_passed and mcp_test_passed:
-        print("🎉 All tests passed! The server should work correctly with Claude Desktop.")
+    if mcp_test_passed:
+        print("🎉 MCP server initialization test passed!")
         sys.exit(0)
     else:
-        print("❌ Some tests failed. Check the issues above.")
+        print("❌ MCP server initialization test failed. Check the issues above.")
         sys.exit(1) 

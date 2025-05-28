@@ -1,29 +1,37 @@
 #!/usr/bin/env bash
 
 # Baseball MCP Server Startup Script
+# Assumes ./setup.sh has been run to create .venv and install dependencies.
 
-export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+SCRIPT_PARENT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# Go to the baseball_mcp directory
-cd "$(dirname "$0")/baseball_mcp"
+# Define paths
+VENV_PATH="$SCRIPT_PARENT_DIR/.venv"
+BASEBALL_MCP_DIR="$SCRIPT_PARENT_DIR/baseball_mcp"
+SERVER_SCRIPT="$BASEBALL_MCP_DIR/baseball_mcp_server.py"
 
-# Check if virtualenv exists in parent directory, create if it doesn't
-if [ ! -d "../.venv" ]; then
-    echo "Creating virtual environment..."
-    cd ..
-    python3.12 -m venv .venv
-    cd baseball_mcp
+# Check if virtualenv exists
+if [ ! -f "$VENV_PATH/bin/activate" ]; then
+    echo "❌ Virtual environment not found at $VENV_PATH"
+    echo "   Please run ./setup.sh from the espn-api-util directory first."
+    exit 1
 fi
 
 # Activate the virtual environment
-source ../.venv/bin/activate
+source "$VENV_PATH/bin/activate"
 
-# Ensure dependencies are installed
-echo "Checking dependencies..."
-cd ..
-python3 -m pip install -e .
-cd baseball_mcp
+# Check if server script exists
+if [ ! -f "$SERVER_SCRIPT" ]; then
+    echo "❌ Server script not found at $SERVER_SCRIPT" >&2
+    exit 1
+fi
+
+# Change to the baseball_mcp directory
+cd "$BASEBALL_MCP_DIR"
+
+# Add current directory to Python path for module imports (optional, server might handle it)
+# export PYTHONPATH="$BASEBALL_MCP_DIR:$PYTHONPATH"
 
 # Run the Baseball MCP server
-echo "Starting ESPN Fantasy Baseball MCP Server..."
+echo "Starting ESPN Fantasy Baseball MCP Server from $BASEBALL_MCP_DIR..."
 exec python3 baseball_mcp_server.py
