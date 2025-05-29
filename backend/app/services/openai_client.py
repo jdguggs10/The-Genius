@@ -1,16 +1,19 @@
 import os
 from dotenv import load_dotenv
-from openai import OpenAI, APIError, APIConnectionError, RateLimitError, AuthenticationError, NotFoundError, BadRequestError
-from typing import Tuple, Dict, List, Optional, Any
- 
+from openai import OpenAI, APIError, APIConnectionError, RateLimitError, AuthenticationError, NotFoundError, BadRequestError, AsyncOpenAI
+from openai.types.responses import ResponseOutputTextDeltaEvent, ResponseDoneEvent, ResponseErrorEvent #, ResponseOutputJSONDeltaEvent # Not standard
+from typing import Tuple, Dict, List, Optional, Any, AsyncGenerator, Awaitable
+
 import logging
+import json # For parsing in the non-streaming version and CLI
+
+# Import the Pydantic model for structured responses
+from app.models import StructuredAdvice
 
 # Load environment variables from .env file
 load_dotenv()
 
-logging.getLogger(__name__).addHandler(logging.NullHandler()) # Add NullHandler if this is a library module to avoid "No handler found" warnings if not configured by app.
-# However, since this service is part of an app that does configure logging, 
-# just getting the logger is fine.
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 logger = logging.getLogger(__name__)
 
 api_key = os.getenv("OPENAI_API_KEY")
@@ -18,156 +21,264 @@ if not api_key:
     logger.error("OPENAI_API_KEY environment variable is not set")
     raise EnvironmentError("Missing OPENAI_API_KEY")
 
+# Use AsyncOpenAI for the streaming function
+async_client = AsyncOpenAI(api_key=api_key)
+# Keep synchronous client for the existing non-streaming function
 client = OpenAI(api_key=api_key)
 
 # Define the default model by checking environment variable first, then fallback
-OPENAI_DEFAULT_MODEL_INTERNAL = os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4.1")
+OPENAI_DEFAULT_MODEL_INTERNAL = os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4o-mini") # Explicitly set to gpt-4o-mini as requested
+SYSTEM_DEFAULT_INSTRUCTIONS = os.getenv("SYSTEM_PROMPT", "You are a helpful fantasy sports assistant with deep knowledge of player performance, matchups, and strategy.")
 
-def get_response(
+async def get_streaming_response(
     prompt: str,
-    model: str = OPENAI_DEFAULT_MODEL_INTERNAL, # Use the resolved default
-    instructions: str = "You are a helpful assistant.",
-    max_tokens: int = 1000,
+    model: str = OPENAI_DEFAULT_MODEL_INTERNAL,
+    instructions: str = SYSTEM_DEFAULT_INSTRUCTIONS,
+    max_tokens: int = 2000,
     temperature: float = 0.7,
     enable_web_search: bool = False
-) -> Tuple[str, str]:
+) -> AsyncGenerator[str, None]:
     """
-    Sends a prompt to the OpenAI Responses API using GPT-4.1 and returns the assistant's reply.
+    Gets a streaming response from OpenAI's Responses API with structured JSON output.
     
-    Args:
-        prompt: The user's input text
-        model: The OpenAI model to use (default is gpt-4.1)
-        instructions: System instructions for the model
-        max_tokens: Maximum number of tokens to generate
-        temperature: Controls randomness (0-1)
-        enable_web_search: Whether to enable the web search tool
-        
-    Returns:
-        Tuple containing:
-        - The text response from the AI
-        - The model name used
+    Yields:
+        str: Event-formatted chunks containing both text and structured JSON deltas.
     """
     try:
-        # Define parameters for the API call
-        # Use higher token limit for web search responses as they tend to be longer
-        actual_max_tokens = max_tokens if not enable_web_search else max(max_tokens, 1500)
+        # Build the input prompt with instructions
+        full_prompt = f"{instructions}\n\nUser: {prompt}\n\nPlease respond with structured JSON that matches this schema: {StructuredAdvice.model_json_schema()}"
         
-        params = {
-            "model": model,
-            "instructions": instructions,
-            "input": prompt,
-            "max_output_tokens": actual_max_tokens,
-            "temperature": temperature,
-        }
+        logger.info(f"Streaming request to OpenAI Responses API model: {model}")
         
-        # Add web search tool if enabled
-        if enable_web_search:
-            logger.info("Enabling web search tool for this request")
-            # Define the web search tool (updated for GPT 4.1 compatibility)
-            web_search_tool = {
-                "type": "web_search_preview"
-            }
-            params["tools"] = [web_search_tool]
-            logger.info(f"Web search tool added to params: {params['tools']}")
-        else:
-            logger.info("Web search not enabled for this request")
+        # Prepare tools if web search is enabled
+        tools = [{"type": "web_search"}] if enable_web_search else None
         
-        # Call the OpenAI Responses API
-        logger.info(f"Making OpenAI API call with params: {params}")
-        resp = client.responses.create(**params)
+        # Use the correct Responses API call
+        response = await async_client.responses.create(
+            model=model,
+            input=full_prompt,
+            stream=True,
+            max_completion_tokens=max_tokens,
+            temperature=temperature,
+            tools=tools
+        )
         
-        status = getattr(resp, "http_response", None)
-        if status:
-            logger.info(f"OpenAI API response status code: {status.status_code}")
-        else:
-            logger.info("OpenAI API response received")
+        accumulated_content = ""
+        
+        async for event in response:
+            logger.debug(f"Received event type: {getattr(event, 'type', 'unknown')}")
             
-        # Log model information
-        actual_model = getattr(resp, "model", model)
-        logger.info(f"Response generated using model: {actual_model}")
-        
+            # Handle different event types from Responses API
+            if hasattr(event, 'type'):
+                # Handle web search calls
+                if event.type == "web_search_call":
+                    yield f"event: web_search\ndata: {json.dumps({'status': 'searching', 'message': 'Searching the web for current information...'})}\n\n"
+                
+                # Handle message output (text content)
+                elif event.type == "message" and hasattr(event, 'content'):
+                    for content_item in event.content:
+                        if hasattr(content_item, 'text'):
+                            text_content = content_item.text
+                            accumulated_content += text_content
+                            yield f"event: text_delta\ndata: {json.dumps({'delta': text_content})}\n\n"
+                
+                # Handle response completion
+                elif event.type == "response.done" or (hasattr(event, 'status') and event.status == "completed"):
+                    # Try to parse the accumulated content as structured JSON
+                    try:
+                        # If accumulated content looks like JSON, parse it
+                        if accumulated_content.strip().startswith('{'):
+                            parsed_advice = StructuredAdvice.model_validate_json(accumulated_content)
+                        else:
+                            # Fallback: create structured advice from text
+                            parsed_advice = StructuredAdvice(
+                                main_advice=accumulated_content.strip(),
+                                model_identifier=model
+                            )
+                        
+                        yield f"event: response_complete\ndata: {json.dumps({'status': 'complete', 'final_json': parsed_advice.model_dump()})}\n\n"
+                    except Exception as e:
+                        logger.error(f"Failed to parse final response: {e}")
+                        # Return the text as main advice
+                        fallback_advice = StructuredAdvice(
+                            main_advice=accumulated_content.strip() or "No response received",
+                            reasoning="Failed to parse structured response",
+                            model_identifier=model
+                        )
+                        yield f"event: response_complete\ndata: {json.dumps({'status': 'complete', 'final_json': fallback_advice.model_dump()})}\n\n"
+                    break
+                    
+                # Handle errors
+                elif hasattr(event, 'error'):
+                    logger.error(f"OpenAI API error: {event.error}")
+                    yield f"event: error\ndata: {json.dumps({'error': 'API_ERROR', 'message': str(event.error)})}\n\n"
+                    break
+
     except APIConnectionError as e:
-        logger.error(f"OpenAI API Connection Error with model {model}: {e}")
-        # Potentially retry or handle specific connection issues here
-        raise
+        logger.error(f"OpenAI API request failed to connect: {e}")
+        yield f"event: error\ndata: {json.dumps({'error': 'CONNECTION_ERROR', 'message': str(e)})}\n\n"
     except RateLimitError as e:
-        logger.error(f"OpenAI API Rate Limit Exceeded with model {model}: {e}")
-        # Potentially implement backoff strategy here or inform user
-        raise
+        logger.error(f"OpenAI API request exceeded rate limit: {e}")
+        yield f"event: error\ndata: {json.dumps({'error': 'RATE_LIMIT_ERROR', 'message': str(e)})}\n\n"
     except AuthenticationError as e:
-        logger.error(f"OpenAI API Authentication Error with model {model}: {e}. Check your API key.")
-        # This is a critical configuration error
-        raise
-    except NotFoundError as e:
-        logger.error(f"OpenAI API Not Found Error (e.g., model not found) with model {model}: {e}")
-        raise
-    except BadRequestError as e: # Covers invalid requests, malformed inputs etc.
-        logger.error(f"OpenAI API Invalid Request Error with model {model}: {e}. Input: {prompt[:100]}...", exc_info=True)
-        # It might be useful to log details of the request that caused this
-        raise
-    except APIError as e: # Catch other generic OpenAI API errors
-        logger.error(f"Generic OpenAI API Error with model {model}: {e}", exc_info=True)
-        raise
-    except Exception as e: # Catch any other unexpected errors
-        logger.error(f"Unexpected error calling OpenAI API with model {model}: {e}", exc_info=True)
-        raise
-    
-    # Extract the text response from the Responses API
-    # Try multiple ways to get the response text
-    response_text = "No response generated"
-    
-    # Method 1: Try output_text field (some responses have this)
-    if hasattr(resp, 'output_text') and resp.output_text:
-        response_text = resp.output_text
-        logger.info("Used output_text field for response")
-    
-    # Method 2: Try output[0].content[0].text structure
-    elif hasattr(resp, 'output') and resp.output and len(resp.output) > 0:
-        output_item = resp.output[0]
-        if hasattr(output_item, 'content') and output_item.content and len(output_item.content) > 0:
-            content_item = output_item.content[0]
-            if hasattr(content_item, 'text'):
-                response_text = content_item.text
-                logger.info("Used output[0].content[0].text structure for response")
+        logger.error(f"OpenAI API authentication failed: {e}")
+        yield f"event: error\ndata: {json.dumps({'error': 'AUTH_ERROR', 'message': str(e)})}\n\n"
+    except APIError as e:
+        logger.error(f"OpenAI API returned an API Error: {e}")
+        yield f"event: error\ndata: {json.dumps({'error': 'API_ERROR', 'message': str(e)})}\n\n"
+    except Exception as e:
+        logger.error(f"An unexpected error occurred while streaming: {e}")
+        yield f"event: error\ndata: {json.dumps({'error': 'UNEXPECTED_ERROR', 'message': str(e)})}\n\n"
+
+
+# Existing get_response function (non-streaming, uses synchronous client.responses.create)
+def get_response(
+    prompt: str,
+    model: str = OPENAI_DEFAULT_MODEL_INTERNAL,
+    instructions: str = SYSTEM_DEFAULT_INSTRUCTIONS, 
+    max_tokens: int = 2000,
+    temperature: float = 0.7,
+    enable_web_search: bool = False
+) -> StructuredAdvice:
+    """
+    Gets a non-streaming response from OpenAI's Responses API.
+    """
+    try:
+        # Build the input prompt with instructions
+        full_prompt = f"{instructions}\n\nUser: {prompt}\n\nPlease respond with structured JSON that matches this schema: {StructuredAdvice.model_json_schema()}"
         
-        # Method 3: Try to get text from message type output
-        elif hasattr(output_item, 'type') and output_item.type == 'message':
-            if hasattr(output_item, 'content') and output_item.content:
-                for content in output_item.content:
-                    if hasattr(content, 'text'):
-                        response_text = content.text
-                        logger.info("Used message content text for response")
-                        break
+        logger.info(f"Request to OpenAI Responses API model: {model}")
+        
+        # Prepare tools if web search is enabled
+        tools = [{"type": "web_search"}] if enable_web_search else None
+        
+        response = client.responses.create(
+            model=model,
+            input=full_prompt,
+            stream=False,
+            max_completion_tokens=max_tokens,
+            temperature=temperature,
+            tools=tools
+        )
+        
+        # Extract content from response
+        if response.output and len(response.output) > 0:
+            for output_item in response.output:
+                if hasattr(output_item, 'content') and output_item.content:
+                    for content_item in output_item.content:
+                        if hasattr(content_item, 'text'):
+                            response_text = content_item.text
+                            
+                            # Try to parse as JSON first
+                            try:
+                                if response_text.strip().startswith('{'):
+                                    parsed_advice = StructuredAdvice.model_validate_json(response_text)
+                                    if parsed_advice.model_identifier is None:
+                                        parsed_advice.model_identifier = model
+                                    return parsed_advice
+                            except:
+                                pass
+                            
+                            # Fallback: create structured advice from text
+                            return StructuredAdvice(
+                                main_advice=response_text.strip(),
+                                model_identifier=model
+                            )
+        
+        # Fallback error case
+        return StructuredAdvice(
+            main_advice="Error: No valid response received from OpenAI",
+            reasoning="The API response was empty or malformed"
+        )
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Failed to decode JSON from OpenAI response: {e}")
+        return StructuredAdvice(main_advice=f"Error: Failed to decode JSON response. {e}")
+    except APIConnectionError as e:
+        logger.error(f"OpenAI API request failed to connect: {e}")
+        return StructuredAdvice(main_advice=f"Error: API Connection Error. {e}")
+    except RateLimitError as e:
+        logger.error(f"OpenAI API request exceeded rate limit: {e}")
+        return StructuredAdvice(main_advice=f"Error: Rate Limit Exceeded. {e}")
+    except AuthenticationError as e:
+        logger.error(f"OpenAI API authentication failed: {e}")
+        return StructuredAdvice(main_advice=f"Error: Authentication Failed. {e}")
+    except APIError as e:
+        logger.error(f"OpenAI API returned an API Error: {e}")
+        return StructuredAdvice(main_advice=f"Error: OpenAI API Error. {e}")
+    except Exception as e:
+        logger.error(f"An unexpected error occurred: {e}")
+        return StructuredAdvice(main_advice=f"Error: An unexpected error occurred. {e}")
+
+# Example usage for CLI testing (if __name__ == "__main__")
+async def main_cli():
+    print("Starting CLI for OpenAI Fantasy Sports Assistant...")
+    print("Using model:", OPENAI_DEFAULT_MODEL_INTERNAL)
+    print("Type 'exit' to quit, or 'searchon'/'searchoff' to toggle web search (currently illustrative).")
     
-    # Method 4: Last resort - convert to string
-    if response_text == "No response generated" and hasattr(resp, 'output'):
-        response_text = str(resp.output)
-        logger.info("Used string conversion as fallback for response")
-    
-    logger.info(f"Final response text length: {len(response_text)}")
-    return response_text, actual_model
+    enable_search_cli = False # Default search to off
+
+    while True:
+        try:
+            user_input = input("You: ")
+            if user_input.lower() == "exit":
+                break
+            if user_input.lower() == "searchon":
+                enable_search_cli = True
+                print("Web search (illustrative) is ON for next query.")
+                continue
+            if user_input.lower() == "searchoff":
+                enable_search_cli = False
+                print("Web search (illustrative) is OFF for next query.")
+                continue
+            
+            # --- Streaming Response Example (Commented out by default) ---
+            # print("\nAI Assistant (Streaming JSON Chunks):")
+            # accumulated_json = []
+            # async for chunk in get_streaming_response(user_input, enable_web_search=enable_search_cli):
+            #     print(chunk, end="", flush=True)
+            #     accumulated_json.append(chunk)
+            # print("\n--- End of Stream ---")
+            # try:
+            #     full_json_str = "".join(accumulated_json)
+            #     if full_json_str.strip(): # Ensure not empty
+            #         parsed_streamed_advice = StructuredAdvice.model_validate_json(full_json_str)
+            #         print("\nParsed Streamed Advice:")
+            #         print(parsed_streamed_advice.model_dump_json(indent=2))
+            #     else:
+            #         print("\nStream produced no JSON content.")
+            # except json.JSONDecodeError as e:
+            #     print(f"\nError decoding streamed JSON: {e}")
+            #     print(f"Received: {full_json_str}")
+            # except Exception as e:
+            #     print(f"\nError processing streamed response: {e}")
+            # print("\n")
+            
+            # --- Non-Streaming Response Example (Default for CLI) ---
+            print("\nAI Assistant (Structured JSON Response):")
+            response_obj = get_response(user_input, enable_web_search=enable_search_cli)
+            if response_obj: # Should always be a StructuredAdvice object due to error handling
+                print(response_obj.model_dump_json(indent=2))
+            else:
+                # This case should ideally not be reached if get_response always returns a StructuredAdvice
+                print("Error: No response object received.")
+            print("\n")
+
+        except KeyboardInterrupt:
+            print("\nExiting...")
+            break
+        except Exception as e:
+            print(f"CLI Error: {e}")
+            logger.exception("Exception in CLI loop")
 
 if __name__ == "__main__":
-    system_prompt = os.getenv("SYSTEM_PROMPT", "You are a helpful assistant.")
-    print("Starting chat. Type 'exit' to quit.")
-    print("Type 'search:' before your question to enable web search")
-    
-    while True:
-        user_input = input("You: ")
-        if user_input.lower() == "exit":
-            break
-            
-        # Check if user wants to enable web search
-        enable_search = False
-        if user_input.lower().startswith("search:"):
-            enable_search = True
-            user_input = user_input[7:].strip()  # Remove "search:" prefix
-            print("Web search enabled for this question.")
-        
-        # The model parameter will use OPENAI_DEFAULT_MODEL_INTERNAL if not overridden
-        response_text, used_model = get_response(
-            prompt=user_input,
-            instructions=system_prompt,
-            enable_web_search=enable_search
-        )
-        print(f"Bot ({used_model}): {response_text}")
+    import asyncio
+    # To run the async main_cli in a synchronous context if this file is run directly
+    # For Python 3.7+
+    try:
+        asyncio.run(main_cli())
+    except KeyboardInterrupt:
+        print("Exiting via KeyboardInterrupt...")
+    except Exception as e:
+        print(f"Unhandled error in CLI: {e}")
+        logger.error(f"Unhandled error in CLI execution: {e}", exc_info=True)

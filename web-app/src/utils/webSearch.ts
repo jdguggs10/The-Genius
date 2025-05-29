@@ -1,39 +1,89 @@
-export const shouldEnableWebSearch = (inputText: string): boolean => {
-  const inputLower = inputText.toLowerCase();
-
-  if (inputLower.startsWith('search:')) {
+export function shouldEnableWebSearch(input: string): boolean {
+  const lowerInput = input.toLowerCase().trim();
+  
+  // Explicit search prefix
+  if (lowerInput.startsWith('search:')) {
     return true;
   }
-
-  const webSearchKeywords = [
-    'stats', 'current', 'latest', 'today', 'now', 'recent', 'this week',
-    'who plays', 'schedule', 'game', 'match', 'upcoming', 'when',
-    'injury report', 'news', 'update', 'status', 'live', 'real-time',
-    'search', 'find', 'look up', 'check', 'what happened'
+  
+  // Time-sensitive keywords
+  const timeKeywords = [
+    'today', 'tonight', 'this week', 'this weekend', 'current', 'latest', 'recent',
+    'now', 'live', 'active', 'injured', 'news', 'update', 'status'
   ];
-
-  const searchPhrases = [
-    'search the internet',
-    'search for',
-    'look up',
-    'find out',
-    'check online',
-    'browse the web',
-    'get current',
-    'get latest',
-    'real time',
-    'live data'
+  
+  // Sports data keywords
+  const sportsKeywords = [
+    'stats', 'statistics', 'performance', 'points', 'scored', 'rushing', 'passing',
+    'receiving', 'yards', 'touchdowns', 'interceptions', 'fumbles', 'targets',
+    'carries', 'attempts', 'completions', 'qbr', 'rating', 'rank', 'rankings'
   ];
+  
+  // Team and schedule keywords
+  const scheduleKeywords = [
+    'plays', 'playing', 'vs', 'versus', 'against', 'matchup', 'opponent',
+    'schedule', 'game', 'games', 'week', 'weather', 'conditions', 'forecast'
+  ];
+  
+  // Injury and availability keywords
+  const injuryKeywords = [
+    'injury', 'injured', 'hurt', 'questionable', 'doubtful', 'out', 'inactive',
+    'active', 'healthy', 'probable', 'ir', 'reserve', 'suspended', 'available'
+  ];
+  
+  // Waiver and transaction keywords
+  const transactionKeywords = [
+    'waiver', 'waivers', 'pickup', 'drop', 'add', 'available', 'free agent',
+    'trade', 'traded', 'released', 'signed', 'claim', 'claims'
+  ];
+  
+  const allKeywords = [
+    ...timeKeywords,
+    ...sportsKeywords, 
+    ...scheduleKeywords,
+    ...injuryKeywords,
+    ...transactionKeywords
+  ];
+  
+  // Check if any keywords are present
+  const hasRelevantKeywords = allKeywords.some(keyword => 
+    lowerInput.includes(keyword)
+  );
+  
+  // Check for question patterns that suggest real-time data need
+  const questionPatterns = [
+    /who (should|do|is|has|will)/,
+    /what (is|are|happened|happens)/,
+    /when (is|are|does|do)/,
+    /how (is|are|did|has)/,
+    /which (player|team)/
+  ];
+  
+  const hasTimePattern = questionPatterns.some(pattern => 
+    pattern.test(lowerInput)
+  ) && hasRelevantKeywords;
+  
+  return hasRelevantKeywords || hasTimePattern;
+}
 
-  const hasKeyword = webSearchKeywords.some(keyword => inputLower.includes(keyword));
-  const hasPhrase = searchPhrases.some(phrase => inputLower.includes(phrase));
-
-  return hasKeyword || hasPhrase;
-};
-
-export const getActualInput = (inputText: string): string => {
-  if (inputText.toLowerCase().startsWith('search:')) {
-    return inputText.slice(7).trim();
+export function getActualInput(input: string): string {
+  // Remove 'search:' prefix if present
+  if (input.toLowerCase().startsWith('search:')) {
+    return input.slice(7).trim();
   }
-  return inputText;
-}; 
+  return input;
+}
+
+export function getSearchHint(input: string): string {
+  const hasWebSearch = shouldEnableWebSearch(input);
+  
+  if (input.toLowerCase().startsWith('search:')) {
+    return "🔍 Web search enabled (explicit)";
+  }
+  
+  if (hasWebSearch) {
+    return "🔍 Web search enabled (keywords detected)";
+  }
+  
+  return "💬 Regular chat (add 'search:' for live data)";
+} 

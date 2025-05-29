@@ -3,3 +3,25 @@ venv/
 *.pyc
 node_modules/
 web-app/.env
+
+# Xcode
+DerivedData/
+build/
+*.xcuserdatad/*
+!*.xcshareddata
+xcuserdata/
+*.xcuserstate
+*.moved-aside
+*.xcscmblueprint
+
+# SwiftPM
+/.build/
+
+# CocoaPods
+Pods/
+
+# Carthage
+Carthage/Build/
+
+# macOS
+.DS_Store

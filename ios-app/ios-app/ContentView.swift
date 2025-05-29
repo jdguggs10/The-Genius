@@ -16,6 +16,22 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // Error Message Display
+                if let errorMessage = viewModel.currentErrorMessage {
+                    Text(errorMessage)
+                        .foregroundColor(.red)
+                        .padding()
+                        .background(Color.red.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .frame(maxWidth: .infinity)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        .onTapGesture {
+                            withAnimation {
+                                viewModel.currentErrorMessage = nil // Tap to dismiss
+                            }
+                        }
+                }
+                
                 // Messages list
                 ScrollViewReader { proxy in
                     ScrollView {
@@ -25,6 +41,8 @@ struct ContentView: View {
                                     .id(message.id)
                             }
                         }
+                        // Add some bottom padding to ensure last message is well above input bar
+                        .padding(.bottom, 10)
                     }
                     .onChange(of: viewModel.messages.count) { oldCount, newCount in
                         // Auto-scroll to bottom when new message appears
@@ -39,22 +57,22 @@ struct ContentView: View {
                 // Input area
                 inputBar
             }
-            .navigationTitle("AI Assistant")
+            .navigationTitle("Fantasy Genius")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // Settings button
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
-                        // Settings action - we'll implement this later
+                        // Settings action - implement later
                     }) {
                         Image(systemName: "gearshape")
                     }
                 }
                 
-                // Archive button
+                // Archive button (Example - can be removed or repurposed)
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
-                        // Archive action - we'll implement this later
+                        // Archive action - implement later
                     }) {
                         Image(systemName: "line.horizontal.3")
                     }
@@ -64,46 +82,48 @@ struct ContentView: View {
         .photosPicker(
             isPresented: $showingPhotoPicker,
             selection: $selectedPhotos,
-            maxSelectionCount: 5,
+            maxSelectionCount: 5, // Allow up to 5 images for now
             matching: .images
         )
         .onChange(of: selectedPhotos) { oldItems, newItems in
-            // Handle photo selection
             Task {
+                viewModel.draftAttachmentData.removeAll() // Clear previous drafts
                 for item in newItems {
                     if let data = try? await item.loadTransferable(type: Data.self) {
-                        // We have the data, directly add it to the view model
                         viewModel.draftAttachmentData.append(data)
                     }
                 }
-                selectedPhotos.removeAll()
+                selectedPhotos.removeAll() // Clear picker selection
             }
         }
         .onAppear {
             viewModel.loadConversation()
         }
-        .onDisappear {
-            viewModel.saveConversation()
-        }
+        // .onDisappear {
+        //     viewModel.saveConversation() // Saving on disappear might be too frequent or interruptive
+        // }
+        // Consider saving explicitly or on app lifecycle events like scenePhase changes.
         .padding(.horizontal)
         .padding(.vertical, 8)
-        .background(Color(.systemBackground))
+        .background(Color(.systemGroupedBackground)) // Use a grouped background for better contrast
     }
     
     private var inputBar: some View {
         HStack(spacing: 8) {
-            // Mic button (we'll implement voice later)
+            // Mic button (Placeholder)
             Button(action: {
-                // Voice input action
+                // TODO: Voice input action
             }) {
                 Image(systemName: "mic.fill")
                     .font(.title2)
-                    .foregroundColor(.blue)
+                    .foregroundColor(.gray) // Changed to gray as it's not implemented
             }
             .frame(width: 44, height: 44)
+            .disabled(true) // Disabled for now
             
             // Attachment button
             Button(action: {
+                isInputFocused = false // Dismiss keyboard before showing picker
                 showingPhotoPicker = true
             }) {
                 Image(systemName: "paperclip")
@@ -113,25 +133,38 @@ struct ContentView: View {
             .frame(width: 44, height: 44)
             
             // Text input
-            TextField("Type a message...", text: $viewModel.currentInput, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
+            TextField("Ask Fantasy Genius...", text: $viewModel.currentInput, axis: .vertical)
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(Color(.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 20))
                 .lineLimit(1...5)
                 .focused($isInputFocused)
                 .onSubmit {
-                    viewModel.sendMessage()
+                    if !viewModel.currentInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                        viewModel.sendMessage()
+                    }
                 }
             
             // Send button
-            Button(action: {
-                viewModel.sendMessage()
-            }) {
-                Image(systemName: "paperplane.fill")
-                    .font(.title2)
-                    .foregroundColor(viewModel.currentInput.isEmpty ? .gray : .blue)
+            if viewModel.isLoading {
+                ProgressView()
+                    .frame(width: 44, height: 44)
+            } else {
+                Button(action: {
+                    viewModel.sendMessage()
+                }) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.title)
+                        .foregroundColor(viewModel.currentInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && viewModel.draftAttachmentData.isEmpty ? .gray : .blue)
+                }
+                .frame(width: 44, height: 44)
+                .disabled(viewModel.currentInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && viewModel.draftAttachmentData.isEmpty)
             }
-            .frame(width: 44, height: 44)
-            .disabled(viewModel.currentInput.isEmpty || viewModel.isLoading)
         }
+        .padding(.vertical, 8)
+        .padding(.horizontal, 4)
     }
 }
 

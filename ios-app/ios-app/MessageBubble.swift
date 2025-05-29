@@ -10,31 +10,152 @@ struct MessageBubble: View {
     let message: Message
     
     var body: some View {
-        HStack {
+        HStack(alignment: .top, spacing: 8) {
             if message.role == .user {
                 Spacer()
             }
             
+            // Avatar
+            if message.role == .assistant {
+                Circle()
+                    .fill(Color.blue.opacity(0.1))
+                    .frame(width: 32, height: 32)
+                    .overlay(
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.blue)
+                    )
+            }
+            
             VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
-                // Message content
-                Text(message.content)
-                    .padding(12)
-                    .background(bubbleColor)
-                    .foregroundColor(textColor)
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                // Main content bubble
+                VStack(alignment: .leading, spacing: 0) {
+                    // Main message content
+                    Text(message.content)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .font(.body)
+                    
+                    // Display structured advice details if available for assistant messages
+                    if message.role == .assistant, let advice = message.structuredAdvice {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.1))
+                            .frame(height: 1)
+                            .padding(.horizontal, 12)
+                        
+                        VStack(alignment: .leading, spacing: 12) {
+                            // Confidence Score
+                            if let confidence = advice.confidenceScore {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "chart.bar.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
+                                    Text("Confidence:")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundColor(.secondary)
+                                    
+                                    Spacer()
+                                    
+                                    HStack(spacing: 4) {
+                                        ProgressView(value: confidence, total: 1.0)
+                                            .progressViewStyle(LinearProgressViewStyle(tint: .blue))
+                                            .frame(width: 60)
+                                        Text(String(format: "%.0f%%", confidence * 100))
+                                            .font(.caption.weight(.medium))
+                                            .foregroundColor(.primary)
+                                    }
+                                }
+                            }
+                            
+                            // Reasoning
+                            if let reasoning = advice.reasoning, !reasoning.isEmpty {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "lightbulb.fill")
+                                            .font(.caption)
+                                            .foregroundColor(.orange)
+                                        Text("Reasoning:")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Text(reasoning)
+                                        .font(.caption)
+                                        .foregroundColor(.primary)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                }
+                            }
+                            
+                            // Alternatives
+                            if let alternatives = advice.alternatives, !alternatives.isEmpty {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "arrow.right.circle.fill")
+                                            .font(.caption)
+                                            .foregroundColor(.green)
+                                        Text("Alternatives:")
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundColor(.secondary)
+                                    }
+                                    
+                                    ForEach(alternatives, id: \.player) { alt in
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("• \(alt.player)")
+                                                .font(.caption.weight(.medium))
+                                                .foregroundColor(.primary)
+                                            if let reason = alt.reason, !reason.isEmpty {
+                                                Text(reason)
+                                                    .font(.caption2)
+                                                    .foregroundColor(.secondary)
+                                                    .padding(.leading, 12)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            // Model Identifier
+                            if let modelId = advice.modelIdentifier, !modelId.isEmpty {
+                                HStack {
+                                    Spacer()
+                                    Text("Generated by \(modelId)")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(Color.gray.opacity(0.05))
+                    }
+                }
+                .background(bubbleColor)
+                .foregroundColor(textColor)
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+                .shadow(color: .black.opacity(0.08), radius: 2, x: 0, y: 1)
                 
                 // Timestamp
                 Text(timeString)
                     .font(.caption2)
                     .foregroundColor(.secondary)
+                    .padding(.horizontal, message.role == .user ? 0 : 8)
             }
             
-            if message.role == .assistant {
+            // User avatar
+            if message.role == .user {
+                Circle()
+                    .fill(Color.blue)
+                    .frame(width: 32, height: 32)
+                    .overlay(
+                        Text("You")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.white)
+                    )
+            } else {
                 Spacer()
             }
         }
-        .padding(.horizontal)
-        .padding(.vertical, 4)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
     }
     
     private var bubbleColor: Color {
@@ -42,9 +163,9 @@ struct MessageBubble: View {
         case .user:
             return Color.blue
         case .assistant:
-            return Color.gray.opacity(0.2)  // This works on all iOS versions
+            return Color(.systemBackground)
         case .system:
-            return Color.gray.opacity(0.1)  // This works on all iOS versions
+            return Color.gray.opacity(0.1)
         }
     }
     
@@ -56,5 +177,26 @@ struct MessageBubble: View {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: message.timestamp)
+    }
+}
+
+// Preview needs adjustment if Message init changed significantly for previews
+struct MessageBubble_Previews: PreviewProvider {
+    static var previews: some View {
+        VStack {
+            MessageBubble(message: Message(role: .user, content: "Hello AI!"))
+            MessageBubble(message: Message(role: .assistant, content: "Hello User! This is my main advice."))
+            MessageBubble(message: Message(role: .assistant, content: "Start Player X.", structuredAdvice: StructuredAdviceResponse(
+                mainAdvice: "Start Player X.",
+                reasoning: "Player X has a great matchup this week and has been performing consistently well. Player Y is facing a tough defense.",
+                confidenceScore: 0.85,
+                alternatives: [
+                    AdviceAlternativePayload(player: "Player Y", reason: "If Player X is unexpectedly out."),
+                    AdviceAlternativePayload(player: "Player Z", reason: "A risky high-upside play if you need it.")
+                ],
+                modelIdentifier: "gpt-4o-mini-preview_0720"
+            )))
+        }
+        .padding()
     }
 }
