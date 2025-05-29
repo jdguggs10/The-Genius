@@ -51,6 +51,13 @@ class ChatViewModel: ObservableObject {
         self.conversationManager = manager
     }
     
+    // Force UI update method to ensure SwiftUI detects changes
+    private func forceUIUpdate() {
+        DispatchQueue.main.async { [weak self] in
+            self?.objectWillChange.send()
+        }
+    }
+    
     func loadConversation(for conversationId: UUID?) {
         guard let manager = conversationManager else { return }
         
@@ -157,8 +164,6 @@ class ChatViewModel: ObservableObject {
 
         do {
             request.httpBody = try JSONEncoder().encode(adviceRequest)
-            print("Making SSE request to: \(url)")
-            
         } catch {
             messages[assistantMessageIndex].content = "Error: Could not encode request: \(error.localizedDescription)"
             currentErrorMessage = "Error: Could not encode request: \(error.localizedDescription)"
@@ -172,7 +177,6 @@ class ChatViewModel: ObservableObject {
             
             // Check HTTP response
             if let httpResponse = response as? HTTPURLResponse {
-                print("HTTP Status: \(httpResponse.statusCode)")
                 if httpResponse.statusCode != 200 {
                     let errorMsg = "HTTP Error: \(httpResponse.statusCode)"
                     messages[assistantMessageIndex].content = errorMsg
@@ -182,19 +186,43 @@ class ChatViewModel: ObservableObject {
                 }
             }
             
-            var buffer = ""
             var accumulatedText = ""
+            var eventCount = 0
+            var lineCount = 0
+            var currentEventType: String? = nil
+            var currentData: String? = nil
             
             for try await line in asyncBytes.lines {
-                buffer += line + "\n"
+                lineCount += 1
                 
-                // Process complete SSE events (ending with double newline)
-                while let eventRange = buffer.range(of: "\n\n") {
-                    let eventString = String(buffer[..<eventRange.lowerBound])
-                    buffer.removeSubrange(...eventRange.upperBound)
+                if line.hasPrefix("event: ") {
+                    // Process previous event if we have both type and data
+                    if let eventType = currentEventType, let data = currentData {
+                        eventCount += 1
+                        await processSSEEvent(eventType: eventType, data: data, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
+                    }
                     
-                    await processSSEEvent(eventString, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
+                    // Start new event
+                    currentEventType = String(line.dropFirst(7)).trimmingCharacters(in: .whitespacesAndNewlines)
+                    currentData = nil
+                } else if line.hasPrefix("data: ") {
+                    currentData = String(line.dropFirst(6))
+                } else if line.isEmpty {
+                    // Empty line - process current event if we have both type and data
+                    if let eventType = currentEventType, let data = currentData {
+                        eventCount += 1
+                        await processSSEEvent(eventType: eventType, data: data, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
+                        
+                        // Reset for next event
+                        currentEventType = nil
+                        currentData = nil
+                    }
                 }
+            }
+            
+            // Process final event if exists
+            if let eventType = currentEventType, let data = currentData {
+                await processSSEEvent(eventType: eventType, data: data, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
             }
             
             // Handle any remaining content
@@ -204,7 +232,6 @@ class ChatViewModel: ObservableObject {
             
         } catch {
             let errorMsg = "Network error: \(error.localizedDescription)"
-            print("SSE Error: \(errorMsg)")
             messages[assistantMessageIndex].content = errorMsg
             currentErrorMessage = errorMsg
         }
@@ -216,34 +243,22 @@ class ChatViewModel: ObservableObject {
         saveConversation()
     }
     
-    private func processSSEEvent(_ eventString: String, messageIndex: Int, accumulatedText: inout String) async {
-        let lines = eventString.components(separatedBy: "\n")
-        var eventType: String? = nil
-        var dataString: String? = nil
-        
-        for line in lines {
-            if line.hasPrefix("event: ") {
-                eventType = String(line.dropFirst(7)).trimmingCharacters(in: .whitespacesAndNewlines)
-            } else if line.hasPrefix("data: ") {
-                dataString = String(line.dropFirst(6))
-            }
-        }
-        
-        guard let data = dataString else { return }
-        
+    private func processSSEEvent(eventType: String, data: String, messageIndex: Int, accumulatedText: inout String) async {
         // Handle different event types
         if eventType == "status_update" {
             do {
                 if let jsonData = data.data(using: .utf8),
                    let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
                    let message = parsed["message"] as? String {
-                    statusMessage = message
-                    if let status = parsed["status"] as? String {
-                        isSearching = (status == "web_search_searching" || status == "web_search_started")
+                    await MainActor.run {
+                        statusMessage = message
+                        if let status = parsed["status"] as? String {
+                            isSearching = (status == "web_search_searching" || status == "web_search_started")
+                        }
                     }
                 }
             } catch {
-                print("Failed to parse status update: \(error)")
+                // Failed to parse status update - silently continue
             }
         } else if eventType == "text_delta" {
             do {
@@ -251,15 +266,26 @@ class ChatViewModel: ObservableObject {
                    let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
                    let delta = parsed["delta"] as? String {
                     accumulatedText += delta
-                    // Update message via subscript assignment to trigger @Published
-                    var updatedMessage = messages[messageIndex]
-                    updatedMessage.content = accumulatedText
-                    messages[messageIndex] = updatedMessage
-                    statusMessage = nil
-                    isSearching = false
+                    
+                    // Ensure UI updates happen on main thread with proper SwiftUI change detection
+                    await MainActor.run {
+                        // Create a new message instance to ensure SwiftUI detects the change
+                        var updatedMessage = messages[messageIndex]
+                        updatedMessage.content = accumulatedText
+                        
+                        // Signal change before updating
+                        objectWillChange.send()
+                        messages[messageIndex] = updatedMessage
+                        
+                        statusMessage = nil
+                        isSearching = false
+                        
+                        // Force UI update to ensure real-time display
+                        forceUIUpdate()
+                    }
                 }
             } catch {
-                print("Failed to parse text delta: \(error)")
+                // Failed to parse text delta - silently continue
             }
         } else if eventType == "response_complete" {
             do {
@@ -272,41 +298,62 @@ class ChatViewModel: ObservableObject {
                     let confidence = finalJson["confidence_score"] as? Double
                     let modelId = finalJson["model_identifier"] as? String
                     
+                    // Parse alternatives array
+                    var alternatives: [AdviceAlternativePayload] = []
+                    if let alternativesArray = finalJson["alternatives"] as? [[String: Any]] {
+                        alternatives = alternativesArray.compactMap { altDict -> AdviceAlternativePayload? in
+                            guard let player = altDict["player"] as? String else { return nil }
+                            let reason = altDict["reason"] as? String
+                            return AdviceAlternativePayload(player: player, reason: reason)
+                        }
+                    }
+                    
                     // Use global NetworkModels.StructuredAdviceResponse with camelCase properties
                     let structuredAdvice = StructuredAdviceResponse(
                         mainAdvice: mainAdvice,
                         reasoning: reasoning,
                         confidenceScore: confidence,
-                        alternatives: [],
+                        alternatives: alternatives,
                         modelIdentifier: modelId
                     )
                     
-                    // Update message via subscript assignment to trigger @Published
-                    var updatedMessage = messages[messageIndex]
-                    updatedMessage.content = mainAdvice
-                    updatedMessage.structuredAdvice = structuredAdvice
-                    messages[messageIndex] = updatedMessage
-                    statusMessage = nil
-                    isSearching = false
+                    // Ensure UI updates happen on main thread with explicit update
+                    await MainActor.run {
+                        var updatedMessage = messages[messageIndex]
+                        updatedMessage.content = mainAdvice
+                        updatedMessage.structuredAdvice = structuredAdvice
+                        
+                        // Signal change before updating
+                        objectWillChange.send()
+                        messages[messageIndex] = updatedMessage
+                        
+                        statusMessage = nil
+                        isSearching = false
+                        
+                        // Force UI update to ensure real-time display
+                        forceUIUpdate()
+                    }
                 }
             } catch {
-                print("Failed to parse response complete: \(error)")
+                // Failed to parse response complete - silently continue
             }
         } else if eventType == "error" {
             do {
                 if let jsonData = data.data(using: .utf8),
                    let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
                    let errorMessage = parsed["message"] as? String {
-                    // Update message via subscript assignment to trigger @Published
-                    var updatedMessage = messages[messageIndex]
-                    updatedMessage.content = "Error: \(errorMessage)"
-                    messages[messageIndex] = updatedMessage
-                    currentErrorMessage = "Error: \(errorMessage)"
+                    await MainActor.run {
+                        var updatedMessage = messages[messageIndex]
+                        updatedMessage.content = "Error: \(errorMessage)"
+                        messages[messageIndex] = updatedMessage
+                        currentErrorMessage = "Error: \(errorMessage)"
+                    }
                 }
             } catch {
-                print("Failed to parse error: \(error)")
+                // Failed to parse error - silently continue
             }
         }
+        // Note: Unhandled event types are silently ignored
     }
     
     func saveConversation() {

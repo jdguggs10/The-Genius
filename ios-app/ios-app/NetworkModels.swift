@@ -64,13 +64,17 @@ struct StructuredAdviceResponse: Codable, Identifiable, Equatable {
         case modelIdentifier = "model_identifier"
     }
     
-    // Custom Equatable implementation
+    // Custom Equatable implementation - compare content for SwiftUI reactivity
     static func == (lhs: StructuredAdviceResponse, rhs: StructuredAdviceResponse) -> Bool {
-        return lhs.id == rhs.id
+        return lhs.mainAdvice == rhs.mainAdvice &&
+               lhs.reasoning == rhs.reasoning &&
+               lhs.confidenceScore == rhs.confidenceScore &&
+               lhs.alternatives == rhs.alternatives &&
+               lhs.modelIdentifier == rhs.modelIdentifier
     }
 }
 
-// Example of an error structure if the backend sends a specific JSON error format
+/// Error response structure from the backend.
 struct ErrorResponsePayload: Codable {
     let error: String
     let message: String

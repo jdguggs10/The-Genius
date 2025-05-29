@@ -48,24 +48,13 @@ struct MessageBubble: View {
                         VStack(alignment: .leading, spacing: 12) {
                             // Confidence Score
                             if let confidence = advice.confidenceScore {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "chart.bar.fill")
+                                HStack(spacing: 6) {
+                                    Image(systemName: "checkmark.seal.fill")
                                         .font(.caption)
                                         .foregroundColor(.blue)
-                                    Text("Confidence:")
+                                    Text("Confidence: \(confidence, specifier: "%.1f")")
                                         .font(.caption.weight(.semibold))
                                         .foregroundColor(.secondary)
-                                    
-                                    Spacer()
-                                    
-                                    HStack(spacing: 4) {
-                                        ProgressView(value: confidence, total: 1.0)
-                                            .progressViewStyle(LinearProgressViewStyle(tint: .blue))
-                                            .frame(width: 60)
-                                        Text(String(format: "%.0f%%", confidence * 100))
-                                            .font(.caption.weight(.medium))
-                                            .foregroundColor(.primary)
-                                    }
                                 }
                             }
                             

@@ -33,9 +33,12 @@ struct Message: Identifiable, Codable, Equatable {
         self.structuredAdvice = structuredAdvice // Initialize the new property
     }
     
-    // Custom Equatable implementation
+    // Custom Equatable implementation - compare all relevant properties for SwiftUI reactivity
     static func == (lhs: Message, rhs: Message) -> Bool {
-        return lhs.id == rhs.id
+        return lhs.id == rhs.id && 
+               lhs.content == rhs.content && 
+               lhs.structuredAdvice == rhs.structuredAdvice &&
+               lhs.attachments == rhs.attachments
     }
 }
 
