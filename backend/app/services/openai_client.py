@@ -1,7 +1,8 @@
 import os
 from dotenv import load_dotenv
 from openai import OpenAI, APIError, APIConnectionError, RateLimitError, AuthenticationError, NotFoundError, BadRequestError, AsyncOpenAI
-from openai.types.responses import ResponseOutputTextDeltaEvent, ResponseDoneEvent, ResponseErrorEvent #, ResponseOutputJSONDeltaEvent # Not standard
+# Removed problematic imports that don't exist in this version
+# from openai.types.responses import ResponseOutputTextDeltaEvent, ResponseDoneEvent, ResponseErrorEvent
 from typing import Tuple, Dict, List, Optional, Any, AsyncGenerator, Awaitable
 
 import logging
