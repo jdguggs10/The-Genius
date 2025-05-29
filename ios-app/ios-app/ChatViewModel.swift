@@ -133,15 +133,12 @@ class ChatViewModel: ObservableObject {
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 300
         
-        let session = URLSession(configuration: config)
-
         // Prepare the conversation payload
         let conversationPayloads = self.messages.filter { $0.id != assistantMessagePlaceholder.id }.map {
             MessagePayload(role: $0.role, content: $0.content)
         }
-        
         let adviceRequest = AdviceRequestPayload(conversation: conversationPayloads)
-        
+
         do {
             request.httpBody = try JSONEncoder().encode(adviceRequest)
             print("Making SSE request to: \(url)")
