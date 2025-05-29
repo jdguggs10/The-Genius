@@ -1,7 +1,7 @@
 // web-app/src/components/Chat.tsx
 import { useState, useRef, useEffect } from 'react';
 import { useDailyQuota } from '../hooks/useDailyQuota';
-import { PaperAirplaneIcon, MagnifyingGlassIcon, SparklesIcon } from '@heroicons/react/24/solid';
+import { PaperAirplaneIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import QuotaModal from './QuotaModal.tsx';
 import Message from './message';
 import type { MessageType } from '../types';
@@ -184,14 +184,13 @@ export default function Chat() {
 
   // Main container: Full height, flex column
   return (
-    <div className="flex flex-col h-full max-h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
+    <div className="flex flex-col h-full max-h-screen bg-gradient-to-br from-stone-100 to-stone-200">
       {/* Enhanced Header */}
       <header className="p-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <SparklesIcon className="h-6 w-6 text-blue-600" />
             <img src="/apple-touch-icon.png" alt="Logo" className="h-6 w-6 rounded-md" />
-            <h1 className="text-lg font-semibold text-gray-800">Fantasy AI Assistant</h1>
+            <h1 className="text-lg font-semibold text-gray-800">The Genius</h1>
             {isSearching && (
               <div className="flex items-center space-x-1 text-blue-600">
                 <MagnifyingGlassIcon className="h-4 w-4 animate-spin" />
@@ -210,9 +209,8 @@ export default function Chat() {
         {messages.length === 0 && !isLoading ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 max-w-md mx-auto">
-              <SparklesIcon className="w-12 h-12 mb-4 text-blue-500 mx-auto" />
               <img src="/apple-touch-icon.png" alt="Logo" className="w-12 h-12 mb-4 rounded-lg mx-auto" />
-              <h2 className="text-xl font-medium mb-2 text-center text-gray-800">Fantasy AI Assistant</h2>
+              <h2 className="text-xl font-medium mb-2 text-center text-gray-800">The Genius</h2>
               <p className="text-sm mb-4 text-center">Get AI-powered fantasy sports advice!</p>
               <div className="text-xs text-gray-400 space-y-2">
                 <p className="bg-gray-50 rounded p-2">
@@ -237,7 +235,6 @@ export default function Chat() {
             {isLoading && streamingText && (
               <div className="flex items-start space-x-3">
                 <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <SparklesIcon className="h-4 w-4 text-blue-600" />
                 </div>
                 <div className="bg-white rounded-lg p-3 shadow-sm border border-gray-100 max-w-3xl">
                   <div className="text-gray-800">

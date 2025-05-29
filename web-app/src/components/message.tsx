@@ -1,6 +1,6 @@
 // web-app/src/components/Message.tsx
 import ReactMarkdown from 'react-markdown';
-import { SparklesIcon, ChartBarIcon, LightBulbIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { ChartBarIcon, LightBulbIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
 import type { MessageType } from '../types';
 
 type MessageProps = {
@@ -20,7 +20,7 @@ export default function Message({ message }: MessageProps) {
           {isUser ? (
             <span className="text-white text-sm font-medium">You</span>
           ) : (
-            <SparklesIcon className="h-4 w-4 text-blue-600" />
+            <img src="/apple-touch-icon.png" alt="Logo" className="h-4 w-4 rounded-md" />
           )}
         </div>
 
