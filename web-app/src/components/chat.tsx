@@ -15,6 +15,7 @@ export default function Chat() {
   const [streamingText, setStreamingText] = useState('');
   const { count, increment, isLimitReached } = useDailyQuota();
   const [showQuotaModal, setShowQuotaModal] = useState(false);
+  const [modelName, setModelName] = useState('GPT-4o'); // State for dynamic model name
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom when messages change
@@ -128,6 +129,11 @@ export default function Chat() {
                   setIsSearching(false);
                   setStreamingText('');
                   
+                  // FUTURE: If backend sends model info, update it here
+                  // if (eventData.model) {
+                  //   setModelName(eventData.model);
+                  // }
+
                   // Update message with structured advice main content
                   setMessages(prev => 
                     prev.map(msg => 
@@ -187,14 +193,14 @@ export default function Chat() {
     <div className="flex flex-col h-full max-h-screen bg-gradient-to-br from-stone-100 to-stone-200">
       {/* Enhanced Header */}
       <header className="p-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm shadow-sm">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-center justify-between sm:space-y-0 space-y-2">
           <div className="flex items-center space-x-2">
-            <img src="/apple-touch-icon.png" alt="Logo" className="h-6 w-6 rounded-md" />
-            <h1 className="text-lg font-semibold text-gray-800">The Genius</h1>
+            <img src="/apple-touch-icon.png" alt="Logo" className="h-6 w-6 sm:h-8 sm:w-8 rounded-md" />
+            <h1 className="text-base sm:text-lg font-semibold text-gray-800">The Genius</h1>
             {isSearching && (
               <div className="flex items-center space-x-1 text-blue-600">
-                <MagnifyingGlassIcon className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Searching...</span>
+                <MagnifyingGlassIcon className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                <span className="text-xs sm:text-sm">Searching...</span>
               </div>
             )}
           </div>
@@ -205,21 +211,21 @@ export default function Chat() {
       </header>
 
       {/* Message Display Area (Scrollable) */}
-      <div className="flex-grow overflow-y-auto p-4 space-y-4">
+      <div className="flex-grow overflow-y-auto p-2 sm:p-4 space-y-4">
         {messages.length === 0 && !isLoading ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 max-w-md mx-auto">
-              <img src="/apple-touch-icon.png" alt="Logo" className="w-12 h-12 mb-4 rounded-lg mx-auto" />
-              <h2 className="text-xl font-medium mb-2 text-center text-gray-800">The Genius</h2>
-              <p className="text-sm mb-4 text-center">Get AI-powered fantasy sports advice!</p>
-              <div className="text-xs text-gray-400 space-y-2">
-                <p className="bg-gray-50 rounded p-2">
+            <div className="bg-white rounded-2xl p-4 sm:p-8 shadow-lg border border-gray-100 w-full max-w-md mx-auto">
+              {/* Logo removed from here as it's already in the header */}
+              <h2 className="text-lg sm:text-xl font-medium mb-1 sm:mb-2 text-center text-gray-800 mt-4">The Genius</h2>
+              <p className="text-xs sm:text-sm mb-2 sm:mb-4 text-center">Get AI-powered fantasy sports advice!</p>
+              <div className="text-xs text-gray-400 space-y-1 sm:space-y-2">
+                <p className="bg-gray-50 rounded p-1.5 sm:p-2">
                   💡 <strong>Example:</strong> "Should I start Patrick Mahomes or Josh Allen?"
                 </p>
-                <p className="bg-blue-50 rounded p-2">
+                <p className="bg-blue-50 rounded p-1.5 sm:p-2">
                   🔍 <strong>Live Data:</strong> Prefix with "search:" or use keywords like "today", "current", "stats"
                 </p>
-                <p className="bg-green-50 rounded p-2">
+                <p className="bg-green-50 rounded p-1.5 sm:p-2">
                   ⚡ <strong>Real-time:</strong> Get streaming responses with detailed analysis
                 </p>
               </div>
@@ -262,42 +268,42 @@ export default function Chat() {
       </div>
 
       {/* Enhanced Input Area */}
-      <div className="p-4 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
-        <div className="flex items-center space-x-3">
+      <div className="p-2 sm:p-4 border-t border-gray-200 bg-white/80 backdrop-blur-sm">
+        <div className="flex items-center space-x-2 sm:space-x-3">
           <div className="flex-1 relative">
             <input
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-              placeholder={isLimitReached ? "Daily limit reached" : "Ask about fantasy sports... (try 'search:' for live data)"}
+              placeholder={isLimitReached ? "Daily limit reached" : "Ask about fantasy sports..."}
               disabled={isLimitReached || isLoading}
-              className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed text-sm sm:text-base"
             />
             {shouldEnableWebSearch(input) && (
-              <MagnifyingGlassIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-blue-500" />
+              <MagnifyingGlassIcon className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
             )}
           </div>
           <button
             onClick={handleSend}
             disabled={!input.trim() || isLoading || isLimitReached}
-            className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 shadow-lg"
+            className="p-2 sm:p-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg sm:rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 shadow-lg"
           >
             {isLoading ? (
-              <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-4 h-4 sm:w-5 sm:w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
-              <PaperAirplaneIcon className="h-5 w-5" />
+              <PaperAirplaneIcon className="h-4 w-4 sm:h-5 sm:w-5" />
             )}
           </button>
         </div>
         
         {/* Enhanced Quota Display */}
-        <div className="flex items-center justify-between mt-2 text-xs">
-          <div className="text-gray-400">
+        <div className="flex flex-col sm:flex-row items-center justify-between mt-1.5 sm:mt-2 text-xs">
+          <div className="text-gray-400 text-center sm:text-left mb-1 sm:mb-0">
             {isLimitReached ? (
               <span className="text-red-500 font-medium">Daily limit reached</span>
             ) : (
-              <span>{input ? getSearchHint(input) : "Powered by GPT-4o with real-time web search"}</span>
+              <span className="hidden sm:inline">{input ? getSearchHint(input) : `Powered by ${modelName} with real-time web search`}</span>
             )}
           </div>
           <div className="flex items-center space-x-1">
@@ -305,11 +311,11 @@ export default function Chat() {
               {Array.from({length: 5}).map((_, i) => (
                 <div 
                   key={i}
-                  className={`w-2 h-2 rounded-full ${i < count ? 'bg-blue-500' : 'bg-gray-200'}`}
+                  className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${i < count ? 'bg-blue-500' : 'bg-gray-200'}`}
                 />
               ))}
             </div>
-            <span className="text-gray-500 ml-2">{count}/5</span>
+            <span className="text-gray-500 ml-1 sm:ml-2">{count}/5</span>
           </div>
         </div>
       </div>
