@@ -190,6 +190,7 @@ export default function Chat() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <SparklesIcon className="h-6 w-6 text-blue-600" />
+            <img src="/apple-touch-icon.png" alt="Logo" className="h-6 w-6 rounded-md" />
             <h1 className="text-lg font-semibold text-gray-800">Fantasy AI Assistant</h1>
             {isSearching && (
               <div className="flex items-center space-x-1 text-blue-600">
@@ -210,6 +211,7 @@ export default function Chat() {
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100 max-w-md mx-auto">
               <SparklesIcon className="w-12 h-12 mb-4 text-blue-500 mx-auto" />
+              <img src="/apple-touch-icon.png" alt="Logo" className="w-12 h-12 mb-4 rounded-lg mx-auto" />
               <h2 className="text-xl font-medium mb-2 text-center text-gray-800">Fantasy AI Assistant</h2>
               <p className="text-sm mb-4 text-center">Get AI-powered fantasy sports advice!</p>
               <div className="text-xs text-gray-400 space-y-2">
