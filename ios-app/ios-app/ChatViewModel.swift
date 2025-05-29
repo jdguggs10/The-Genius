@@ -251,7 +251,10 @@ class ChatViewModel: ObservableObject {
                    let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
                    let delta = parsed["delta"] as? String {
                     accumulatedText += delta
-                    messages[messageIndex].content = accumulatedText
+                    // Update message via subscript assignment to trigger @Published
+                    var updatedMessage = messages[messageIndex]
+                    updatedMessage.content = accumulatedText
+                    messages[messageIndex] = updatedMessage
                     statusMessage = nil
                     isSearching = false
                 }
@@ -278,8 +281,11 @@ class ChatViewModel: ObservableObject {
                         modelIdentifier: modelId
                     )
                     
-                    messages[messageIndex].content = mainAdvice
-                    messages[messageIndex].structuredAdvice = structuredAdvice
+                    // Update message via subscript assignment to trigger @Published
+                    var updatedMessage = messages[messageIndex]
+                    updatedMessage.content = mainAdvice
+                    updatedMessage.structuredAdvice = structuredAdvice
+                    messages[messageIndex] = updatedMessage
                     statusMessage = nil
                     isSearching = false
                 }
@@ -291,7 +297,10 @@ class ChatViewModel: ObservableObject {
                 if let jsonData = data.data(using: .utf8),
                    let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
                    let errorMessage = parsed["message"] as? String {
-                    messages[messageIndex].content = "Error: \(errorMessage)"
+                    // Update message via subscript assignment to trigger @Published
+                    var updatedMessage = messages[messageIndex]
+                    updatedMessage.content = "Error: \(errorMessage)"
+                    messages[messageIndex] = updatedMessage
                     currentErrorMessage = "Error: \(errorMessage)"
                 }
             } catch {
