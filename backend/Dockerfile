@@ -23,7 +23,10 @@ RUN curl -sSL https://install.python-poetry.org | python3 -
 ENV PATH="${POETRY_HOME}/bin:$PATH"
 
 # Copy dependency files
-COPY pyproject.toml poetry.lock* ./
+COPY backend/pyproject.toml backend/poetry.lock* ./
+
+# bring in your shared assets
+COPY shared-resources ./shared-resources
 
 # Install dependencies
 RUN poetry install --no-root --no-interaction --no-ansi
