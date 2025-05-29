@@ -36,7 +36,7 @@ async def get_streaming_response(
     model: str = OPENAI_DEFAULT_MODEL_INTERNAL,
     instructions: str = SYSTEM_DEFAULT_INSTRUCTIONS,
     max_tokens: int = 2000,
-    enable_web_search: bool = False
+    enable_web_search: bool = True
 ) -> AsyncGenerator[str, None]:
     """
     Gets a streaming response from OpenAI's Responses API with structured JSON output.
@@ -166,7 +166,7 @@ def get_response(
     model: str = OPENAI_DEFAULT_MODEL_INTERNAL,
     instructions: str = SYSTEM_DEFAULT_INSTRUCTIONS, 
     max_tokens: int = 2000,
-    enable_web_search: bool = False
+    enable_web_search: bool = True
 ) -> StructuredAdvice:
     """
     Gets a non-streaming response from OpenAI's Responses API.
