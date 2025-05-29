@@ -11,6 +11,7 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [streamingText, setStreamingText] = useState('');
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [modelName, setModelName] = useState<string>(''); // State for dynamic model name pulled from backend
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -39,7 +40,7 @@ export default function Chat() {
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, streamingText]);
+  }, [messages, streamingText, statusMessage]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -47,7 +48,6 @@ export default function Chat() {
     const enableWebSearch = shouldEnableWebSearch(input);
     const actualInput = getActualInput(input);
     
-    // Add debug logging for web search detection
     console.log('Input:', input);
     console.log('Web search enabled:', enableWebSearch);
     console.log('Actual input to send:', actualInput);
@@ -58,8 +58,8 @@ export default function Chat() {
     setIsLoading(true);
     setIsSearching(false);
     setStreamingText('');
+    setStatusMessage(null);
     
-    // Add placeholder assistant message for streaming
     const assistantMessageId = Date.now().toString();
     const assistantPlaceholder = { 
       role: 'assistant', 
@@ -70,6 +70,7 @@ export default function Chat() {
     
     let accumulatedText = '';
     let structuredAdvice: MessageType['structuredAdvice'] | null = null;
+    let currentEventType: string | null = null;
     
     try {
       console.log('Sending SSE request to backend...');
@@ -108,25 +109,43 @@ export default function Chat() {
           const lines = chunk.split('\n');
           
           for (const line of lines) {
-            if (line.startsWith('event: ')) {
+            if (line.trim() === '') {
+              currentEventType = null;
+              continue;
+            }
+
+            const eventTypeMatch = line.match(/^event: (.*)$/);
+            if (eventTypeMatch) {
+              currentEventType = eventTypeMatch[1].trim();
               continue;
             }
             
             if (line.startsWith('data: ')) {
               try {
-                const eventData = JSON.parse(line.slice(6));
+                const eventDataString = line.slice(6);
+                if (!eventDataString) continue;
+                const eventData = JSON.parse(eventDataString);
                 
-                if (eventData.status === 'searching') {
-                  // Handle web search status
-                  setIsSearching(true);
-                  setStreamingText('🔍 Searching the web for current information...');
-                } else if (eventData.delta) {
-                  // Handle text deltas
+                if (currentEventType === 'status_update') {
+                  setStatusMessage(eventData.message || 'Processing...');
+                  setStreamingText('');
+                  setMessages(prev => 
+                    prev.map(msg => 
+                      msg.id === assistantMessageId 
+                        ? { ...msg, content: eventData.message || 'Processing...' } 
+                        : msg
+                    )
+                  );
+                  if (eventData.status === 'web_search_searching' || eventData.status === 'web_search_started') {
+                    setIsSearching(true);
+                  } else {
+                    setIsSearching(false);
+                  }
+                } else if (currentEventType === 'text_delta') {
+                  setStatusMessage(null);
                   setIsSearching(false);
                   accumulatedText += eventData.delta;
                   setStreamingText(accumulatedText);
-                  
-                  // Update the assistant message with accumulated text
                   setMessages(prev => 
                     prev.map(msg => 
                       msg.id === assistantMessageId 
@@ -134,18 +153,14 @@ export default function Chat() {
                         : msg
                     )
                   );
-                } else if (eventData.status === 'complete' && eventData.final_json) {
-                  // Handle final structured advice
-                  structuredAdvice = eventData.final_json;
+                } else if (currentEventType === 'response_complete') {
+                  setStatusMessage(null);
                   setIsSearching(false);
                   setStreamingText('');
-                  
-                  // Update model name if backend sent a model identifier
+                  structuredAdvice = eventData.final_json;
                   if (structuredAdvice?.model_identifier) {
                     setModelName(structuredAdvice.model_identifier);
                   }
-
-                  // Update message with structured advice main content
                   setMessages(prev => 
                     prev.map(msg => 
                       msg.id === assistantMessageId 
@@ -157,12 +172,41 @@ export default function Chat() {
                         : msg
                     )
                   );
-                } else if (eventData.error) {
-                  throw new Error(`API Error: ${eventData.message}`);
+                } else if (currentEventType === 'error') {
+                  setStatusMessage(null);
+                  setIsSearching(false);
+                  throw new Error(eventData.message || 'An API error occurred');
+                } else if (line.startsWith('data: ')) {
+                    if (eventData.status === 'searching') {
+                        setStatusMessage('🔍 Searching the web for current information...');
+                        setMessages(prev => prev.map(msg => msg.id === assistantMessageId ? { ...msg, content: '🔍 Searching the web for current information...'} : msg));
+                        setIsSearching(true);
+                    } else if (eventData.delta) {
+                        setStatusMessage(null);
+                        setIsSearching(false);
+                        accumulatedText += eventData.delta;
+                        setStreamingText(accumulatedText);
+                        setMessages(prev => prev.map(msg => msg.id === assistantMessageId ? { ...msg, content: accumulatedText } : msg));
+                    } else if (eventData.final_json) {
+                        setStatusMessage(null);
+                        setIsSearching(false);
+                        setStreamingText('');
+                        structuredAdvice = eventData.final_json;
+                        if (structuredAdvice?.model_identifier) {
+                            setModelName(structuredAdvice.model_identifier);
+                        }
+                        setMessages(prev => prev.map(msg => msg.id === assistantMessageId ? { ...msg, content: structuredAdvice?.main_advice || accumulatedText, structuredAdvice: structuredAdvice || undefined } : msg));
+                    } else if (eventData.error) {
+                        setStatusMessage(null);
+                        setIsSearching(false);
+                        throw new Error(`API Error: ${eventData.message}`);
+                    }
                 }
+
               } catch (parseError) {
-                console.warn('Failed to parse event data:', parseError);
+                console.warn('Failed to parse event data line:', line, 'Error:', parseError);
               }
+              currentEventType = null;
             }
           }
         }
@@ -170,23 +214,22 @@ export default function Chat() {
         reader.releaseLock();
       }
       
-    } catch (error: unknown) {
+    } catch (error) {
       console.error('Streaming error:', error);
-      
       let errorMessage = 'An unexpected error occurred. Please try again.';
       if (error instanceof Error) {
-        if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        if (error.message.includes('Backend returned') || error.message.includes('API error')) {
+          errorMessage = error.message;
+        } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
           errorMessage = 'Network error: Unable to connect to the AI service. Please check your internet connection and try again.';
         } else {
           errorMessage = `Connection error: ${error.message}. Please try again.`;
         }
       }
-      
-      // Update the assistant message with error
       setMessages(prev => 
         prev.map(msg => 
           msg.id === assistantMessageId 
-            ? { ...msg, content: errorMessage }
+            ? { ...msg, content: errorMessage, role: 'assistant' }
             : msg
         )
       );
@@ -194,6 +237,7 @@ export default function Chat() {
       setIsLoading(false);
       setIsSearching(false);
       setStreamingText('');
+      setStatusMessage(null);
     }
   };
 
@@ -240,25 +284,26 @@ export default function Chat() {
         ) : (
           <>
             {messages.map((msg, index) => (
-              <Message key={index} message={msg} />
+              <Message key={msg.id || index} message={msg} />
             ))}
             
-            {/* Streaming indicator */}
-            {isLoading && streamingText && (
+            {/* Streaming/Status indicator - simplified and combined */}
+            {isLoading && (streamingText || statusMessage) && (
               <div className="flex items-start space-x-3">
-                <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                  <img src="/apple-touch-icon.png" alt="Logo" className="h-4 w-4 rounded-md" />
                 </div>
                 <div className="bg-white rounded-lg p-3 shadow-sm border border-gray-100 max-w-3xl">
                   <div className="text-gray-800">
-                    {streamingText}
-                    <span className="inline-block w-2 h-4 bg-blue-500 ml-1 animate-pulse"></span>
+                    {statusMessage ? statusMessage : streamingText}
+                    {!statusMessage && streamingText && <span className="inline-block w-2 h-4 bg-blue-500 ml-1 animate-pulse"></span>}
                   </div>
                 </div>
               </div>
             )}
             
-            {/* Basic loading indicator when no text yet */}
-            {isLoading && !streamingText && (
+            {/* Basic loading indicator when no text or status yet */}
+            {isLoading && !streamingText && !statusMessage && (
               <div className="flex items-center justify-center text-gray-500 p-4">
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
