@@ -59,7 +59,7 @@ async def get_streaming_response(
             model=model,
             input=full_prompt,
             stream=True,
-            max_completion_tokens=max_tokens,
+            max_output_tokens=max_tokens,
             temperature=temperature,
             tools=tools
         )
@@ -157,7 +157,7 @@ def get_response(
             model=model,
             input=full_prompt,
             stream=False,
-            max_completion_tokens=max_tokens,
+            max_output_tokens=max_tokens,
             temperature=temperature,
             tools=tools
         )

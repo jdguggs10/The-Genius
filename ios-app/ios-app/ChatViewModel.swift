@@ -20,8 +20,38 @@ class ChatViewModel: ObservableObject {
     // @Published var latestStructuredAdvice: StructuredAdviceResponse? = nil 
     @Published var currentErrorMessage: String? = nil
     
+    // Reference to conversation manager
+    var conversationManager: ConversationManager?
+    var currentConversationId: UUID?
+    
     // Use your backend URL - change this to match your deployment
     private let backendURLString = "https://genius-backend-nhl3.onrender.com/advice" // Updated to Render URL
+    
+    func setConversationManager(_ manager: ConversationManager) {
+        self.conversationManager = manager
+    }
+    
+    func loadConversation(for conversationId: UUID?) {
+        guard let manager = conversationManager else { return }
+        
+        if let conversationId = conversationId,
+           let conversation = manager.conversations.first(where: { $0.id == conversationId }) {
+            self.currentConversationId = conversationId
+            self.messages = conversation.messages
+        } else if let firstConversation = manager.conversations.first {
+            self.currentConversationId = firstConversation.id
+            self.messages = firstConversation.messages
+        } else {
+            // Create a new conversation if none exist
+            let newConversation = manager.createNewConversation()
+            self.currentConversationId = newConversation.id
+            self.messages = [
+                Message(role: .assistant, content: "Welcome to Fantasy Genius! How can I help you today?")
+            ]
+        }
+        
+        currentErrorMessage = nil
+    }
     
     // Send a message
     func sendMessage() {
@@ -43,9 +73,30 @@ class ChatViewModel: ObservableObject {
         draftAttachmentData.removeAll()
         currentErrorMessage = nil // Clear previous errors
         
+        // Update the conversation in the manager
+        updateCurrentConversation()
+        
         Task {
             await fetchStreamingStructuredAdvice()
         }
+    }
+    
+    private func updateCurrentConversation() {
+        guard let manager = conversationManager,
+              let conversationId = currentConversationId,
+              var conversation = manager.conversations.first(where: { $0.id == conversationId }) else {
+            return
+        }
+        
+        conversation.messages = messages
+        conversation.updateLastMessageDate()
+        
+        // Auto-generate title from first user message if it's still "New Chat"
+        if conversation.title == "New Chat" {
+            conversation.updateTitleFromFirstMessage()
+        }
+        
+        manager.updateConversation(conversation)
     }
     
     private func fetchStreamingStructuredAdvice() async {
@@ -232,20 +283,6 @@ class ChatViewModel: ObservableObject {
     }
     
     func saveConversation() {
-        if let encoded = try? JSONEncoder().encode(messages) {
-            UserDefaults.standard.set(encoded, forKey: "current_conversation")
-        }
-    }
-    
-    func loadConversation() {
-        if let data = UserDefaults.standard.data(forKey: "current_conversation"),
-           let decoded = try? JSONDecoder().decode([Message].self, from: data) {
-            messages = decoded
-            currentErrorMessage = nil // Clear error messages on load
-        } else {
-            messages = [
-                Message(role: .assistant, content: "Welcome to Fantasy Genius! How can I help you today?")
-            ]
-        }
+        updateCurrentConversation()
     }
 }

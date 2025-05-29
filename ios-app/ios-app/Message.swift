@@ -15,7 +15,7 @@ enum MessageRole: String, Codable {
 }
 
 // Represents a single message in the chat
-struct Message: Identifiable, Codable {
+struct Message: Identifiable, Codable, Equatable {
     let id: UUID
     let role: MessageRole
     var content: String
@@ -33,12 +33,14 @@ struct Message: Identifiable, Codable {
         self.structuredAdvice = structuredAdvice // Initialize the new property
     }
     
-    // Ensure Codable conformance handles the new optional property correctly.
-    // Swift's automatic synthesis for Codable should handle this fine.
+    // Custom Equatable implementation
+    static func == (lhs: Message, rhs: Message) -> Bool {
+        return lhs.id == rhs.id
+    }
 }
 
 // Represents an attachment (like an image)
-struct ChatAttachment: Identifiable, Codable {
+struct ChatAttachment: Identifiable, Codable, Equatable {
     let id: UUID
     let type: AttachmentType
     let data: Data?
@@ -48,6 +50,11 @@ struct ChatAttachment: Identifiable, Codable {
         self.id = id
         self.type = type
         self.data = data
+    }
+    
+    // Custom Equatable implementation
+    static func == (lhs: ChatAttachment, rhs: ChatAttachment) -> Bool {
+        return lhs.id == rhs.id
     }
 }
 

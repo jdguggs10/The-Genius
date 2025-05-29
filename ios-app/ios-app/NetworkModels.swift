@@ -32,13 +32,13 @@ struct AdviceRequestPayload: Codable {
 }
 
 /// Represents an alternative piece of advice.
-struct AdviceAlternativePayload: Codable {
+struct AdviceAlternativePayload: Codable, Equatable {
     let player: String
     let reason: String?
 }
 
 /// The structure for the structured advice JSON response from the backend.
-struct StructuredAdviceResponse: Codable, Identifiable {
+struct StructuredAdviceResponse: Codable, Identifiable, Equatable {
     // Identifiable conformance if you plan to use it in SwiftUI lists directly with its own identity.
     // If the content itself provides identity (e.g. mainAdvice + timestamp implicitly), UUID might not be needed here.
     // For now, let's assume the whole response is one item. If it's part of a list of responses, add an id.
@@ -62,6 +62,11 @@ struct StructuredAdviceResponse: Codable, Identifiable {
         case confidenceScore = "confidence_score"
         case alternatives
         case modelIdentifier = "model_identifier"
+    }
+    
+    // Custom Equatable implementation
+    static func == (lhs: StructuredAdviceResponse, rhs: StructuredAdviceResponse) -> Bool {
+        return lhs.id == rhs.id
     }
 }
 
