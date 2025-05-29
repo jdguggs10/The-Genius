@@ -14,6 +14,7 @@ class ChatViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var isSearching: Bool = false
     @Published var streamingText: String = ""
+    @Published var statusMessage: String? = nil
     @Published var draftAttachmentData: [Data] = []
     
     // No longer need latestStructuredAdvice here, it will be in the Message struct
@@ -103,8 +104,9 @@ class ChatViewModel: ObservableObject {
         isLoading = true
         isSearching = false
         streamingText = ""
+        statusMessage = nil
+        currentErrorMessage = nil
         
-        // Add a placeholder for the assistant's response
         let assistantMessagePlaceholder = Message(role: .assistant, content: "")
         messages.append(assistantMessagePlaceholder)
         
@@ -158,6 +160,7 @@ class ChatViewModel: ObservableObject {
                     self?.isLoading = false
                     self?.isSearching = false
                     self?.streamingText = ""
+                    self?.statusMessage = nil
                     self?.saveConversation()
                 }
                 continuation.resume()
@@ -179,6 +182,7 @@ class ChatViewModel: ObservableObject {
         private let messageIndex: Int
         private weak var viewModel: ChatViewModel?
         private let completion: @Sendable () -> Void
+        private var currentEventType: String? = nil
         
         init(messageIndex: Int, viewModel: ChatViewModel?, completion: @escaping @Sendable () -> Void) {
             self.messageIndex = messageIndex
@@ -192,103 +196,199 @@ class ChatViewModel: ObservableObject {
             Task { @MainActor in
                 buffer += string
                 
-                // Process complete SSE events (terminated by double newlines)
-                let events = buffer.components(separatedBy: "\n\n")
-                buffer = events.last ?? "" // Keep incomplete event in buffer
-                
-                for event in events.dropLast() {
-                    await processSSEEvent(event)
+                while let eventRange = buffer.range(of: "\n\n") {
+                    let eventString = String(buffer[..<eventRange.lowerBound])
+                    buffer.removeSubrange(...eventRange.upperBound)
+                    await processSSEEvent(eventString)
                 }
             }
         }
         
         nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
             Task { @MainActor in
-                if let error = error {
-                    print("SSE stream completed with error: \(error)")
-                } else {
-                    print("SSE stream completed successfully")
+                if let viewModel = self.viewModel {
+                    if let error = error {
+                        print("SSE stream completed with error: \(error)")
+                        viewModel.messages[messageIndex].content = "Error: \(error.localizedDescription)"
+                        viewModel.currentErrorMessage = "Error: \(error.localizedDescription)"
+                    } else {
+                        print("SSE stream completed successfully")
+                        if !accumulatedText.isEmpty && (viewModel.messages[messageIndex].structuredAdvice == nil && viewModel.messages[messageIndex].content.isEmpty) {
+                            viewModel.messages[messageIndex].content = accumulatedText
+                        }
+                    }
+                    viewModel.statusMessage = nil
+                    viewModel.streamingText = ""
                 }
                 completion()
             }
         }
         
-        private func processSSEEvent(_ event: String) async {
-            let lines = event.components(separatedBy: "\n")
-            var data: String?
+        private func processSSEEvent(_ eventString: String) async {
+            let lines = eventString.components(separatedBy: "\n")
+            var eventType: String? = nil
+            var dataString: String? = nil
             
             for line in lines {
-                if line.hasPrefix("data: ") {
-                    data = String(line.dropFirst(6))
-                    break // Only need the data line
+                if line.hasPrefix("event: ") {
+                    eventType = String(line.dropFirst(7)).trimmingCharacters(in: .whitespacesAndNewlines)
+                } else if line.hasPrefix("data: ") {
+                    dataString = String(line.dropFirst(6))
                 }
             }
             
-            guard let data = data else { return }
-            
-            do {
-                if let jsonData = data.data(using: .utf8),
-                   let eventData = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
-                    
-                    await handleSSEData(eventData)
+            if let type = eventType {
+                self.currentEventType = type
+            }
+
+            if let jsonDataString = dataString {
+                do {
+                    if let jsonData = jsonDataString.data(using: .utf8),
+                       let parsedJson = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                        await handleSSEData(eventType: self.currentEventType, data: parsedJson)
+                    } else if jsonDataString.lowercased() == "[done]" && self.currentEventType?.lowercased() == "response_complete" {
+                         await handleSSEData(eventType: self.currentEventType, data: ["status": "complete", "final_json": ["main_advice": accumulatedText]])
+                    }
+                } catch {
+                    print("Failed to parse SSE data string '\(jsonDataString)': \(error)")
                 }
-            } catch {
-                print("Failed to parse SSE data: \(error)")
+            } else if self.currentEventType != nil && dataString == nil {
+                 print("Received event type '\(self.currentEventType ?? "unknown")' without data.")
+            }
+            
+            if dataString != nil {
+                self.currentEventType = nil
             }
         }
         
-        private func handleSSEData(_ eventData: [String: Any]) async {
+        private func handleSSEData(eventType: String?, data: [String: Any]) async {
             guard let viewModel = viewModel else { return }
-            
-            if let status = eventData["status"] as? String, status == "searching" {
-                viewModel.isSearching = true
-                viewModel.streamingText = "🔍 Searching the web for current information..."
-            }
-            else if let delta = eventData["delta"] as? String {
-                viewModel.isSearching = false
-                accumulatedText += delta
-                viewModel.streamingText = accumulatedText
-                
-                if messageIndex < viewModel.messages.count {
-                    viewModel.messages[messageIndex].content = accumulatedText
-                }
-            }
-            else if let status = eventData["status"] as? String,
-                    status == "complete",
-                    let finalJsonData = eventData["final_json"] as? [String: Any] {
-                
-                do {
-                    let structuredData = try JSONSerialization.data(withJSONObject: finalJsonData)
-                    let parsedAdvice = try JSONDecoder().decode(StructuredAdviceResponse.self, from: structuredData)
-                    
-                    viewModel.isSearching = false
+
+            let typeToProcess = eventType
+
+            if typeToProcess == "status_update" {
+                if let message = data["message"] as? String {
+                    viewModel.statusMessage = message
                     viewModel.streamingText = ""
-                    
-                    if messageIndex < viewModel.messages.count {
-                        viewModel.messages[messageIndex].content = parsedAdvice.mainAdvice
-                        viewModel.messages[messageIndex].structuredAdvice = parsedAdvice
+                    if viewModel.messages.indices.contains(messageIndex) {
+                        viewModel.messages[messageIndex].content = message
                     }
-                } catch {
-                    print("Failed to parse final structured advice: \(error)")
-                    viewModel.isSearching = false
-                    viewModel.streamingText = ""
                 }
-            }
-            else if let error = eventData["error"] as? String,
-                    let message = eventData["message"] as? String {
-                
+                if let statusDetail = data["status"] as? String {
+                    viewModel.isSearching = (statusDetail == "web_search_searching" || statusDetail == "web_search_started")
+                }
+            } else if typeToProcess == "text_delta" {
+                viewModel.statusMessage = nil
+                viewModel.isSearching = false
+                if let delta = data["delta"] as? String {
+                    accumulatedText += delta
+                    if viewModel.messages.indices.contains(messageIndex) {
+                        viewModel.messages[messageIndex].content = accumulatedText
+                    }
+                }
+            } else if typeToProcess == "response_complete" {
+                viewModel.statusMessage = nil
                 viewModel.isSearching = false
                 viewModel.streamingText = ""
-                
-                if messageIndex < viewModel.messages.count {
-                    viewModel.messages[messageIndex].content = "Error: \(error) - \(message)"
+                if let finalJson = data["final_json"] as? [String: Any] {
+                    let mainAdvice = finalJson["main_advice"] as? String ?? accumulatedText
+                    let reasoning = finalJson["reasoning"] as? String
+                    let confidence = finalJson["confidence_score"] as? Double
+                    let modelId = finalJson["model_identifier"] as? String
+                    
+                    let structuredAdvice = StructuredAdviceResponse(
+                        main_advice: mainAdvice,
+                        reasoning: reasoning,
+                        confidence_score: confidence,
+                        alternatives: [],
+                        model_identifier: modelId
+                    )
+                    if viewModel.messages.indices.contains(messageIndex) {
+                        viewModel.messages[messageIndex].content = mainAdvice
+                        viewModel.messages[messageIndex].structuredAdvice = structuredAdvice
+                    }
+                } else if !accumulatedText.isEmpty {
+                    if viewModel.messages.indices.contains(messageIndex) {
+                        viewModel.messages[messageIndex].content = accumulatedText
+                    }
                 }
-                viewModel.currentErrorMessage = "Error: \(error) - \(message)"
+                accumulatedText = ""
+            } else if typeToProcess == "error" {
+                viewModel.statusMessage = nil
+                viewModel.isSearching = false
+                if let errorMessage = data["message"] as? String {
+                    if viewModel.messages.indices.contains(messageIndex) {
+                        viewModel.messages[messageIndex].content = "Error: \(errorMessage)"
+                    }
+                    viewModel.currentErrorMessage = "Error: \(errorMessage)"
+                }
+            } else {
+                if let status = data["status"] as? String, status == "searching" {
+                    viewModel.statusMessage = "🔍 Searching the web..."
+                    if viewModel.messages.indices.contains(messageIndex) {
+                        viewModel.messages[messageIndex].content = "🔍 Searching the web..."
+                    }
+                    viewModel.isSearching = true
+                } else if let delta = data["delta"] as? String {
+                    viewModel.statusMessage = nil
+                    viewModel.isSearching = false
+                    accumulatedText += delta
+                    if viewModel.messages.indices.contains(messageIndex) {
+                        viewModel.messages[messageIndex].content = accumulatedText
+                    }
+                } else if let finalJson = data["final_json"] as? [String: Any] {
+                    viewModel.statusMessage = nil
+                    viewModel.isSearching = false
+                    viewModel.streamingText = ""
+                    let mainAdvice = finalJson["main_advice"] as? String ?? accumulatedText
+                    let structuredAdvice = StructuredAdviceResponse(main_advice: mainAdvice)
+                     if viewModel.messages.indices.contains(messageIndex) {
+                        viewModel.messages[messageIndex].content = mainAdvice
+                        viewModel.messages[messageIndex].structuredAdvice = structuredAdvice
+                    }
+                    accumulatedText = ""
+                } else if let errorMessage = data["error"] as? String {
+                    viewModel.statusMessage = nil
+                    if viewModel.messages.indices.contains(messageIndex) {
+                        viewModel.messages[messageIndex].content = "Error: \(errorMessage)"
+                    }
+                     viewModel.currentErrorMessage = "Error: \(errorMessage)"
+                }
+                 logger.debug("Processed data with type: \(typeToProcess ?? "legacy format") - Data: \(data)")
             }
+        }
+        
+        private func saveConversation() {
+            guard let viewModel = viewModel else { return }
+            viewModel.updateCurrentConversation()
         }
     }
     
     func saveConversation() {
         updateCurrentConversation()
     }
+}
+
+struct MessagePayload: Codable {
+    let role: MessageRole
+    let content: String
+}
+
+struct AdviceRequestPayload: Codable {
+    let conversation: [MessagePayload]
+    // Add enable_web_search if your backend expects it
+    // var enable_web_search: Bool = false 
+}
+
+struct StructuredAdviceResponse: Codable, Hashable {
+    var main_advice: String
+    var reasoning: String? = nil
+    var confidence_score: Double? = nil
+    var alternatives: [AlternativeAdvice]? = []
+    var model_identifier: String? = nil
+}
+
+struct AlternativeAdvice: Codable, Hashable {
+    var player: String
+    var reason: String? = nil
 }

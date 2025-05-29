@@ -154,11 +154,43 @@ struct ContentView: View {
                                     .id(message.id)
                                     .padding(.horizontal, horizontalSizeClass == .regular ? max(32, listGeometry.safeAreaInsets.leading + 16) : 16)
                             }
+                            
+                            // Display status message here, below messages but in scroll view
+                            if let status = viewModel.statusMessage, viewModel.isLoading {
+                                HStack {
+                                    Spacer()
+                                    Text(status)
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                        .padding(.vertical, 5)
+                                        .padding(.horizontal, 10)
+                                        .background(Color(.systemGray5))
+                                        .clipShape(Capsule())
+                                    Spacer()
+                                }
+                                .padding(.horizontal, horizontalSizeClass == .regular ? max(32, listGeometry.safeAreaInsets.leading + 16) : 16)
+                                .padding(.top, 5) // Add some spacing from the last message
+                                .id("statusMessageView") // Give it an ID to scroll to if needed
+                            }
                         }
                         .padding(.vertical, 10)
                         .onChange(of: viewModel.messages.count) { _, newCount in
                             if let lastMessage = viewModel.messages.last {
                                 withAnimation { proxy.scrollTo(lastMessage.id, anchor: .bottom) }
+                            }
+                        }
+                        // Scroll to status message if it appears and is the newest thing
+                        .onChange(of: viewModel.statusMessage) { oldStatus, newStatus in
+                            if newStatus != nil && viewModel.isLoading {
+                                // Check if streamingText is empty, meaning status is the primary update
+                                if viewModel.streamingText.isEmpty {
+                                    withAnimation { proxy.scrollTo("statusMessageView", anchor: .bottom) }
+                                }
+                            } else if oldStatus != nil && newStatus == nil {
+                                // Status cleared, scroll to last actual message if content isn't also streaming
+                                if viewModel.streamingText.isEmpty, let lastMessage = viewModel.messages.last {
+                                    withAnimation{ proxy.scrollTo(lastMessage.id, anchor: .bottom) }
+                                }
                             }
                         }
                         .onTapGesture { isInputFocused = false } // Dismiss keyboard
