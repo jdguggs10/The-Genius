@@ -36,7 +36,6 @@ async def get_streaming_response(
     model: str = OPENAI_DEFAULT_MODEL_INTERNAL,
     instructions: str = SYSTEM_DEFAULT_INSTRUCTIONS,
     max_tokens: int = 2000,
-    temperature: float = 0.7,
     enable_web_search: bool = False
 ) -> AsyncGenerator[str, None]:
     """
@@ -60,7 +59,6 @@ async def get_streaming_response(
             input=full_prompt,
             stream=True,
             max_output_tokens=max_tokens,
-            temperature=temperature,
             tools=tools
         )
         
@@ -138,7 +136,6 @@ def get_response(
     model: str = OPENAI_DEFAULT_MODEL_INTERNAL,
     instructions: str = SYSTEM_DEFAULT_INSTRUCTIONS, 
     max_tokens: int = 2000,
-    temperature: float = 0.7,
     enable_web_search: bool = False
 ) -> StructuredAdvice:
     """
@@ -158,7 +155,6 @@ def get_response(
             input=full_prompt,
             stream=False,
             max_output_tokens=max_tokens,
-            temperature=temperature,
             tools=tools
         )
         
