@@ -1,3 +1,9 @@
-#root {
-  margin: 0 auto;
+/* Styles for the root element can be added here if needed. */
+/* For now, most styling is handled by Tailwind CSS in the components. */
+
+/* Ensure html and body take full height if #root is to expand effectively */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
