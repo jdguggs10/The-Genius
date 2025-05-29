@@ -11,6 +11,7 @@ struct ContentView: View {
     @StateObject private var viewModel = ChatViewModel()
     @State private var showingPhotoPicker = false
     @State private var selectedPhotos: [PhotosPickerItem] = []
+    @State private var showingSettings = false
     @FocusState private var isInputFocused: Bool
     
     var body: some View {
@@ -63,7 +64,7 @@ struct ContentView: View {
                 // Settings button
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
-                        // Settings action - implement later
+                        showingSettings = true
                     }) {
                         Image(systemName: "gearshape")
                     }
@@ -85,6 +86,9 @@ struct ContentView: View {
             maxSelectionCount: 5, // Allow up to 5 images for now
             matching: .images
         )
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+        }
         .onChange(of: selectedPhotos) { oldItems, newItems in
             Task {
                 viewModel.draftAttachmentData.removeAll() // Clear previous drafts

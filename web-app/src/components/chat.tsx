@@ -97,7 +97,6 @@ export default function Chat() {
           
           for (const line of lines) {
             if (line.startsWith('event: ')) {
-              const eventType = line.slice(7);
               continue;
             }
             
