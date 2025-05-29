@@ -159,6 +159,13 @@ async def health_check():
     """
     return {"status": "healthy", "version": app.version}
 
+@app.get("/model")
+async def get_default_model():
+    """
+    Returns the default AI model name.
+    """
+    return {"model": OPENAI_DEFAULT_MODEL_INTERNAL}
+
 # Add more endpoints as needed...
 
 # To run this app (for development):

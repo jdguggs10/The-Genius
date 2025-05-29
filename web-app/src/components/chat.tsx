@@ -15,8 +15,30 @@ export default function Chat() {
   const [streamingText, setStreamingText] = useState('');
   const { count, increment, isLimitReached } = useDailyQuota();
   const [showQuotaModal, setShowQuotaModal] = useState(false);
-  const [modelName, setModelName] = useState('GPT-4o'); // State for dynamic model name
+  const [modelName, setModelName] = useState<string>(''); // State for dynamic model name pulled from backend
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Fetch default model from backend on mount
+  useEffect(() => {
+    const fetchDefaultModel = async () => {
+      try {
+        const url = new URL(import.meta.env.VITE_BACKEND_URL ?? 'https://genius-backend-nhl3.onrender.com/advice');
+        url.pathname = '/model';
+        const response = await fetch(url.toString());
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        if (data.model) {
+          setModelName(data.model);
+        }
+      } catch (error) {
+        console.error('Failed to fetch default model:', error);
+        setModelName('GPT-4.1');
+      }
+    };
+    fetchDefaultModel();
+  }, []);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -129,10 +151,10 @@ export default function Chat() {
                   setIsSearching(false);
                   setStreamingText('');
                   
-                  // FUTURE: If backend sends model info, update it here
-                  // if (eventData.model) {
-                  //   setModelName(eventData.model);
-                  // }
+                  // Update model name if backend sent a model identifier
+                  if (structuredAdvice?.model_identifier) {
+                    setModelName(structuredAdvice.model_identifier);
+                  }
 
                   // Update message with structured advice main content
                   setMessages(prev => 
