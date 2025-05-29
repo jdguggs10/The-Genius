@@ -11,6 +11,9 @@ import json # For parsing in the non-streaming version and CLI
 # Import the Pydantic model for structured responses
 from app.models import StructuredAdvice
 
+# Import the new modular prompt loader
+from app.services.prompt_loader import prompt_loader
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -29,24 +32,39 @@ client = OpenAI(api_key=api_key)
 
 # Define the default model by checking environment variable first, then fallback
 OPENAI_DEFAULT_MODEL_INTERNAL = os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4.1") # Default model updated to GPT-4.1
-SYSTEM_DEFAULT_INSTRUCTIONS = os.getenv("SYSTEM_PROMPT", "You are a helpful fantasy sports assistant with deep knowledge of player performance, matchups, and strategy.")
+
+# Use the modular prompt system for default instructions
+SYSTEM_DEFAULT_INSTRUCTIONS = prompt_loader.get_system_prompt("default")
 
 async def get_streaming_response(
     prompt: str,
     model: str = OPENAI_DEFAULT_MODEL_INTERNAL,
-    instructions: str = SYSTEM_DEFAULT_INSTRUCTIONS,
+    instructions: str = None,
     max_tokens: int = 2000,
-    enable_web_search: bool = True
+    enable_web_search: bool = True,
+    prompt_type: str = "default"
 ) -> AsyncGenerator[str, None]:
     """
     Gets a streaming response from OpenAI's Responses API with structured JSON output.
+    
+    Args:
+        prompt_type: Type of prompt to use from config ("default", "detailed", "baseball", "football", "basketball")
     
     Yields:
         str: Event-formatted chunks containing both text and structured JSON deltas.
     """
     try:
-        # Build the input prompt with instructions
-        full_prompt = f"{instructions}\n\nUser: {prompt}\n\nPlease respond with structured JSON that matches this schema: {StructuredAdvice.model_json_schema()}"
+        # Get appropriate system instructions
+        if instructions is None:
+            instructions = prompt_loader.get_system_prompt(prompt_type)
+        
+        # Build the complete prompt using the new modular system
+        full_prompt = prompt_loader.build_full_prompt(
+            user_prompt=prompt,
+            system_prompt=instructions,
+            schema=StructuredAdvice.model_json_schema(),
+            enable_web_search=enable_web_search
+        )
         
         logger.info(f"Streaming request to OpenAI Responses API model: {model}")
         
@@ -164,16 +182,29 @@ async def get_streaming_response(
 def get_response(
     prompt: str,
     model: str = OPENAI_DEFAULT_MODEL_INTERNAL,
-    instructions: str = SYSTEM_DEFAULT_INSTRUCTIONS, 
+    instructions: str = None, 
     max_tokens: int = 2000,
-    enable_web_search: bool = True
+    enable_web_search: bool = True,
+    prompt_type: str = "default"
 ) -> StructuredAdvice:
     """
     Gets a non-streaming response from OpenAI's Responses API.
+    
+    Args:
+        prompt_type: Type of prompt to use from config ("default", "detailed", "baseball", "football", "basketball")
     """
     try:
-        # Build the input prompt with instructions
-        full_prompt = f"{instructions}\n\nUser: {prompt}\n\nPlease respond with structured JSON that matches this schema: {StructuredAdvice.model_json_schema()}"
+        # Get appropriate system instructions
+        if instructions is None:
+            instructions = prompt_loader.get_system_prompt(prompt_type)
+        
+        # Build the complete prompt using the new modular system
+        full_prompt = prompt_loader.build_full_prompt(
+            user_prompt=prompt,
+            system_prompt=instructions,
+            schema=StructuredAdvice.model_json_schema(),
+            enable_web_search=enable_web_search
+        )
         
         logger.info(f"Request to OpenAI Responses API model: {model}")
         

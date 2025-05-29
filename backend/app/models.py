@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Literal
 
 class Message(BaseModel):
     role: str
@@ -10,6 +10,7 @@ class AdviceRequest(BaseModel):
     players: list[str] | None = None
     model: Optional[str] = None  # Optional model specification
     enable_web_search: Optional[bool] = False  # Option to enable web search
+    prompt_type: Optional[Literal["default", "detailed", "baseball", "football", "basketball"]] = "default"  # Prompt type selection
 
 # New/Updated Models for Structured JSON Output
 class AdviceAlternative(BaseModel):

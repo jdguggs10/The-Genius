@@ -94,7 +94,8 @@ async def get_advice_streaming(body: AdviceRequest) -> StreamingResponse:
             get_streaming_response(
                 prompt=user_prompt, 
                 model=model_to_use,
-                enable_web_search=body.enable_web_search or False
+                enable_web_search=body.enable_web_search or False,
+                prompt_type=body.prompt_type or "default"
             ), 
             media_type="text/event-stream",
             headers={
@@ -139,7 +140,9 @@ async def get_advice_non_streaming(body: AdviceRequest) -> StructuredAdvice:
         # Call the synchronous, non-streaming function that returns a parsed StructuredAdvice object
         advice_object = get_openai_non_streaming_response(
             prompt=user_prompt, 
-            model=model_to_use
+            model=model_to_use,
+            enable_web_search=body.enable_web_search or False,
+            prompt_type=body.prompt_type or "default"
             # instructions and other params will use defaults in get_openai_non_streaming_response
         )
         return advice_object
