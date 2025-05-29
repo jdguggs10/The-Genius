@@ -128,13 +128,17 @@ struct ContentView: View {
             .navigationTitle(selectedConversation?.title ?? "Fantasy Genius")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // Settings button
+                // New message button
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
-                        showingSettings = true
+                        let newConversation = conversationManager.createNewConversation()
+                        selectedConversation = newConversation
                     }) {
-                        Image(systemName: "info.circle")
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 16, weight: .medium))
                     }
+                    .accessibilityLabel("New conversation")
+                    .accessibilityHint("Creates a new conversation")
                 }
                 
                 // Hamburger menu button

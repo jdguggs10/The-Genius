@@ -8,6 +8,8 @@ import SwiftUI
 
 struct MessageBubble: View {
     let message: Message
+    @State private var showingShareSheet = false
+    @State private var shareContent: [Any] = []
     
     var body: some View {
         HStack(alignment: .top, spacing: 8) {
@@ -132,6 +134,14 @@ struct MessageBubble: View {
                 .foregroundColor(textColor)
                 .clipShape(RoundedRectangle(cornerRadius: 18))
                 .shadow(color: .black.opacity(0.08), radius: 2, x: 0, y: 1)
+                .onLongPressGesture {
+                    prepareMessageShare()
+                    showingShareSheet = true
+                    
+                    // Haptic feedback for long press
+                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                    impactFeedback.impactOccurred()
+                }
                 
                 // Timestamp
                 Text(timeString)
@@ -156,6 +166,51 @@ struct MessageBubble: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 6)
+        .sheet(isPresented: $showingShareSheet) {
+            if !shareContent.isEmpty {
+                ShareSheet(activityItems: shareContent)
+            }
+        }
+    }
+    
+    private func prepareMessageShare() {
+        let role = message.role == .user ? "You" : "Fantasy Genius"
+        let timestamp = DateFormatter.localizedString(from: message.timestamp, dateStyle: .medium, timeStyle: .short)
+        
+        var messageText = "💬 Fantasy Genius Message\n"
+        messageText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        messageText += "👤 From: \(role)\n"
+        messageText += "📅 Date: \(timestamp)\n\n"
+        messageText += "💭 Message:\n\(message.content)\n\n"
+        
+        // Add structured advice if available
+        if let advice = message.structuredAdvice {
+            messageText += "🎯 Additional Details:\n"
+            
+            if let reasoning = advice.reasoning, !reasoning.isEmpty {
+                messageText += "• Reasoning: \(reasoning)\n"
+            }
+            
+            if let confidence = advice.confidenceScore {
+                messageText += "• Confidence: \(String(format: "%.0f%%", confidence * 100))\n"
+            }
+            
+            if let alternatives = advice.alternatives, !alternatives.isEmpty {
+                messageText += "• Alternatives:\n"
+                for alt in alternatives {
+                    messageText += "  - \(alt.player)"
+                    if let reason = alt.reason, !reason.isEmpty {
+                        messageText += ": \(reason)"
+                    }
+                    messageText += "\n"
+                }
+            }
+        }
+        
+        messageText += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        messageText += "Shared from Fantasy Genius iOS App"
+        
+        shareContent = [messageText]
     }
     
     private var bubbleColor: Color {
@@ -177,6 +232,63 @@ struct MessageBubble: View {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         return formatter.string(from: message.timestamp)
+    }
+}
+
+// MARK: - ShareSheet
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    let applicationActivities: [UIActivity]?
+    @Environment(\.dismiss) private var dismiss
+    
+    init(activityItems: [Any], applicationActivities: [UIActivity]? = nil) {
+        self.activityItems = activityItems
+        self.applicationActivities = applicationActivities
+    }
+    
+    func makeUIViewController(context: UIViewControllerRepresentableContext<ShareSheet>) -> UIActivityViewController {
+        let controller = UIActivityViewController(
+            activityItems: activityItems,
+            applicationActivities: applicationActivities
+        )
+        
+        // Configure for iOS 18.4 standards and Apple HIG
+        controller.modalPresentationStyle = .pageSheet
+        
+        // Configure the sheet presentation for iOS 15+
+        if let sheet = controller.sheetPresentationController {
+            sheet.detents = [.medium(), .large()]
+            sheet.prefersGrabberVisible = true
+            sheet.preferredCornerRadius = 16
+        }
+        
+        // Exclude activities that don't make sense for message sharing
+        controller.excludedActivityTypes = [
+            .assignToContact,
+            .openInIBooks,
+            .markupAsPDF,
+            .addToReadingList,
+            .postToVimeo,
+            .postToFlickr,
+            .postToTencentWeibo,
+            .postToWeibo
+        ]
+        
+        // Add completion handler for better UX
+        controller.completionWithItemsHandler = { activityType, completed, returnedItems, error in
+            // Handle completion if needed
+            if completed {
+                // Optional: Add haptic feedback for successful share
+                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                impactFeedback.impactOccurred()
+            }
+        }
+        
+        return controller
+    }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: UIViewControllerRepresentableContext<ShareSheet>) {
+        // No updates needed
     }
 }
 

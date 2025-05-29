@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Always use OpenAI GPT o4-mini for everything. Always use the Responses API, never chat completions. If you are confused, see the other cursor rules on the Responses API.

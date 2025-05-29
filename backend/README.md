@@ -8,7 +8,7 @@ This is the backend API server that handles all the smart stuff - connecting to 
 
 This backend server:
 - **Receives Questions**: Gets fantasy sports questions from your web app or mobile app via a JSON payload.
-- **Talks to AI**: Sends questions to OpenAI's API (defaulting to `gpt-4o-mini`), requesting structured JSON output.
+- **Talks to AI**: Sends questions to OpenAI's API (defaulting to `o4-mini`), requesting structured JSON output.
 - **Streams Structured Answers**: Streams back fantasy sports advice formatted as a single JSON object (`StructuredAdvice` model) chunk by chunk. This allows clients to display information progressively.
 - **Offers Non-Streaming Option**: Provides an alternative endpoint for receiving the full structured JSON response in one go.
 - **Manages CORS**: Ensures your client applications can communicate with this server.
@@ -16,7 +16,7 @@ This backend server:
 ## 🔧 Technology Stack (What's Under the Hood)
 
 - **FastAPI**: Modern Python web framework.
-- **OpenAI GPT-4o-mini**: Default AI model via the Responses API, configured for structured JSON output. **IMPORTANT NOTE:** `gpt-4o-mini` is the specified default model. Do not change this without explicit instruction.
+- **OpenAI o4-mini**: Default AI model via the Responses API, configured for structured JSON output. **IMPORTANT NOTE:** `o4-mini` is the specified default model. Do not change this without explicit instruction.
 - **Pydantic**: Ensures data is properly formatted, validated, and used for defining the JSON schema for OpenAI.
 - **Uvicorn**: Production-ready ASGI web server.
 - **Docker**: Containerization for easy deployment.
@@ -88,8 +88,8 @@ OPENAI_API_KEY=sk-your_actual_openai_key_here
 # This is combined with JSON schema instructions in openai_client.py
 SYSTEM_PROMPT="You are a helpful fantasy sports assistant with deep knowledge of player performance, matchups, and strategy. You MUST respond in JSON format adhering to the provided schema."
 
-# Optional: Override default model (default is gpt-4o-mini)
-# OPENAI_DEFAULT_MODEL="gpt-4o"
+# Optional: Override default model (default is o4-mini)
+# OPENAI_DEFAULT_MODEL="o4-mini"
 ```
 
 ### Step 4: Test the Server
@@ -152,7 +152,7 @@ This will return the complete `StructuredAdvice` JSON object at once.
       }
       // More messages can be part of the conversation history
     ],
-    "model": "gpt-4o-mini", // Optional: specify a model
+    "model": "o4-mini", // Optional: specify a model
     "enable_web_search": false // Optional: Currently not used with JSON mode
   }
   ```
@@ -173,7 +173,7 @@ This will return the complete `StructuredAdvice` JSON object at once.
         "reason": "If both Allen and Mahomes have very tough matchups and a high-upside streamer is available."
       }
     ],
-    "model_identifier": "gpt-4o-mini"
+    "model_identifier": "o4-mini"
   }
   ```
   *Note: Field names are snake_case as per default Pydantic model serialization for JSON.*
@@ -193,11 +193,11 @@ This will return the complete `StructuredAdvice` JSON object at once.
 | `OPENAI_API_KEY` | ✅ Yes | Your OpenAI API key | `sk-abc123...` |
 | `SYSTEM_PROMPT` | ❌ No | Base system instructions for the AI. JSON formatting instructions are added programmatically. | `You are a fantasy expert...` |
 | `PORT` | ❌ No | Port to run server on (default `8000`) | `8000` |
-| `OPENAI_DEFAULT_MODEL` | ❌ No | Overrides the default AI model. If not set, defaults to `gpt-4o-mini`. | `gpt-4o` |
+| `OPENAI_DEFAULT_MODEL` | ❌ No | Overrides the default AI model. If not set, defaults to `o4-mini`. | `o4-mini` |
 
 ### OpenAI Settings (in `app/services/openai_client.py`)
 
-- **Default Model**: The primary default AI model is `gpt-4o-mini`, explicitly set in `app/services/openai_client.py`. This can be overridden by the `OPENAI_DEFAULT_MODEL` environment variable.
+- **Default Model**: The primary default AI model is `o4-mini`, explicitly set in `app/services/openai_client.py`. This can be overridden by the `OPENAI_DEFAULT_MODEL` environment variable.
 - **System Instructions**: The `SYSTEM_DEFAULT_INSTRUCTIONS` (from env or hardcoded) is combined with specific instructions to output JSON according to the `StructuredAdvice` Pydantic model's schema.
 - **JSON Schema**: The `StructuredAdvice.model_json_schema()` is passed to the OpenAI API's `response_format` parameter to enforce JSON output.
 
