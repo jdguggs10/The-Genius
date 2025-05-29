@@ -1,8 +1,6 @@
 // web-app/src/components/Chat.tsx
 import { useState, useRef, useEffect } from 'react';
-import { useDailyQuota } from '../hooks/useDailyQuota';
 import { PaperAirplaneIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
-import QuotaModal from './QuotaModal.tsx';
 import Message from './message';
 import type { MessageType } from '../types';
 import { shouldEnableWebSearch, getActualInput, getSearchHint } from '../utils/webSearch'; // Import utilities
@@ -13,8 +11,6 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [streamingText, setStreamingText] = useState('');
-  const { count, increment, isLimitReached } = useDailyQuota();
-  const [showQuotaModal, setShowQuotaModal] = useState(false);
   const [modelName, setModelName] = useState<string>(''); // State for dynamic model name pulled from backend
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -45,15 +41,8 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, streamingText]);
 
-  // Check if quota reached
-  useEffect(() => {
-    if (isLimitReached) {
-      setShowQuotaModal(true);
-    }
-  }, [isLimitReached]);
-
   const handleSend = async () => {
-    if (!input.trim() || isLoading || isLimitReached) return;
+    if (!input.trim() || isLoading) return;
     
     const enableWebSearch = shouldEnableWebSearch(input);
     const actualInput = getActualInput(input);
@@ -181,8 +170,6 @@ export default function Chat() {
         reader.releaseLock();
       }
       
-      increment(); // Increment the quota count
-      
     } catch (error: unknown) {
       console.error('Streaming error:', error);
       
@@ -225,9 +212,6 @@ export default function Chat() {
                 <span className="text-xs sm:text-sm">Searching...</span>
               </div>
             )}
-          </div>
-          <div className="text-xs text-gray-500">
-            {count} of {5} messages used today
           </div>
         </div>
       </header>
@@ -298,8 +282,8 @@ export default function Chat() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-              placeholder={isLimitReached ? "Daily limit reached" : "Ask about fantasy sports..."}
-              disabled={isLimitReached || isLoading}
+              placeholder="Ask about fantasy sports..."
+              disabled={isLoading}
               className="w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed text-sm sm:text-base"
             />
             {shouldEnableWebSearch(input) && (
@@ -308,7 +292,7 @@ export default function Chat() {
           </div>
           <button
             onClick={handleSend}
-            disabled={!input.trim() || isLoading || isLimitReached}
+            disabled={!input.trim() || isLoading}
             className="p-2 sm:p-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg sm:rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 shadow-lg"
           >
             {isLoading ? (
@@ -320,31 +304,10 @@ export default function Chat() {
         </div>
         
         {/* Enhanced Quota Display */}
-        <div className="flex flex-col sm:flex-row items-center justify-between mt-1.5 sm:mt-2 text-xs">
-          <div className="text-gray-400 text-center sm:text-left mb-1 sm:mb-0">
-            {isLimitReached ? (
-              <span className="text-red-500 font-medium">Daily limit reached</span>
-            ) : (
-              <span className="hidden sm:inline">{input ? getSearchHint(input) : `Powered by ${modelName} with real-time web search`}</span>
-            )}
-          </div>
-          <div className="flex items-center space-x-1">
-            <div className="flex space-x-1">
-              {Array.from({length: 5}).map((_, i) => (
-                <div 
-                  key={i}
-                  className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${i < count ? 'bg-blue-500' : 'bg-gray-200'}`}
-                />
-              ))}
-            </div>
-            <span className="text-gray-500 ml-1 sm:ml-2">{count}/5</span>
-          </div>
+        <div className="mt-1.5 sm:mt-2 text-xs">
+          <span className="text-gray-400">{input ? getSearchHint(input) : `Powered by ${modelName} with real-time web search`}</span>
         </div>
       </div>
-      
-      {showQuotaModal && (
-        <QuotaModal onClose={() => setShowQuotaModal(false)} />
-      )}
     </div>
   );
 }

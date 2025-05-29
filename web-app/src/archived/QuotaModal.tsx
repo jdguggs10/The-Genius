@@ -1,4 +1,4 @@
-// web-app/src/components/QuotaModal.tsx
+// Archived QuotaModal component for future use
 import { motion } from 'framer-motion';
 
 type QuotaModalProps = {
@@ -31,4 +31,4 @@ export default function QuotaModal({ onClose }: QuotaModalProps) {
       </motion.div>
     </div>
   );
-}
+} 

@@ -1,3 +1,4 @@
+// Archived daily quota hook for future use
 import { useState } from "react";
 
 const MAX_DAILY_MESSAGES = 5;
