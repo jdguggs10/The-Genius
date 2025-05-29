@@ -126,6 +126,14 @@ class ChatViewModel: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
         request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+        request.timeoutInterval = 300 // 5 minutes
+        
+        // Use simple, standard URLSession configuration
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 300
+        
+        let session = URLSession(configuration: config)
 
         // Prepare the conversation payload
         let conversationPayloads = self.messages.filter { $0.id != assistantMessagePlaceholder.id }.map {
@@ -136,6 +144,8 @@ class ChatViewModel: ObservableObject {
         
         do {
             request.httpBody = try JSONEncoder().encode(adviceRequest)
+            print("Making SSE request to: \(url)")
+            
         } catch {
             messages[assistantMessageIndex].content = "Error: Could not encode request: \(error.localizedDescription)"
             currentErrorMessage = "Error: Could not encode request: \(error.localizedDescription)"
@@ -143,141 +153,140 @@ class ChatViewModel: ObservableObject {
             return
         }
         
-        var accumulatedText = ""
-        var eventBuffer = ""
-        
-        do {
-            let (stream, response) = try await URLSession.shared.bytes(for: request)
-            
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
-                var errorBodyString = "No additional error information from server."
-                var tempErrorData = Data()
-                for try await byteChunk in stream {
-                    tempErrorData.append(byteChunk)
+        // Use URLSessionDataTask for proper SSE handling
+        await withCheckedContinuation { continuation in
+            // Create a custom delegate to handle streaming data
+            let delegate = SSEDelegate(messageIndex: assistantMessageIndex, viewModel: self) { [weak self] in
+                Task { @MainActor in
+                    self?.isLoading = false
+                    self?.isSearching = false
+                    self?.streamingText = ""
+                    self?.saveConversation()
                 }
-                if !tempErrorData.isEmpty {
-                    errorBodyString = String(data: tempErrorData, encoding: .utf8) ?? "Could not decode error body."
-                }
-                messages[assistantMessageIndex].content = "Error: Server returned status \(httpResponse.statusCode). \(errorBodyString)"
-                currentErrorMessage = "Error: Server returned status \(httpResponse.statusCode). \(errorBodyString)"
-                isLoading = false
-                saveConversation()
-                return
+                continuation.resume()
             }
             
-            // Process Server-Sent Events stream
-            for try await byteChunk in stream {
-                let chunkString = String(data: Data([byteChunk]), encoding: .utf8) ?? ""
-                eventBuffer += chunkString
-                
-                // Process complete lines
-                let lines = eventBuffer.components(separatedBy: .newlines)
-                eventBuffer = lines.last ?? "" // Keep incomplete line in buffer
-                
-                for line in lines.dropLast() {
-                    await processSSELine(line, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
-                }
-            }
-            
-            // Process any remaining buffer
-            if !eventBuffer.isEmpty {
-                await processSSELine(eventBuffer, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
-            }
-            
-            currentErrorMessage = nil
-            
-        } catch let decodingError as DecodingError {
-            let errorDetails = "Decoding Error: \(decodingError.localizedDescription). Details: \(decodingError)"
-            messages[assistantMessageIndex].content = errorDetails
-            currentErrorMessage = errorDetails
-            print("Decoding Error: \(decodingError)")
-        } catch {
-            messages[assistantMessageIndex].content = "Error processing stream: \(error.localizedDescription)"
-            currentErrorMessage = "Error processing stream: \(error.localizedDescription)"
-            print("Streaming/Processing Error: \(error)")
+            // Create session with our delegate
+            let delegateSession = URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+            let streamingTask = delegateSession.dataTask(with: request)
+            streamingTask.resume()
         }
-        
-        isLoading = false
-        isSearching = false
-        streamingText = ""
-        saveConversation()
     }
     
-    private func processSSELine(_ line: String, messageIndex: Int, accumulatedText: inout String) async {
-        if line.hasPrefix("event: ") {
-            // Event type line - we can track this for different handling if needed
-            return
+    // MARK: - SSE Delegate
+    
+    @MainActor
+    final class SSEDelegate: NSObject, URLSessionDataDelegate {
+        private var buffer = ""
+        private var accumulatedText = ""
+        private let messageIndex: Int
+        private weak var viewModel: ChatViewModel?
+        private let completion: @Sendable () -> Void
+        
+        init(messageIndex: Int, viewModel: ChatViewModel?, completion: @escaping @Sendable () -> Void) {
+            self.messageIndex = messageIndex
+            self.viewModel = viewModel
+            self.completion = completion
         }
         
-        if line.hasPrefix("data: ") {
-            let dataString = String(line.dropFirst(6)) // Remove "data: "
+        nonisolated func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+            guard let string = String(data: data, encoding: .utf8) else { return }
+            
+            Task { @MainActor in
+                buffer += string
+                
+                // Process complete SSE events (terminated by double newlines)
+                let events = buffer.components(separatedBy: "\n\n")
+                buffer = events.last ?? "" // Keep incomplete event in buffer
+                
+                for event in events.dropLast() {
+                    await processSSEEvent(event)
+                }
+            }
+        }
+        
+        nonisolated func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+            Task { @MainActor in
+                if let error = error {
+                    print("SSE stream completed with error: \(error)")
+                } else {
+                    print("SSE stream completed successfully")
+                }
+                completion()
+            }
+        }
+        
+        private func processSSEEvent(_ event: String) async {
+            let lines = event.components(separatedBy: "\n")
+            var data: String?
+            
+            for line in lines {
+                if line.hasPrefix("data: ") {
+                    data = String(line.dropFirst(6))
+                    break // Only need the data line
+                }
+            }
+            
+            guard let data = data else { return }
             
             do {
-                if let data = dataString.data(using: .utf8) {
-                    let eventData = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+                if let jsonData = data.data(using: .utf8),
+                   let eventData = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
                     
-                    if let status = eventData?["status"] as? String, status == "searching" {
-                        // Handle web search status
-                        await MainActor.run {
-                            isSearching = true
-                            streamingText = "🔍 Searching the web for current information..."
-                        }
-                    }
-                    else if let delta = eventData?["delta"] as? String {
-                        // Handle text delta - update message progressively
-                        isSearching = false
-                        accumulatedText += delta
-                        
-                        // Update UI on main thread
-                        await MainActor.run {
-                            streamingText = accumulatedText
-                            if messageIndex < messages.count {
-                                messages[messageIndex].content = accumulatedText
-                            }
-                        }
-                    }
-                    else if let status = eventData?["status"] as? String,
-                            status == "complete",
-                            let finalJsonData = eventData?["final_json"] as? [String: Any] {
-                        
-                        // Handle final structured advice
-                        do {
-                            let structuredData = try JSONSerialization.data(withJSONObject: finalJsonData)
-                            let parsedAdvice = try JSONDecoder().decode(StructuredAdviceResponse.self, from: structuredData)
-                            
-                            await MainActor.run {
-                                isSearching = false
-                                streamingText = ""
-                                if messageIndex < messages.count {
-                                    messages[messageIndex].content = parsedAdvice.mainAdvice
-                                    messages[messageIndex].structuredAdvice = parsedAdvice
-                                }
-                            }
-                        } catch {
-                            print("Failed to parse final structured advice: \(error)")
-                            // Keep the accumulated text as fallback
-                            await MainActor.run {
-                                isSearching = false
-                                streamingText = ""
-                            }
-                        }
-                    }
-                    else if let error = eventData?["error"] as? String,
-                            let message = eventData?["message"] as? String {
-                        
-                        // Handle error events
-                        await MainActor.run {
-                            isSearching = false
-                            streamingText = ""
-                            if messageIndex < messages.count {
-                                messages[messageIndex].content = "Error: \(error) - \(message)"
-                            }
-                            currentErrorMessage = "Error: \(error) - \(message)"
-                        }
-                    }
+                    await handleSSEData(eventData)
                 }
             } catch {
                 print("Failed to parse SSE data: \(error)")
+            }
+        }
+        
+        private func handleSSEData(_ eventData: [String: Any]) async {
+            guard let viewModel = viewModel else { return }
+            
+            if let status = eventData["status"] as? String, status == "searching" {
+                viewModel.isSearching = true
+                viewModel.streamingText = "🔍 Searching the web for current information..."
+            }
+            else if let delta = eventData["delta"] as? String {
+                viewModel.isSearching = false
+                accumulatedText += delta
+                viewModel.streamingText = accumulatedText
+                
+                if messageIndex < viewModel.messages.count {
+                    viewModel.messages[messageIndex].content = accumulatedText
+                }
+            }
+            else if let status = eventData["status"] as? String,
+                    status == "complete",
+                    let finalJsonData = eventData["final_json"] as? [String: Any] {
+                
+                do {
+                    let structuredData = try JSONSerialization.data(withJSONObject: finalJsonData)
+                    let parsedAdvice = try JSONDecoder().decode(StructuredAdviceResponse.self, from: structuredData)
+                    
+                    viewModel.isSearching = false
+                    viewModel.streamingText = ""
+                    
+                    if messageIndex < viewModel.messages.count {
+                        viewModel.messages[messageIndex].content = parsedAdvice.mainAdvice
+                        viewModel.messages[messageIndex].structuredAdvice = parsedAdvice
+                    }
+                } catch {
+                    print("Failed to parse final structured advice: \(error)")
+                    viewModel.isSearching = false
+                    viewModel.streamingText = ""
+                }
+            }
+            else if let error = eventData["error"] as? String,
+                    let message = eventData["message"] as? String {
+                
+                viewModel.isSearching = false
+                viewModel.streamingText = ""
+                
+                if messageIndex < viewModel.messages.count {
+                    viewModel.messages[messageIndex].content = "Error: \(error) - \(message)"
+                }
+                viewModel.currentErrorMessage = "Error: \(error) - \(message)"
             }
         }
     }
