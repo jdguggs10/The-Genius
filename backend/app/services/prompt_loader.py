@@ -15,13 +15,43 @@ class PromptLoader:
     
     def __init__(self, prompts_base_path: Optional[str] = None):
         if prompts_base_path is None:
-            # Default to shared-resources/prompts from the project root
+            # Check if we're in a Docker container (working dir is /code)
+            # or in development (where we need to go up to project root)
             current_dir = Path(__file__).parent
-            self.prompts_path = current_dir / ".." / ".." / ".." / "shared-resources" / "prompts"
+            
+            # Try Docker path first (./shared-resources from working directory)
+            docker_path = Path.cwd() / "shared-resources" / "prompts"
+            
+            # Try development path (go up to project root)
+            dev_path = current_dir / ".." / ".." / ".." / "shared-resources" / "prompts"
+            
+            # Debug logging
+            logger.info(f"Current working directory: {Path.cwd()}")
+            logger.info(f"Current file directory: {current_dir}")
+            logger.info(f"Trying Docker path: {docker_path} (exists: {docker_path.exists()})")
+            logger.info(f"Trying dev path: {dev_path} (exists: {dev_path.exists()})")
+            
+            if docker_path.exists():
+                self.prompts_path = docker_path
+                logger.info(f"Using Docker prompts path: {docker_path}")
+            elif dev_path.exists():
+                self.prompts_path = dev_path
+                logger.info(f"Using development prompts path: {dev_path}")
+            else:
+                # Fallback to Docker path and let it fail later with better error messages
+                self.prompts_path = docker_path
+                logger.warning(f"Neither Docker path {docker_path} nor dev path {dev_path} exists, using Docker path as fallback")
+                # Additional debug: list contents of current working directory
+                try:
+                    logger.warning(f"Contents of {Path.cwd()}: {list(Path.cwd().iterdir())}")
+                except Exception as e:
+                    logger.error(f"Could not list contents of {Path.cwd()}: {e}")
         else:
             self.prompts_path = Path(prompts_base_path)
         
         self.universal_path = self.prompts_path / "universal"
+        logger.info(f"Final prompts_path: {self.prompts_path}")
+        logger.info(f"Universal path: {self.universal_path} (exists: {self.universal_path.exists()})")
         
         # Cache for loaded prompts to avoid repeated file I/O
         self._prompt_cache: Dict[str, str] = {}
