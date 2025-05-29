@@ -47,13 +47,11 @@ struct SidebarView: View {
                     }
                 }
             }) {
-                AsyncImage(url: URL(string: "https://via.placeholder.com/40x40/007AFF/FFFFFF?text=FG")) { image in
-                    image.resizable().aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Circle().fill(Color.blue.gradient)
-                        .overlay(Text("FG").font(.subheadline).fontWeight(.semibold).foregroundColor(.white))
-                }
-                .frame(width: 40, height: 40).clipShape(Circle())
+                Circle()
+                    .fill(Color.blue.gradient)
+                    .overlay(Text("FG").font(.subheadline).fontWeight(.semibold).foregroundColor(.white))
+                    .frame(width: 40, height: 40)
+                    .clipShape(Circle())
             }
             .buttonStyle(PlainButtonStyle())
             .frame(minWidth: 44, minHeight: 44)

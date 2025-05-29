@@ -88,14 +88,11 @@ struct SettingsView: View {
     // MARK: - Profile Section
     private var profileSection: some View {
         HStack(spacing: horizontalSizeClass == .regular ? 20 : 16) { // More spacing on iPad
-            AsyncImage(url: URL(string: "https://via.placeholder.com/80x80/007AFF/FFFFFF?text=FG")) { image in // Larger placeholder
-                image.resizable().aspectRatio(contentMode: .fill)
-            } placeholder: {
-                Circle().fill(Color.blue.gradient)
-                    .overlay(Text("FG").font(horizontalSizeClass == .regular ? .largeTitle : .title2).fontWeight(.semibold).foregroundColor(.white))
-            }
-            .frame(width: horizontalSizeClass == .regular ? 80 : 60, height: horizontalSizeClass == .regular ? 80 : 60)
-            .clipShape(Circle())
+            Circle()
+                .fill(Color.blue.gradient)
+                .overlay(Text("FG").font(horizontalSizeClass == .regular ? .largeTitle : .title2).fontWeight(.semibold).foregroundColor(.white))
+                .frame(width: horizontalSizeClass == .regular ? 80 : 60, height: horizontalSizeClass == .regular ? 80 : 60)
+                .clipShape(Circle())
             
             VStack(alignment: .leading, spacing: horizontalSizeClass == .regular ? 6 : 4) {
                 Text("John Doe")

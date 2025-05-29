@@ -1,8 +1,16 @@
 import os
 from dotenv import load_dotenv
 from openai import OpenAI, APIError, APIConnectionError, RateLimitError, AuthenticationError, NotFoundError, BadRequestError, AsyncOpenAI
-# Removed problematic imports that don't exist in this version
-# from openai.types.responses import ResponseOutputTextDeltaEvent, ResponseDoneEvent, ResponseErrorEvent
+# Attempt to re-add specific event type imports
+from openai.types.responses import (
+    ResponseOutputTextDeltaEvent,
+    ResponseOutputTextDoneEvent, # Assuming this is the correct name for text done
+    ResponseCompletedEvent,
+    ResponseErrorEvent,
+    # ResponseFailedEvent, # Need to verify if this exists or how errors are handled
+    ResponseWebSearchCallSearchingEvent # Assuming this is the correct name
+    # Add other specific event types if necessary by inspecting the openai library or its documentation
+)
 from typing import Tuple, Dict, List, Optional, Any, AsyncGenerator, Awaitable
 
 import logging
@@ -54,7 +62,7 @@ async def get_streaming_response(
         tools = [{"type": "web_search"}] if enable_web_search else None
         
         # Use the correct Responses API call
-        response = await async_client.responses.create(
+        response_stream = await async_client.responses.create( # Renamed to response_stream to avoid conflict
             model=model,
             input=full_prompt,
             stream=True,
@@ -64,22 +72,22 @@ async def get_streaming_response(
         
         accumulated_content = ""
         
-        async for event in response:
-            logger.debug(f"Received event type: {getattr(event, 'type', 'unknown')}")
-            evt_type = getattr(event, 'type', None)
+        async for event in response_stream:
+            logger.debug(f"Received event: {type(event)} - {event}")
+
             # Web search in-progress event
-            if evt_type == "response.web_search_call.searching":
+            if isinstance(event, ResponseWebSearchCallSearchingEvent): # Updated
                 yield f"event: web_search\ndata: {json.dumps({'status': 'searching', 'message': 'Searching the web for current information...'})}\n\n"
             # Text delta events
-            elif evt_type == "response.output_text.delta":
+            elif isinstance(event, ResponseOutputTextDeltaEvent): # Updated
                 delta = event.delta
                 accumulated_content += delta
                 yield f"event: text_delta\ndata: {json.dumps({'delta': delta})}\n\n"
             # Text done events (skip)
-            elif evt_type == "response.output_text.done":
+            elif isinstance(event, ResponseOutputTextDoneEvent): # Updated
                 continue
             # Final completion event
-            elif evt_type == "response.completed":
+            elif isinstance(event, ResponseCompletedEvent): # Updated
                 try:
                     if accumulated_content.strip().startswith('{'):
                         parsed_advice = StructuredAdvice.model_validate_json(accumulated_content)
@@ -97,16 +105,17 @@ async def get_streaming_response(
                         model_identifier=model
                     )
                     yield f"event: response_complete\ndata: {json.dumps({'status': 'complete', 'final_json': fallback_advice.model_dump()})}\n\n"
+                break # Typically, ResponseCompletedEvent is the end of the stream.
+            # Error events
+            elif isinstance(event, ResponseErrorEvent): # Updated
+                err_msg = str(event.error) if event.error else "Unknown API error"
+                logger.error(f"OpenAI API error event: {err_msg}")
+                yield f"event: error\ndata: {json.dumps({'error': 'API_ERROR_EVENT', 'message': err_msg})}\n\n"
                 break
-            # Error or failure events
-            elif evt_type in ("response.error", "response.failed") or hasattr(event, 'error'):
-                err_msg = getattr(event, 'error', None)
-                if err_msg is None and hasattr(event, 'message'):
-                    err_msg = event.message
-                err_text = str(err_msg) if err_msg else "Unknown error"
-                logger.error(f"OpenAI API error: {err_text}")
-                yield f"event: error\ndata: {json.dumps({'error': 'API_ERROR', 'message': err_text})}\n\n"
-                break
+            # Handle other event types if necessary, or log them if unexpected
+            else:
+                # It's useful to log unexpected event types during development/debugging
+                logger.warning(f"Unhandled event type: {type(event)} - {event}")
 
     except APIConnectionError as e:
         logger.error(f"OpenAI API request failed to connect: {e}")
