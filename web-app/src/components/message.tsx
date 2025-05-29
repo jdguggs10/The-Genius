@@ -1,6 +1,6 @@
 // web-app/src/components/Message.tsx
 import ReactMarkdown from 'react-markdown';
-import { ChartBarIcon, LightBulbIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
+import { LightBulbIcon } from '@heroicons/react/24/outline';
 import type { MessageType } from '../types';
 
 type MessageProps = {
