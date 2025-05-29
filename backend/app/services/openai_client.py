@@ -66,52 +66,47 @@ async def get_streaming_response(
         
         async for event in response:
             logger.debug(f"Received event type: {getattr(event, 'type', 'unknown')}")
-            
-            # Handle different event types from Responses API
-            if hasattr(event, 'type'):
-                # Handle web search calls
-                if event.type == "web_search_call":
-                    yield f"event: web_search\ndata: {json.dumps({'status': 'searching', 'message': 'Searching the web for current information...'})}\n\n"
-                
-                # Handle message output (text content)
-                elif event.type == "message" and hasattr(event, 'content'):
-                    for content_item in event.content:
-                        if hasattr(content_item, 'text'):
-                            text_content = content_item.text
-                            accumulated_content += text_content
-                            yield f"event: text_delta\ndata: {json.dumps({'delta': text_content})}\n\n"
-                
-                # Handle response completion
-                elif event.type == "response.done" or (hasattr(event, 'status') and event.status == "completed"):
-                    # Try to parse the accumulated content as structured JSON
-                    try:
-                        # If accumulated content looks like JSON, parse it
-                        if accumulated_content.strip().startswith('{'):
-                            parsed_advice = StructuredAdvice.model_validate_json(accumulated_content)
-                        else:
-                            # Fallback: create structured advice from text
-                            parsed_advice = StructuredAdvice(
-                                main_advice=accumulated_content.strip(),
-                                model_identifier=model
-                            )
-                        
-                        yield f"event: response_complete\ndata: {json.dumps({'status': 'complete', 'final_json': parsed_advice.model_dump()})}\n\n"
-                    except Exception as e:
-                        logger.error(f"Failed to parse final response: {e}")
-                        # Return the text as main advice
-                        fallback_advice = StructuredAdvice(
-                            main_advice=accumulated_content.strip() or "No response received",
-                            reasoning="Failed to parse structured response",
+            evt_type = getattr(event, 'type', None)
+            # Web search in-progress event
+            if evt_type == "response.web_search_call.searching":
+                yield f"event: web_search\ndata: {json.dumps({'status': 'searching', 'message': 'Searching the web for current information...'})}\n\n"
+            # Text delta events
+            elif evt_type == "response.output_text.delta":
+                delta = event.delta
+                accumulated_content += delta
+                yield f"event: text_delta\ndata: {json.dumps({'delta': delta})}\n\n"
+            # Text done events (skip)
+            elif evt_type == "response.output_text.done":
+                continue
+            # Final completion event
+            elif evt_type == "response.completed":
+                try:
+                    if accumulated_content.strip().startswith('{'):
+                        parsed_advice = StructuredAdvice.model_validate_json(accumulated_content)
+                    else:
+                        parsed_advice = StructuredAdvice(
+                            main_advice=accumulated_content.strip(),
                             model_identifier=model
                         )
-                        yield f"event: response_complete\ndata: {json.dumps({'status': 'complete', 'final_json': fallback_advice.model_dump()})}\n\n"
-                    break
-                    
-                # Handle errors
-                elif hasattr(event, 'error'):
-                    logger.error(f"OpenAI API error: {event.error}")
-                    yield f"event: error\ndata: {json.dumps({'error': 'API_ERROR', 'message': str(event.error)})}\n\n"
-                    break
+                    yield f"event: response_complete\ndata: {json.dumps({'status': 'complete', 'final_json': parsed_advice.model_dump()})}\n\n"
+                except Exception as e:
+                    logger.error(f"Failed to parse final response: {e}")
+                    fallback_advice = StructuredAdvice(
+                        main_advice=accumulated_content.strip() or "No response received",
+                        reasoning="Failed to parse structured response",
+                        model_identifier=model
+                    )
+                    yield f"event: response_complete\ndata: {json.dumps({'status': 'complete', 'final_json': fallback_advice.model_dump()})}\n\n"
+                break
+            # Error or failure events
+            elif evt_type in ("response.error", "response.failed") or hasattr(event, 'error'):
+                err_msg = getattr(event, 'error', None)
+                if err_msg is None and hasattr(event, 'message'):
+                    err_msg = event.message
+                err_text = str(err_msg) if err_msg else "Unknown error"
+                logger.error(f"OpenAI API error: {err_text}")
+                yield f"event: error\ndata: {json.dumps({'error': 'API_ERROR', 'message': err_text})}\n\n"
+                break
 
     except APIConnectionError as e:
         logger.error(f"OpenAI API request failed to connect: {e}")
