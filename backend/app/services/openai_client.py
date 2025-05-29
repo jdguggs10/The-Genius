@@ -28,7 +28,7 @@ async_client = AsyncOpenAI(api_key=api_key)
 client = OpenAI(api_key=api_key)
 
 # Define the default model by checking environment variable first, then fallback
-OPENAI_DEFAULT_MODEL_INTERNAL = os.getenv("OPENAI_DEFAULT_MODEL", "o4-mini") # Explicitly set to the latest o4-mini as requested
+OPENAI_DEFAULT_MODEL_INTERNAL = os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4.1") # Default model updated to GPT-4.1
 SYSTEM_DEFAULT_INSTRUCTIONS = os.getenv("SYSTEM_PROMPT", "You are a helpful fantasy sports assistant with deep knowledge of player performance, matchups, and strategy.")
 
 async def get_streaming_response(
