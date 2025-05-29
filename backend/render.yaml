@@ -8,6 +8,8 @@ services:
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
     envVars:
+      - key: PORT
+        value: "8080"
       # This is where you'll add your OpenAI API key securely
       - key: OPENAI_API_KEY
         sync: false  # This means you'll set it manually in Render's dashboard
