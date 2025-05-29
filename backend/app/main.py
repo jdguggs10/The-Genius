@@ -26,7 +26,9 @@ origins = [
     "http://localhost:5173",  # Vite React app
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
-    # Add any other origins as needed
+    "https://genius-frontend.onrender.com",  # Production frontend
+    "https://genius-frontend-*.onrender.com",  # Any other Render frontend deployments
+    "*"  # Allow all origins temporarily for debugging
 ]
 
 app.add_middleware(
