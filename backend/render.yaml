@@ -6,6 +6,7 @@ services:
     region: oregon  # You can change this to a region closer to you
     plan: free      # Free tier - perfect for getting started
     dockerfilePath: ./Dockerfile
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     healthCheckPath: /health
     envVars:
       # This is where you'll add your OpenAI API key securely
