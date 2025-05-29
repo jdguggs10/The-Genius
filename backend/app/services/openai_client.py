@@ -65,22 +65,53 @@ async def get_streaming_response(
         accumulated_content = ""
         
         async for event in response:
-            # Restored original debug logging and event type handling
             logger.debug(f"Received event type: {getattr(event, 'type', 'unknown')}, Event: {event}") 
             evt_type = getattr(event, 'type', None)
 
-            # Web search in-progress event
             if evt_type == "response.web_search_call.searching":
-                yield f"event: web_search\ndata: {json.dumps({'status': 'searching', 'message': 'Searching the web for current information...'})}\n\n"
-            # Text delta events
+                yield f"event: status_update\ndata: {json.dumps({'status': 'web_search_searching', 'message': 'Searching the web...'})}\n\n"
             elif evt_type == "response.output_text.delta":
-                delta = event.delta # Assumes event.delta exists
+                delta = event.delta
                 accumulated_content += delta
                 yield f"event: text_delta\ndata: {json.dumps({'delta': delta})}\n\n"
-            # Text done events (skip)
             elif evt_type == "response.output_text.done":
                 continue
-            # Final completion event
+            elif evt_type == "response.created":
+                yield f"event: status_update\ndata: {json.dumps({'status': 'created', 'message': 'Connecting...'})}\n\n"
+            elif evt_type == "response.in_progress":
+                logger.debug(f"OpenAI response stream in progress: {event}") # Potentially noisy for UI
+                continue
+            elif evt_type == "response.output_item.added":
+                item_type = getattr(getattr(event, 'item', None), 'type', None)
+                if item_type == 'web_search_call':
+                    yield f"event: status_update\ndata: {json.dumps({'status': 'web_search_started', 'message': 'Starting web search...'})}\n\n"
+                elif item_type == 'message':
+                    yield f"event: status_update\ndata: {json.dumps({'status': 'message_start', 'message': 'Assistant is typing...'})}\n\n"
+                else:
+                    logger.debug(f"OpenAI response output item added (type: {item_type}): {event}")
+                continue
+            elif evt_type == "response.web_search_call.in_progress":
+                logger.debug(f"OpenAI web search call in progress: {event}") # Covered by 'searching' for UI
+                continue
+            elif evt_type == "response.web_search_call.completed":
+                yield f"event: status_update\ndata: {json.dumps({'status': 'web_search_completed', 'message': 'Web search completed.'})}\n\n"
+            elif evt_type == "response.output_item.done":
+                item_type = getattr(getattr(event, 'item', None), 'type', None)
+                if item_type == 'message':
+                     # This event might be too quick before response_complete, but can be used.
+                    yield f"event: status_update\ndata: {json.dumps({'status': 'message_generating_done', 'message': 'Finalizing response...'})}\n\n"
+                else:
+                    logger.debug(f"OpenAI response output item done (type: {item_type}): {event}")
+                continue
+            elif evt_type == "response.content_part.added":
+                logger.debug(f"OpenAI response content part added: {event}")
+                continue
+            elif evt_type == "response.output_text.annotation.added":
+                annotation_title = getattr(getattr(event, 'annotation', None), 'title', 'citation')
+                yield f"event: status_update\ndata: {json.dumps({'status': 'annotation_found', 'message': f'Processing {annotation_title}...'})}\n\n"
+            elif evt_type == "response.content_part.done":
+                logger.debug(f"OpenAI response content part done: {event}")
+                continue
             elif evt_type == "response.completed":
                 try:
                     if accumulated_content.strip().startswith('{'):
