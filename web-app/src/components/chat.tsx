@@ -178,8 +178,8 @@ export default function Chat() {
                   throw new Error(eventData.message || 'An API error occurred');
                 } else if (line.startsWith('data: ')) {
                     if (eventData.status === 'searching') {
-                        setStatusMessage('🔍 Searching the web for current information...');
-                        setMessages(prev => prev.map(msg => msg.id === assistantMessageId ? { ...msg, content: '🔍 Searching the web for current information...'} : msg));
+                        setStatusMessage('Searching the web for current information...');
+                        setMessages(prev => prev.map(msg => msg.id === assistantMessageId ? { ...msg, content: 'Searching the web for current information...'} : msg));
                         setIsSearching(true);
                     } else if (eventData.delta) {
                         setStatusMessage(null);
@@ -248,7 +248,6 @@ export default function Chat() {
       <header className="p-4 border-b border-gray-200 bg-white/80 backdrop-blur-sm shadow-sm">
         <div className="flex flex-col sm:flex-row items-center justify-between sm:space-y-0 space-y-2">
           <div className="flex items-center space-x-2">
-            <img src="/apple-touch-icon.png" alt="Logo" className="h-6 w-6 sm:h-8 sm:w-8 rounded-md" />
             <h1 className="text-base sm:text-lg font-semibold text-gray-800">The Genius</h1>
             {isSearching && (
               <div className="flex items-center space-x-1 text-blue-600">
@@ -265,18 +264,17 @@ export default function Chat() {
         {messages.length === 0 && !isLoading ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <div className="bg-white rounded-2xl p-4 sm:p-8 shadow-lg border border-gray-100 w-full max-w-md mx-auto">
-              {/* Logo removed from here as it's already in the header */}
-              <h2 className="text-lg sm:text-xl font-medium mb-1 sm:mb-2 text-center text-gray-800 mt-4">The Genius</h2>
+              <h2 className="text-lg sm:text-xl font-medium mb-1 sm:mb-2 text-center text-gray-800">The Genius</h2>
               <p className="text-xs sm:text-sm mb-2 sm:mb-4 text-center">Get AI-powered fantasy sports advice!</p>
               <div className="text-xs text-gray-400 space-y-1 sm:space-y-2">
                 <p className="bg-gray-50 rounded p-1.5 sm:p-2">
-                  💡 <strong>Example:</strong> "Should I start Patrick Mahomes or Josh Allen?"
+                  <strong>Example:</strong> "Should I start Patrick Mahomes or Josh Allen?"
                 </p>
                 <p className="bg-blue-50 rounded p-1.5 sm:p-2">
-                  🔍 <strong>Live Data:</strong> Prefix with "search:" or use keywords like "today", "current", "stats"
+                  <strong>Live Data:</strong> Prefix with "search:" or use keywords like "today", "current", "stats"
                 </p>
                 <p className="bg-green-50 rounded p-1.5 sm:p-2">
-                  ⚡ <strong>Real-time:</strong> Get streaming responses with detailed analysis
+                  <strong>Real-time:</strong> Get streaming responses with detailed analysis
                 </p>
               </div>
             </div>
@@ -291,7 +289,7 @@ export default function Chat() {
             {isLoading && (streamingText || statusMessage) && (
               <div className="flex items-start space-x-3">
                 <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                  <img src="/apple-touch-icon.png" alt="Logo" className="h-4 w-4 rounded-md" />
+                  <span className="text-gray-600 text-xs font-medium">AI</span>
                 </div>
                 <div className="bg-white rounded-lg p-3 shadow-sm border border-gray-100 max-w-3xl">
                   <div className="text-gray-800">

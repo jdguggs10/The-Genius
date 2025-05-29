@@ -20,7 +20,7 @@ export default function Message({ message }: MessageProps) {
           {isUser ? (
             <span className="text-white text-sm font-medium">You</span>
           ) : (
-            <img src="/apple-touch-icon.png" alt="Logo" className="h-4 w-4 rounded-md" />
+            <span className="text-gray-600 text-xs font-medium">AI</span>
           )}
         </div>
 
@@ -44,8 +44,8 @@ export default function Message({ message }: MessageProps) {
           {/* Structured Advice Display */}
           {!isUser && message.structuredAdvice && (
             <div className="border-t border-gray-100 bg-gray-50/50 rounded-b-2xl">
-              {/* Confidence Score */}
-              {message.structuredAdvice.confidence_score && (
+              {/* Confidence Score - Hidden for now */}
+              {/* {message.structuredAdvice.confidence_score && (
                 <div className="px-4 py-2 border-b border-gray-100">
                   <div className="flex items-center space-x-2">
                     <ChartBarIcon className="h-4 w-4 text-blue-500" />
@@ -63,7 +63,7 @@ export default function Message({ message }: MessageProps) {
                     </div>
                   </div>
                 </div>
-              )}
+              )} */}
 
               {/* Reasoning */}
               {message.structuredAdvice.reasoning && (
@@ -80,8 +80,8 @@ export default function Message({ message }: MessageProps) {
                 </div>
               )}
 
-              {/* Alternatives */}
-              {message.structuredAdvice.alternatives && message.structuredAdvice.alternatives.length > 0 && (
+              {/* Alternatives - Hidden for now */}
+              {/* {message.structuredAdvice.alternatives && message.structuredAdvice.alternatives.length > 0 && (
                 <div className="px-4 py-2">
                   <div className="flex items-start space-x-2">
                     <ArrowRightIcon className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
@@ -100,7 +100,7 @@ export default function Message({ message }: MessageProps) {
                     </div>
                   </div>
                 </div>
-              )}
+              )} */}
 
               {/* Model Identifier */}
               {message.structuredAdvice.model_identifier && (
