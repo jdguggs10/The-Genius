@@ -1,6 +1,5 @@
 // web-app/src/components/Message.tsx
 import ReactMarkdown from 'react-markdown';
-import { LightBulbIcon } from '@heroicons/react/24/outline';
 import type { MessageType } from '../types';
 
 type MessageProps = {
@@ -69,13 +68,10 @@ export default function Message({ message }: MessageProps) {
               {message.structuredAdvice.reasoning && (
                 <div className="px-4 py-2 border-b border-gray-100">
                   <div className="flex items-start space-x-2">
-                    <LightBulbIcon className="h-4 w-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1">
-                      <span className="text-xs font-medium text-gray-600">Reasoning:</span>
-                      <p className="text-xs text-gray-700 mt-1 leading-relaxed">
-                        {message.structuredAdvice.reasoning}
-                      </p>
-                    </div>
+                    <span className="text-xs font-medium text-gray-600">Reasoning:</span>
+                    <p className="text-xs text-gray-700 mt-1 leading-relaxed">
+                      {message.structuredAdvice.reasoning}
+                    </p>
                   </div>
                 </div>
               )}
