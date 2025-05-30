@@ -37,13 +37,11 @@ The server also employs a small, short-lived (5 minutes TTL) in-memory cache for
     source venv/bin/activate
     ```
 4.  **Install dependencies:**
-    The primary list of dependencies is in `pybaseball-api-util/pybaseball_mcp/requirements.txt`. It's advisable to consolidate this into the top-level `requirements.txt`. For now, you can install using the more comprehensive list:
+    The primary list of dependencies for this utility is located in `pybaseball-api-util/pybaseball_mcp/requirements.txt`.
     ```bash
-    pip install -r pybaseball_mcp/requirements.txt 
-    # Or, once consolidated:
-    # pip install -r requirements.txt
+    pip install -r pybaseball_mcp/requirements.txt
     ```
-    Ensure you have `mcp>=1.5.0` for full functionality.
+    Ensure that `mcp>=1.5.0` is installed as part of these dependencies for full MCP functionality.
 
 ## Running the Server
 
@@ -84,10 +82,18 @@ The core data fetching and processing logic resides in the `pybaseball_mcp` subd
 
 This structure modularizes the data access layer from the server implementation.
 
-## Quick Start
+## 🤖 AI Reviewer Notes
 
-### 1. Install Dependencies
+For AI agents reviewing this utility, the following points are key for understanding its design and operation:
 
-```bash
-cd pybaseball-api-util
-pip install -r requirements.txt
+-   **MCP Server for MLB Statistics**: This utility acts as a Model Context Protocol (MCP) server, providing tools to access Major League Baseball statistics. Its primary data source is the `pybaseball` Python library.
+-   **Key Server Script**: The main server script is `pybaseball_mcp_server_v2.py`. This script initializes the MCP tools and handles communication.
+-   **Core Logic Modules**: The data fetching and processing logic is predominantly located within the `pybaseball_mcp` directory, specifically in:
+    -   `players.py`: For player-related statistics and searches.
+    -   `teams.py`: For team-related statistics and standings.
+    -   `utils.py`: Contains helper functions, data formatting, and critically, the configuration and management of `pybaseball`'s caching features.
+-   **Caching Strategy**: The `pybaseball` library's own caching mechanism is a vital aspect of this utility, configured in `pybaseball_mcp/utils.py`. This helps in reducing redundant API calls and speeding up responses. An additional short-term in-memory cache is also used by the server for its processed results. Understanding the cache behavior (location: `~/.pybaseball/cache/`, expiry) is important for data freshness considerations.
+-   **Operating Mode (MCP STDIO)**: When launched using the `start_pybaseball_mcp_claude.sh` script, the server operates in MCP STDIO mode. This script sets essential environment variables like `MCP_STDIO_MODE=1` and modifies `PYTHONPATH` to ensure correct module resolution.
+-   **Fallback to FastAPI**: If MCP libraries are not detected (e.g., `mcp` package not installed or `MCP_STDIO_MODE` not set), the server is designed to fall back to running as a FastAPI-based REST API on port 8002 by default.
+-   **`pybaseball` Library Familiarity**: A good understanding of the `pybaseball` library's functions and data structures will be highly beneficial when analyzing the tool implementations, as this utility serves as a wrapper around it.
+-   **Tool Definitions**: The available MCP tools (like `player_stats`, `mlb_standings`, etc.) are defined within `pybaseball_mcp_server_v2.py`, mapping to functions in the core logic modules.

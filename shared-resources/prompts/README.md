@@ -157,4 +157,15 @@ The system uses this priority when building prompts:
 3. **Default Universal Components Only**
 4. **Hardcoded Fallback** (last resort)
 
-This ensures you always have working prompts, even if files are missing! 
+This ensures you always have working prompts, even if files are missing!
+
+## 🤖 AI Reviewer Notes
+
+For AI agents reviewing the codebase, especially concerning how prompts are constructed and influence AI behavior, these points are key:
+
+-   **Source of Truth for AI Persona**: These markdown files within the `shared-resources/prompts/` directory are the direct source of truth for defining the AI's persona, core instructions, response formatting, and sport-specific knowledge.
+-   **Backend Interpreter (`prompt_loader.py`)**: The Python script `backend/app/services/prompt_loader.py` is the component responsible for reading these markdown files, combining them based on the requested `prompt_type`, and caching the results. Understanding its logic is crucial to understanding how the final system prompt is assembled.
+-   **Direct Impact of Changes**: Any modifications to these `.md` files will directly affect the system prompts used by the AI, and consequently, its responses. The `prompt_loader.py` is designed to pick up these changes dynamically (often without a server restart).
+-   **Combination Logic (Universal + Sport-Specific)**: A core feature is the combination of universal prompts (from `prompts/universal/`) with sport-specific prompts (e.g., from `prompts/football/`). The AI reviewer should pay attention to how these are layered to create contextually relevant system prompts.
+-   **Context from Parent README**: The `README.md` file located in the parent `shared-resources/` directory provides additional context on how this modular prompt system fits into the broader project and how it's invoked by the backend.
+-   **`prompt_type` in API Calls**: The selection of which sport-specific prompts to apply is typically determined by a `prompt_type` parameter sent in API requests to the backend. This is a key mechanism for tailoring the AI's expertise.

@@ -584,3 +584,15 @@ const response = await fetch(/* ... */);
 const responseTime = Date.now() - startTime;
 console.log(`Backend response time: ${responseTime}ms`);
 ```
+
+## 🤖 AI Reviewer Notes
+
+For AI agents reviewing this web application, the following points are key to understanding its architecture and core logic:
+
+-   **`src/components/chat.tsx`**: This is the central component of the application. It manages the chat interface's UI, user input, conversation state, and crucially, the interaction with the backend API (fetching advice, handling streaming responses if applicable).
+-   **`src/hooks/useDailyQuota.ts`**: This custom hook implements the client-side daily message quota system. It utilizes `localStorage` to track usage and enforce limits. Understanding this hook is essential for grasping how user access is managed on the free tier.
+-   **Backend Connection**: The web app connects to the backend API using a URL specified by the `VITE_BACKEND_URL` environment variable. This variable is defined in an `.env` file (e.g., `.env`, `.env.local`) at the root of the `web-app` directory. The actual API calls are primarily made from `chat.tsx`.
+-   **Markdown for AI Responses**: AI-generated responses are rendered using `react-markdown`. This allows for rich text formatting (lists, bolding, etc.) in the chat bubbles, as seen in `src/components/message.tsx` or similar.
+-   **Tailwind CSS for Styling**: The application's styling is heavily reliant on Tailwind CSS. This means that UI elements are styled using utility classes directly in the `className` attributes of React components (JSX). There will be minimal traditional CSS files.
+-   **State Management**: Primary state (like messages, loading status, input values) is managed locally within components (e.g., `chat.tsx`) using React hooks (`useState`, `useEffect`).
+-   **API Interaction**: Pay close attention to the `fetch` requests in `chat.tsx` to understand how data is sent to and received from the backend, including how conversation history and any flags (like `enable_web_search`) are transmitted.

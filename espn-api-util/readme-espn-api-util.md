@@ -224,3 +224,21 @@ MIT License. See the `LICENSE` file for full details.
 
 -   Built upon the [cwendt94/espn-api](https://github.com/cwendt94/espn-api) Python wrapper for the ESPN Fantasy API.
 -   Uses the [Anthropic MCP](https://github.com/anthropics/mcp) framework for AI tool integration.
+
+## 🤖 AI Reviewer Notes
+
+For AI agents reviewing this utility, the following points are key for understanding its design and purpose:
+
+-   **MCP Server for ESPN Fantasy Baseball**: This tool functions as a Model Context Protocol (MCP) server, specifically tailored to provide tools for interacting with ESPN Fantasy Baseball leagues. It is not a general ESPN API wrapper.
+-   **Core Logic Location**: The primary logic for the tools and server operations resides in the `baseball_mcp` subdirectory. The entry point for the server when used with Claude Desktop is `baseball_mcp/baseball_mcp_server.py`.
+-   **Authentication Mechanism**:
+    -   Access to private league data is handled by `baseball_mcp/auth.py`.
+    -   Authentication is cookie-based, requiring `ESPN_S2` and `SWID` values.
+    -   These credentials are session-limited and are not persisted across server restarts. The `auth_store_credentials` tool is used to provide them to the server.
+-   **Tool Implementation**: Each tool (e.g., `league_get_info`, `player_get_stats`) is typically defined in its respective Python file within `baseball_mcp` (e.g., `league.py`, `player.py`). These tools make calls to the underlying `espn_api` library.
+-   **ESPN API Library**: The utility relies heavily on the `espn_api` Python library (acknowledged in this README). Understanding this library can provide context for how data is fetched and manipulated. The file `espn_api_patch.py` (if present and relevant, though not explicitly listed in the main project structure diagram above) might contain modifications or extensions to this library for specific needs of this toolset. *Reviewer should verify its presence and impact if detailed understanding of the underlying API interaction is needed.*
+-   **Startup and Configuration**:
+    -   `setup.sh` initializes the environment and dependencies.
+    -   `start_baseball_mcp.sh` is the direct script to run the server for baseball.
+    -   `start_claude_mcp.sh` is what Claude Desktop is configured to use (via `setup_claude_desktop.sh`).
+-   **Focus on Baseball**: While there's a generic `espn_fantasy_server.py`, the primary setup and tooling described are for Fantasy Baseball.

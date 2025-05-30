@@ -68,4 +68,23 @@ This is the native iOS companion app for the Fantasy Genius AI assistant. It pro
 - **More Robust Error Display**: Provide more contextual error messages or retry mechanisms.
 
 ---
-This README provides an overview of the Fantasy Genius iOS app. For backend details, refer to the backend's README file. 
+This README provides an overview of the Fantasy Genius iOS app. For backend details, refer to the backend's README file.
+
+## 🤖 AI Reviewer Notes
+
+For AI agents reviewing this iOS application, the following points are crucial for understanding its architecture and core logic:
+
+-   **`ChatViewModel.swift`**: This class is central to the app's functionality and follows the MVVM (Model-View-ViewModel) pattern. It handles:
+    -   Managing the state of the chat (e.g., conversation history, loading indicators).
+    -   Orchestrating network requests to the backend for streaming AI advice.
+    -   Processing incoming streamed data, including accumulating chunks and decoding the final JSON payload.
+    -   Updating the UI through published properties that SwiftUI views observe.
+    -   Error handling for network operations and data parsing.
+-   **`ContentView.swift`**: This is the main SwiftUI view that structures the user interface. It observes `ChatViewModel` for data and state changes to render the chat messages, input fields, and other UI elements.
+-   **`NetworkModels.swift`**: This file contains the Swift `Codable` structs (e.g., `AdviceRequestPayload`, `StructuredAdviceResponse`, `MessagePayload`, `AdviceAlternativePayload`) that define the exact structure for data exchanged with the backend API. These models are critical for successful serialization and deserialization of JSON.
+-   **`Message.swift` and `MessageBubble.swift`**:
+    -   `Message.swift`: Defines the data structure for individual chat messages, including storing the text, user information, and the parsed `StructuredAdviceResponse`.
+    -   `MessageBubble.swift`: A SwiftUI view responsible for the visual representation of each message in the chat interface, including the display of structured advice details.
+-   **Streaming Mechanism**: The app uses `URLSession.shared.bytes(for: request)` to handle the streaming response from the backend. This approach allows for efficient processing of data as it arrives, rather than waiting for the entire response. Look for this in `ChatViewModel.swift`.
+-   **Error Handling**: Primary error handling logic related to network requests and data processing is implemented within `ChatViewModel.swift`. This includes updating the UI to inform the user of any issues.
+-   **Backend URL Configuration**: The backend URL is a configurable variable (e.g., `backendURLString`) within `ChatViewModel.swift`, with a default value pointing to the production deployment.
