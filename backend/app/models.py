@@ -11,6 +11,7 @@ class AdviceRequest(BaseModel):
     model: Optional[str] = None  # Optional model specification
     enable_web_search: Optional[bool] = False  # Option to enable web search
     prompt_type: Optional[Literal["default", "detailed", "baseball", "football", "basketball"]] = "default"  # Prompt type selection
+    previous_response_id: Optional[str] = None  # For OpenAI conversation state management
 
 # New/Updated Models for Structured JSON Output
 class AdviceAlternative(BaseModel):

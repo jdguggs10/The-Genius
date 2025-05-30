@@ -2,11 +2,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { PaperAirplaneIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import Message from './message';
-import type { MessageType } from '../types';
+import type { MessageType, AdviceRequest } from '../types';
 import { shouldEnableWebSearch, getActualInput, getSearchHint } from '../utils/webSearch'; // Import utilities
+import { useConversationManager } from '../hooks/useConversationManager';
+import { useSSEClient } from '../hooks/useSSEClient';
 
 export default function Chat() {
-  const [messages, setMessages] = useState<MessageType[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -14,6 +15,19 @@ export default function Chat() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [modelName, setModelName] = useState<string>(''); // State for dynamic model name pulled from backend
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Use the conversation manager
+  const {
+    messages,
+    lastResponseId,
+    addMessage,
+    updateMessage,
+    setLastResponseId,
+    getConversationForAPI
+  } = useConversationManager();
+
+  // Use the improved SSE client
+  const { streamSSEResponse } = useSSEClient();
 
   // Fetch default model from backend on mount
   useEffect(() => {
@@ -51,188 +65,158 @@ export default function Chat() {
     console.log('Input:', input);
     console.log('Web search enabled:', enableWebSearch);
     console.log('Actual input to send:', actualInput);
+    console.log('Last response ID:', lastResponseId);
     
-    const userMessage = { role: 'user', content: actualInput } as MessageType;
-    setMessages(prev => [...prev, userMessage]);
+    // Create user message
+    const userMessage: MessageType = { 
+      role: 'user', 
+      content: actualInput,
+      id: Date.now().toString()
+    };
+    
+    // Add user message to conversation
+    addMessage(userMessage);
     setInput('');
     setIsLoading(true);
     setIsSearching(false);
     setStreamingText('');
     setStatusMessage(null);
     
-    const assistantMessageId = Date.now().toString();
-    const assistantPlaceholder = { 
+    // Create assistant placeholder
+    const assistantMessageId = `assistant-${Date.now()}`;
+    const assistantPlaceholder: MessageType = { 
       role: 'assistant', 
       content: '',
-      id: assistantMessageId 
-    } as MessageType;
-    setMessages(prev => [...prev, assistantPlaceholder]);
+      id: assistantMessageId
+    };
+    addMessage(assistantPlaceholder);
+    
+    // Prepare request payload
+    const conversationForAPI = getConversationForAPI();
+    conversationForAPI.push(userMessage); // Include the new user message
+    
+    const requestPayload: AdviceRequest = {
+      conversation: conversationForAPI,
+      enable_web_search: enableWebSearch,
+      previous_response_id: lastResponseId || undefined
+    };
+
+    console.log('Sending request payload:', {
+      conversationLength: conversationForAPI.length,
+      previousResponseId: requestPayload.previous_response_id,
+      enableWebSearch: requestPayload.enable_web_search
+    });
     
     let accumulatedText = '';
-    let structuredAdvice: MessageType['structuredAdvice'] | null = null;
-    let currentEventType: string | null = null;
+    let currentResponseId: string | null = null;
     
     try {
-      console.log('Sending SSE request to backend...');
-      
       const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://genius-backend-nhl3.onrender.com/advice';
-      const response = await fetch(backendUrl, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'text/event-stream',
-          'Cache-Control': 'no-cache'
+      
+      await streamSSEResponse(backendUrl, requestPayload, {
+        onEvent: (event) => {
+          console.log('Received SSE event:', event.type, event.data);
+          
+          switch (event.type) {
+            case 'status_update':
+              if (event.data.response_id) {
+                currentResponseId = event.data.response_id;
+              }
+              
+              setStatusMessage(event.data.message || 'Processing...');
+              setStreamingText('');
+              
+              updateMessage(assistantMessageId, {
+                content: event.data.message || 'Processing...'
+              });
+              
+              if (event.data.status === 'web_search_searching' || event.data.status === 'web_search_started') {
+                setIsSearching(true);
+              } else {
+                setIsSearching(false);
+              }
+              break;
+              
+            case 'text_delta':
+              setStatusMessage(null);
+              setIsSearching(false);
+              accumulatedText += event.data.delta;
+              setStreamingText(accumulatedText);
+              
+              updateMessage(assistantMessageId, {
+                content: accumulatedText
+              });
+              break;
+              
+            case 'response_complete':
+              setStatusMessage(null);
+              setIsSearching(false);
+              setStreamingText('');
+              
+              const structuredAdvice = event.data.final_json;
+              if (event.data.response_id) {
+                currentResponseId = event.data.response_id;
+              }
+              
+              if (structuredAdvice?.model_identifier) {
+                setModelName(structuredAdvice.model_identifier);
+              }
+              
+              updateMessage(assistantMessageId, {
+                content: structuredAdvice?.main_advice || accumulatedText,
+                structuredAdvice: structuredAdvice || undefined,
+                responseId: currentResponseId || undefined
+              });
+              
+              // Update the last response ID for future conversations
+              if (currentResponseId) {
+                setLastResponseId(currentResponseId);
+                console.log('Updated last response ID:', currentResponseId);
+              }
+              break;
+              
+            case 'error':
+              setStatusMessage(null);
+              setIsSearching(false);
+              const errorMessage = event.data.message || 'An API error occurred';
+              
+              updateMessage(assistantMessageId, {
+                content: `Error: ${errorMessage}`
+              });
+              break;
+              
+            default:
+              console.log('Unhandled SSE event type:', event.type, event.data);
+          }
         },
-        body: JSON.stringify({ 
-          conversation: [userMessage],
-          enable_web_search: enableWebSearch
-        })
+        
+        onError: (error) => {
+          console.error('SSE streaming error:', error);
+          let errorMessage = 'An unexpected error occurred. Please try again.';
+          
+          if (error.message.includes('Backend returned') || error.message.includes('API error')) {
+            errorMessage = error.message;
+          } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
+            errorMessage = 'Network error: Unable to connect to the AI service. Please check your internet connection and try again.';
+          } else {
+            errorMessage = `Connection error: ${error.message}. Please try again.`;
+          }
+          
+          updateMessage(assistantMessageId, {
+            content: errorMessage
+          });
+        },
+        
+        onComplete: () => {
+          console.log('SSE stream completed');
+        }
       });
       
-      if (!response.ok) {
-        throw new Error(`Backend returned ${response.status}: ${response.statusText}`);
-      }
-      
-      if (!response.body) {
-        throw new Error('No response body received');
-      }
-      
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n');
-          
-          for (const line of lines) {
-            if (line.trim() === '') {
-              currentEventType = null;
-              continue;
-            }
-
-            const eventTypeMatch = line.match(/^event: (.*)$/);
-            if (eventTypeMatch) {
-              currentEventType = eventTypeMatch[1].trim();
-              continue;
-            }
-            
-            if (line.startsWith('data: ')) {
-              try {
-                const eventDataString = line.slice(6);
-                if (!eventDataString) continue;
-                const eventData = JSON.parse(eventDataString);
-                
-                if (currentEventType === 'status_update') {
-                  setStatusMessage(eventData.message || 'Processing...');
-                  setStreamingText('');
-                  setMessages(prev => 
-                    prev.map(msg => 
-                      msg.id === assistantMessageId 
-                        ? { ...msg, content: eventData.message || 'Processing...' } 
-                        : msg
-                    )
-                  );
-                  if (eventData.status === 'web_search_searching' || eventData.status === 'web_search_started') {
-                    setIsSearching(true);
-                  } else {
-                    setIsSearching(false);
-                  }
-                } else if (currentEventType === 'text_delta') {
-                  setStatusMessage(null);
-                  setIsSearching(false);
-                  accumulatedText += eventData.delta;
-                  setStreamingText(accumulatedText);
-                  setMessages(prev => 
-                    prev.map(msg => 
-                      msg.id === assistantMessageId 
-                        ? { ...msg, content: accumulatedText }
-                        : msg
-                    )
-                  );
-                } else if (currentEventType === 'response_complete') {
-                  setStatusMessage(null);
-                  setIsSearching(false);
-                  setStreamingText('');
-                  structuredAdvice = eventData.final_json;
-                  if (structuredAdvice?.model_identifier) {
-                    setModelName(structuredAdvice.model_identifier);
-                  }
-                  setMessages(prev => 
-                    prev.map(msg => 
-                      msg.id === assistantMessageId 
-                        ? { 
-                            ...msg, 
-                            content: structuredAdvice?.main_advice || accumulatedText,
-                            structuredAdvice: structuredAdvice || undefined
-                          }
-                        : msg
-                    )
-                  );
-                } else if (currentEventType === 'error') {
-                  setStatusMessage(null);
-                  setIsSearching(false);
-                  throw new Error(eventData.message || 'An API error occurred');
-                } else if (line.startsWith('data: ')) {
-                    if (eventData.status === 'searching') {
-                        setStatusMessage('Searching the web for current information...');
-                        setMessages(prev => prev.map(msg => msg.id === assistantMessageId ? { ...msg, content: 'Searching the web for current information...'} : msg));
-                        setIsSearching(true);
-                    } else if (eventData.delta) {
-                        setStatusMessage(null);
-                        setIsSearching(false);
-                        accumulatedText += eventData.delta;
-                        setStreamingText(accumulatedText);
-                        setMessages(prev => prev.map(msg => msg.id === assistantMessageId ? { ...msg, content: accumulatedText } : msg));
-                    } else if (eventData.final_json) {
-                        setStatusMessage(null);
-                        setIsSearching(false);
-                        setStreamingText('');
-                        structuredAdvice = eventData.final_json;
-                        if (structuredAdvice?.model_identifier) {
-                            setModelName(structuredAdvice.model_identifier);
-                        }
-                        setMessages(prev => prev.map(msg => msg.id === assistantMessageId ? { ...msg, content: structuredAdvice?.main_advice || accumulatedText, structuredAdvice: structuredAdvice || undefined } : msg));
-                    } else if (eventData.error) {
-                        setStatusMessage(null);
-                        setIsSearching(false);
-                        throw new Error(`API Error: ${eventData.message}`);
-                    }
-                }
-
-              } catch (parseError) {
-                console.warn('Failed to parse event data line:', line, 'Error:', parseError);
-              }
-              currentEventType = null;
-            }
-          }
-        }
-      } finally {
-        reader.releaseLock();
-      }
-      
     } catch (error) {
-      console.error('Streaming error:', error);
-      let errorMessage = 'An unexpected error occurred. Please try again.';
-      if (error instanceof Error) {
-        if (error.message.includes('Backend returned') || error.message.includes('API error')) {
-          errorMessage = error.message;
-        } else if (error.name === 'TypeError' && error.message.includes('fetch')) {
-          errorMessage = 'Network error: Unable to connect to the AI service. Please check your internet connection and try again.';
-        } else {
-          errorMessage = `Connection error: ${error.message}. Please try again.`;
-        }
-      }
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === assistantMessageId 
-            ? { ...msg, content: errorMessage, role: 'assistant' }
-            : msg
-        )
-      );
+      console.error('Request failed:', error);
+      updateMessage(assistantMessageId, {
+        content: 'Failed to send request. Please try again.'
+      });
     } finally {
       setIsLoading(false);
       setIsSearching(false);
@@ -256,6 +240,11 @@ export default function Chat() {
               </div>
             )}
           </div>
+          {lastResponseId && (
+            <div className="text-xs text-gray-400">
+              Conversation Active
+            </div>
+          )}
         </div>
       </header>
 
@@ -275,6 +264,9 @@ export default function Chat() {
                 </p>
                 <p className="bg-green-50 rounded p-1.5 sm:p-2">
                   <strong>Real-time:</strong> Get streaming responses with detailed analysis
+                </p>
+                <p className="bg-purple-50 rounded p-1.5 sm:p-2">
+                  <strong>Context:</strong> Follow-up questions remember previous conversation
                 </p>
               </div>
             </div>
@@ -346,9 +338,11 @@ export default function Chat() {
           </button>
         </div>
         
-        {/* Enhanced Quota Display */}
+        {/* Enhanced Status Display */}
         <div className="mt-1.5 sm:mt-2 text-xs">
-          <span className="text-gray-400">{input ? getSearchHint(input) : `Powered by ${modelName} with real-time web search`}</span>
+          <span className="text-gray-400">
+            {input ? getSearchHint(input) : `Powered by ${modelName} with conversation memory ${lastResponseId ? '(Active)' : '(New)'}`}
+          </span>
         </div>
       </div>
     </div>

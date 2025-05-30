@@ -70,29 +70,38 @@ async def get_advice_streaming(body: AdviceRequest) -> StreamingResponse:
     Get AI-powered fantasy sports advice, streamed as Server-Sent Events.
     
     This endpoint:
-    1. Takes a user's question about fantasy sports.
+    1. Takes a user's question about fantasy sports with optional conversation history.
     2. Sends it to OpenAI's Responses API with structured JSON output.
-    3. Streams the response as SSE events with both text deltas and structured JSON.
+    3. Uses previous_response_id for conversation continuity when available.
+    4. Streams the response as SSE events with both text deltas and structured JSON.
     """
     try:
-        logger.info(f"Received advice request: {body.conversation[-1].content if body.conversation else 'No prompt'}")
+        logger.info(f"Received advice request with {len(body.conversation) if body.conversation else 0} messages")
+        logger.info(f"Previous response ID provided: {body.previous_response_id is not None}")
         
-        user_prompt = ""
-        if body.conversation:
-            # Simple concatenation for now; more sophisticated context handling could be added
-            user_prompt = "\n".join([msg.content for msg in body.conversation if msg.role == 'user'])
+        # Validate input
+        if not body.conversation or len(body.conversation) == 0:
+            raise HTTPException(status_code=400, detail="No conversation provided.")
         
-        if not user_prompt:
-             raise HTTPException(status_code=400, detail="No user prompt provided in conversation.")
+        # Get the latest message content for logging
+        latest_message = body.conversation[-1].content if body.conversation else "No content"
+        logger.info(f"Latest message: {latest_message[:100]}...")
 
         model_to_use = body.model if body.model else OPENAI_DEFAULT_MODEL_INTERNAL
 
-        logger.info(f"Relaying to OpenAI Responses API with prompt: {user_prompt[:100]}... using model: {model_to_use}")
+        # Convert conversation messages to the format expected by the OpenAI client
+        conversation_messages = [
+            {"role": msg.role, "content": msg.content} 
+            for msg in body.conversation
+        ] if body.conversation else []
+
+        logger.info(f"Relaying to OpenAI Responses API using model: {model_to_use}")
 
         # Stream Server-Sent Events for both web and mobile compatibility
         return StreamingResponse(
             get_streaming_response(
-                prompt=user_prompt, 
+                conversation_messages=conversation_messages,
+                previous_response_id=body.previous_response_id,
                 model=model_to_use,
                 enable_web_search=body.enable_web_search or False,
                 prompt_type=body.prompt_type or "default"

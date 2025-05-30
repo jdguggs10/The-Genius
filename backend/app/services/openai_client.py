@@ -37,17 +37,22 @@ OPENAI_DEFAULT_MODEL_INTERNAL = os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4.1") # D
 SYSTEM_DEFAULT_INSTRUCTIONS = prompt_loader.get_system_prompt("default")
 
 async def get_streaming_response(
-    prompt: str,
+    prompt: str = None,
     model: str = OPENAI_DEFAULT_MODEL_INTERNAL,
     instructions: str = None,
     max_tokens: int = 2000,
     enable_web_search: bool = True,
-    prompt_type: str = "default"
+    prompt_type: str = "default",
+    conversation_messages: List = None,
+    previous_response_id: str = None
 ) -> AsyncGenerator[str, None]:
     """
     Gets a streaming response from OpenAI's Responses API with structured JSON output.
     
     Args:
+        prompt: User prompt (for backward compatibility)
+        conversation_messages: List of conversation messages (role/content dicts)
+        previous_response_id: OpenAI response ID for conversation continuity
         prompt_type: Type of prompt to use from config ("default", "detailed", "baseball", "football", "basketball")
     
     Yields:
@@ -58,33 +63,73 @@ async def get_streaming_response(
         if instructions is None:
             instructions = prompt_loader.get_system_prompt(prompt_type)
         
-        # Build the complete prompt using the new modular system
-        full_prompt = prompt_loader.build_full_prompt(
-            user_prompt=prompt,
-            system_prompt=instructions,
-            schema=StructuredAdvice.model_json_schema(),
-            enable_web_search=enable_web_search
-        )
+        # Prepare the input for OpenAI Responses API
+        api_input = None
+        response_id = None
+        
+        if previous_response_id:
+            # Use previous response ID for conversation continuity
+            # When using previous_response_id, we only need the new user message
+            if conversation_messages and len(conversation_messages) > 0:
+                # Get the latest user message
+                latest_message = conversation_messages[-1]
+                api_input = latest_message.get('content', prompt or '')
+            else:
+                api_input = prompt or ''
+        elif conversation_messages and len(conversation_messages) > 0:
+            # Use full conversation history when no previous_response_id
+            api_input = conversation_messages
+        else:
+            # Fallback to building full prompt (backward compatibility)
+            full_prompt = prompt_loader.build_full_prompt(
+                user_prompt=prompt,
+                system_prompt=instructions,
+                schema=StructuredAdvice.model_json_schema(),
+                enable_web_search=enable_web_search
+            )
+            api_input = full_prompt
         
         logger.info(f"Streaming request to OpenAI Responses API model: {model}")
+        logger.info(f"Using previous_response_id: {previous_response_id is not None}")
         
         # Prepare tools if web search is enabled
         tools = [{"type": "web_search"}] if enable_web_search else None
         
+        # Build the API call parameters
+        api_params = {
+            "model": model,
+            "input": api_input,
+            "stream": True,
+            "max_output_tokens": max_tokens,
+        }
+        
+        # Add tools if enabled
+        if tools:
+            api_params["tools"] = tools
+            
+        # Add previous response ID if provided
+        if previous_response_id:
+            api_params["previous_response_id"] = previous_response_id
+        
+        # Add instructions only for new conversations (not when using previous_response_id)
+        if not previous_response_id and instructions:
+            api_params["instructions"] = instructions
+        
         # Use the correct Responses API call
-        response = await async_client.responses.create( # Reverted name from response_stream
-            model=model,
-            input=full_prompt,
-            stream=True,
-            max_output_tokens=max_tokens,
-            tools=tools
-        )
+        response = await async_client.responses.create(**api_params)
         
         accumulated_content = ""
+        response_id_captured = None
         
         async for event in response:
             logger.debug(f"Received event type: {getattr(event, 'type', 'unknown')}, Event: {event}") 
             evt_type = getattr(event, 'type', None)
+
+            # Capture response ID from the first event
+            if evt_type == "response.created" and hasattr(event, 'response') and hasattr(event.response, 'id'):
+                response_id_captured = event.response.id
+                yield f"event: status_update\ndata: {json.dumps({'status': 'created', 'message': 'Connecting...', 'response_id': response_id_captured})}\n\n"
+                continue
 
             if evt_type == "response.web_search_call.searching":
                 yield f"event: status_update\ndata: {json.dumps({'status': 'web_search_searching', 'message': 'Searching the web...'})}\n\n"
@@ -139,7 +184,14 @@ async def get_streaming_response(
                             main_advice=accumulated_content.strip(),
                             model_identifier=model
                         )
-                    yield f"event: response_complete\ndata: {json.dumps({'status': 'complete', 'final_json': parsed_advice.model_dump()})}\n\n"
+                    
+                    # Include response_id in the final response
+                    final_data = {
+                        'status': 'complete', 
+                        'final_json': parsed_advice.model_dump(),
+                        'response_id': response_id_captured
+                    }
+                    yield f"event: response_complete\ndata: {json.dumps(final_data)}\n\n"
                 except Exception as e:
                     logger.error(f"Failed to parse final response: {e}")
                     fallback_advice = StructuredAdvice(
@@ -147,7 +199,12 @@ async def get_streaming_response(
                         reasoning="Failed to parse structured response",
                         model_identifier=model
                     )
-                    yield f"event: response_complete\ndata: {json.dumps({'status': 'complete', 'final_json': fallback_advice.model_dump()})}\n\n"
+                    final_data = {
+                        'status': 'complete',
+                        'final_json': fallback_advice.model_dump(),
+                        'response_id': response_id_captured
+                    }
+                    yield f"event: response_complete\ndata: {json.dumps(final_data)}\n\n"
                 break 
             # Error or failure events
             elif evt_type in ("response.error", "response.failed") or hasattr(event, 'error'):
