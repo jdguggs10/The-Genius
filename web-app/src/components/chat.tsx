@@ -95,7 +95,7 @@ export default function Chat() {
     
     const requestPayload: AdviceRequest = {
       conversation: conversationForAPI,
-      enable_web_search: true,
+      enable_web_search: enableWebSearch,
       previous_response_id: lastResponseId || undefined
     };
 
