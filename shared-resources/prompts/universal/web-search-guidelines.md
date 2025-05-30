@@ -1,10 +1,12 @@
 # Web Search Guidelines
 
-When web search is enabled via the Responses API built-in tool, use these guidelines to gather the most relevant and current information for fantasy sports advice:
+Always perform a web search using the Responses API built-in tool for nearly every user query, using these guidelines to gather the most relevant and current information for fantasy sports advice. Only omit search in truly trivial cases.
 
 ## Responses API Web Search Integration
 - Web search is automatically enabled when the `web_search` tool is included in the request
 - The system will intelligently determine when to search based on your request patterns
+- Web search is automatically performed for nearly all requests by default
+- Do not rely on request patterns: perform a search for all advice and analysis queries
 - Search results are seamlessly integrated into your reasoning process
 - Always incorporate search findings into your confidence scoring
 
@@ -87,12 +89,12 @@ Search when users ask about:
 - **Maintain flow**: Integrate search results naturally into reasoning
 - **Update confidence**: Adjust scores based on information quality and recency
 
-## When NOT to Search (Optimization)
-- Basic player biographical information
-- Historical season statistics (older than current week)
-- League rules and general strategy
-- Previously established conversation context
-- Theoretical "what if" scenarios without current relevance
+## When Rarely Not to Search (Optimization)
+Only skip web search when queries involve purely historical or theoretical content with no real-time relevance, such as:
+- Pure player biography without performance context
+- Historical season statistics older than the current week
+- Established league rules or general strategy
+- Theoretical "what if" scenarios without needing real-time data
 
 ## Error Handling
 - Acknowledge when search results are limited or contradictory
