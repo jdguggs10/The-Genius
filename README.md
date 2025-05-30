@@ -6,255 +6,222 @@ The Genius is a comprehensive fantasy sports platform that combines artificial i
 
 ## 🏆 What Does This Do?
 
-Think of The Genius as your personal fantasy sports consultant that:
+The Genius acts as your personal fantasy sports consultant, offering capabilities such as:
 
-- **Answers Questions**: "Should I start Josh Allen or Patrick Mahomes this week?"
-- **Provides Analysis**: Get detailed breakdowns of player matchups and trends
-- **Helps with Trades**: "Is this trade worth it?" - get unbiased AI analysis
-- **Finds Sleepers**: Discover hidden gems on the waiver wire
-- **Works 24/7**: Available whenever you need fantasy advice
-- **Cross-Platform**: Use the web app or native iOS app
+- **Answering Questions**: e.g., "Should I start Josh Allen or Patrick Mahomes this week?"
+- **Providing Analysis**: Detailed breakdowns of player matchups and trends.
+- **Assisting with Trades**: Unbiased AI analysis on trade proposals.
+- **Identifying Sleepers**: Discovering hidden gems on the waiver wire.
+- **24/7 Availability**: Fantasy advice whenever you need it.
+- **Cross-Platform Access**: Use the web app or native iOS app.
 
 ### Who Is This For?
 
-- **Fantasy Sports Players** who want an edge over their competition
-- **Casual Fans** who need help setting lineups each week
-- **Serious Players** who want data-driven analysis
-- **League Commissioners** who want to add value for their members
+- **Fantasy Sports Players** seeking a competitive edge.
+- **Casual Fans** needing help with weekly lineup decisions.
+- **Serious Players** wanting data-driven analysis.
+- **League Commissioners** looking to add value for their members.
 
 ## 🛠 How It's Built
 
-Your project has **four main parts** that work together:
+The Genius project integrates several key components:
 
 ```
 The Genius Project
-├── 🌐 Web App (React)
-│   └── Chat interface for web browsers
+├── 🌐 Web App (React + TypeScript + Vite)
+│   └── User interface for web browsers
 ├── 📱 iOS App (SwiftUI)
-│   └── Native iOS app with real-time streaming
-├── 🧠 Backend API (FastAPI + Python)
-│   └── Connects to OpenAI's GPT-4.1 for smart answers
-└── 📊 ESPN Integration (Python)
-    └── Fetches real fantasy sports information
+│   └── Native iOS application for mobile experience
+├── 🧠 Backend API (Python + FastAPI)
+│   └── Powers core logic, connects to OpenAI GPT-4.1
+├── 📊 ESPN Integration (Python + ESPN API + MCP)
+│   └── Fetches fantasy sports data from ESPN
+├── ⚾ PyBaseball Utility (Python)
+│   └── Provides baseball-specific data and utilities
+└── 📚 Shared Resources
+    └── Common assets, prompt engineering modules
 ```
 
 ### 1. Web App (`/web-app`)
-- **What it is**: The website people visit
-- **What it does**: Provides a clean chat interface with web search capabilities
-- **Technology**: React with TypeScript and Vite
-- **Special features**: 
-  - Daily message limits for free users
-  - Real-time streaming responses
-  - Web search integration with "search:" prefix
+- **Description**: The primary interface for users on desktop and mobile web browsers.
+- **Technology**: React, TypeScript, Vite.
+- **Key Features**:
+    - Clean chat interface.
+    - Real-time streaming of AI responses.
+    - Web search integration (e.g., "search: latest NFL injuries").
 
 ### 2. iOS App (`/ios-app`)
-- **What it is**: Native iOS application
-- **What it does**: Full-featured mobile experience with SwiftUI
-- **Technology**: Swift 5.5+, SwiftUI, iOS 15+
-- **Special features**:
-  - Real-time streaming responses
-  - Structured advice display with confidence scores
-  - Native iOS design following Apple HIG
-  - Conversation management
-  - Share functionality
-  - iPad optimized layouts
+- **Description**: A native iOS application providing a rich mobile experience.
+- **Technology**: Swift, SwiftUI (iOS 15+).
+- **Key Features**:
+    - Real-time streaming responses.
+    - Structured advice display with confidence scores.
+    - Native iOS design following Apple Human Interface Guidelines.
+    - Conversation management and sharing.
 
-### 3. Backend API (`/backend`)  
-- **What it is**: The server that powers everything
-- **What it does**: Takes questions and sends them to OpenAI's AI
-- **Technology**: Python with FastAPI
-- **Special features**: 
-  - Uses OpenAI GPT-4.1 with Structured Responses API
-  - Server-Sent Events (SSE) for real-time streaming
-  - CORS configured for cross-platform access
+### 3. Backend API (`/backend`)
+- **Description**: The central server that handles business logic and AI integration.
+- **Technology**: Python, FastAPI.
+- **Key Features**:
+    - Integration with OpenAI GPT-4.1 for advanced AI capabilities.
+    - Server-Sent Events (SSE) for real-time communication.
+    - Pydantic models for structured data validation.
+    - OpenAPI documentation for clear API contracts.
 
 ### 4. ESPN Integration (`/espn-api-util`)
-- **What it is**: Tools to get real fantasy data
-- **What it does**: Connects to ESPN to get player stats, rosters, etc.
-- **Technology**: Python with ESPN API and MCP protocol
-- **Special feature**: Works with private leagues (with authentication)
+- **Description**: A utility service for fetching real-time fantasy sports data from ESPN.
+- **Technology**: Python, ESPN API, MCP (Machine Comprehensible Plan) protocol for tool definition.
+- **Key Features**:
+    - Access to player statistics, rosters, and league information.
+    - Supports private leagues with appropriate authentication.
+
+### 5. PyBaseball API Utility (`/pybaseball-api-util`)
+- **Description**: A utility service providing access to baseball-specific data and analytics.
+- **Technology**: Python, leveraging the pybaseball library.
+
+### 6. Shared Resources (`/shared-resources`)
+- **Description**: Contains common assets, configurations, and notably, modular prompt engineering templates used by the backend for interacting with the LLM.
 
 ## 🚀 Quick Start Guide
 
-### Option 1: Just Want to See It Work?
-If you just want to test the existing deployment:
+### Option 1: View Existing Deployments
+- **Web App**: https://genius-frontend.onrender.com
+- **iOS App**: Requires building and running from Xcode (see iOS setup below).
 
-**Web App**: https://genius-frontend.onrender.com
-**iOS App**: Build and run from Xcode (see iOS setup below)
-
-### Option 2: Want to Run It Yourself?
+### Option 2: Run Locally
 
 #### Step 1: Get the Code
 ```bash
-git clone https://github.com/your-username/the-genius.git
+git clone https://github.com/your-username/the-genius.git # Replace with your repo URL
 cd the-genius
 ```
 
-#### Step 2: Set Up the Backend
+#### Step 2: Set Up the Backend (`/backend`)
 ```bash
 cd backend
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
-# Create environment file
+# Create and configure environment file
 cp .env.example .env
-# Edit .env and add your OpenAI API key
+# Edit .env and add your OPENAI_API_KEY
+# Example: OPENAI_API_KEY="your_openai_api_key_here"
 ```
+Ensure the backend is running, typically on `http://localhost:8000`.
 
-#### Step 3: Set Up the Web App
+#### Step 3: Set Up the Web App (`/web-app`)
 ```bash
 cd web-app
-npm install -g pnpm  # Install pnpm for faster installs
+# Ensure you have Node.js and pnpm installed
+# npm install -g pnpm # If you don't have pnpm
 pnpm install
-# Create .env file with VITE_BACKEND_URL=http://localhost:8000
+
+# Create .env.local file for environment variables
+cp .env.example .env.local # Or create .env.local manually
+# Edit .env.local and set the backend URL
+# Example: VITE_BACKEND_URL="http://localhost:8000"
+
 pnpm run dev
 ```
+The web app should be accessible at `http://localhost:5173` (or another port if specified).
 
-#### Step 4: Set Up the iOS App
+#### Step 4: Set Up the iOS App (`/ios-app`)
 ```bash
 cd ios-app
-# Open ios-app.xcodeproj in Xcode
-# Update backend URL in ChatViewModel.swift if needed
-# Build and run on iOS Simulator or device
+# Open TheGenius.xcodeproj (or your project's name) in Xcode
+# If needed, update the backend API URL in the relevant network service/manager class
+# (e.g., within a file like `NetworkService.swift` or `ChatViewModel.swift`).
+# The default should point to localhost for local backend testing.
+# Build and run on an iOS Simulator or a physical device.
 ```
 
-#### Step 5: Test Everything
-1. **Backend**: Visit http://localhost:8000 - should show "API is running"
-2. **Frontend**: Visit http://localhost:5173 - should show the chat interface
-3. **iOS App**: Launch from Xcode - should show native iOS interface
-4. **Test Chat**: Ask "Hello" - should get an AI response
+#### Step 5: Test
+1.  **Backend**: Navigate to `http://localhost:8000/docs` in your browser to see the API documentation.
+2.  **Web App**: Open `http://localhost:5173` (or the configured port) to interact with the chat interface.
+3.  **iOS App**: Launch from Xcode.
+4.  **Test Chat**: Send a message like "Hello" to verify AI response.
 
 ## 📁 Project Structure
 
 ```
 the-genius/
-├── 📱 ios-app/                    # Native iOS application
-│   ├── ios-app/                   # Main app source
-│   │   ├── ChatViewModel.swift    # Core chat logic & SSE handling
-│   │   ├── ContentView.swift      # Main app interface
-│   │   ├── MessageBubble.swift    # Chat message UI component
-│   │   ├── NetworkModels.swift    # API data models
-│   │   ├── Message.swift          # Core message data structure
-│   │   └── ...                    # Other UI components
-│   ├── ios-app.xcodeproj/         # Xcode project file
-│   └── README.md                  # iOS-specific instructions
+├── 📱 ios-app/                    # Native iOS application (SwiftUI)
+│   ├── TheGenius/                 # Main app source code (adjust if different)
+│   │   ├──ViewModels/ChatViewModel.swift # Core chat logic & SSE
+│   │   ├──Views/ContentView.swift    # Main app UI
+│   │   └── ...                    # Other UI, model, service files
+│   ├── TheGenius.xcodeproj/       # Xcode project file
+│   └── README.md                  # iOS-specific details
 │
-├── 🌐 web-app/                    # React web application
-│   ├── src/components/            # Reusable UI components
-│   ├── src/hooks/                 # React hooks for logic
-│   ├── src/types/                 # TypeScript type definitions
+├── 🌐 web-app/                    # Web application (React, TypeScript, Vite)
+│   ├── public/                    # Static assets
+│   ├── src/                       # Source code
+│   │   ├── components/            # UI components
+│   │   ├── hooks/                 # React hooks
+│   │   ├── services/              # API interaction
+│   │   └── App.tsx                # Main application component
+│   ├── .env.example               # Example environment variables
 │   ├── package.json               # Dependencies and scripts
-│   └── README.md                  # Web app instructions
+│   └── README.md                  # Web app specific details
 │
-├── 🔧 backend/                    # FastAPI Python server  
-│   ├── app/                       # Main application code
-│   │   ├── services/              # OpenAI integration
-│   │   ├── models.py              # Pydantic data models
-│   │   └── main.py                # FastAPI server
+├── 🧠 backend/                    # Backend API (Python, FastAPI)
+│   ├── app/                       # Main application logic
+│   │   ├── api/                   # API endpoint definitions
+│   │   ├── core/                  # Configuration, core settings
+│   │   ├── models/                # Pydantic data models
+│   │   ├── services/              # Business logic, OpenAI integration
+│   │   └── main.py                # FastAPI application entry point
+│   ├── .env.example               # Example environment variables
 │   ├── requirements.txt           # Python dependencies
-│   └── README.md                  # Backend setup guide
+│   └── README.md                  # Backend specific details
 │
-├── 📊 espn-api-util/             # ESPN fantasy sports integration
-│   ├── baseball_mcp/              # Baseball-specific tools
-│   ├── espn_fantasy_server.py     # Main ESPN server
-│   └── README.md                  # ESPN integration guide
+├── 📊 espn-api-util/             # ESPN fantasy sports data integration (Python)
+│   ├── espn_api/                  # ESPN API interaction logic
+│   ├── mcp_tools/                 # MCP tool definitions for ESPN functions
+│   └── README.md                  # ESPN utility specific details
 │
-├── 🔄 shared-resources/          # Shared assets and configs
+├── ⚾ pybaseball-api-util/        # PyBaseball data utility (Python)
+│   ├── utils/                     # Baseball data functions
+│   └── README.md                  # PyBaseball utility specific details
+│
+├── 📚 shared-resources/          # Shared assets, prompts, configurations
+│   ├── prompts/                   # Modular prompt engineering templates
+│   └── configs/                   # Shared configuration files
+│
 └── 📖 README.md                   # This overview file
 ```
 
-## 🌟 Key Features
+## 🤖 AI Reviewer Notes
 
-### Cross-Platform Experience
-- **Web App**: Full-featured browser experience
-- **iOS App**: Native mobile experience with SwiftUI
-- **Consistent API**: Same backend powers both platforms
+This project is structured to be effectively reviewed and understood by AI agents due to several key characteristics:
 
-### Real-Time Streaming
-- **Live Responses**: See AI typing in real-time
-- **Server-Sent Events**: Efficient streaming protocol
-- **Progress Indicators**: Status updates during processing
+-   **Clear Separation of Concerns**: Distinct modules for frontend (web, iOS), backend API, and data utilities (`espn-api-util`, `pybaseball-api-util`) simplify understanding individual components.
+-   **Well-Defined API Contracts**:
+    -   The backend exposes OpenAPI documentation (`/docs`, `/redoc`) for clear, machine-readable API specifications.
+    -   The `espn-api-util` likely uses MCP (Machine Comprehensible Plan) tool definitions, making its functions understandable as tools for an AI agent.
+-   **Structured Data Models**:
+    -   **Backend**: Pydantic models enforce data schemas for API requests and responses.
+    -   **iOS App**: Swift `Codable` structs are used for handling data from the API.
+-   **Modular Prompt Engineering**: The `shared-resources/prompts/` directory suggests that prompts for interacting with LLMs are organized and reusable, allowing for easier analysis and modification.
+-   **Module-Specific READMEs**: Each major directory (`ios-app`, `web-app`, `backend`, etc.) contains its own `README.md`, providing localized context and setup instructions.
+-   **Consistent Technology Stacks within Modules**: For example, the backend consistently uses Python and FastAPI, while the web app uses a standard React/TypeScript/Vite stack.
 
-### Structured Advice Display
-- **Confidence Scores**: AI provides confidence ratings
-- **Alternative Options**: Multiple player suggestions
-- **Detailed Reasoning**: Explanations for recommendations
-- **Model Attribution**: Shows which AI model provided advice
+## 🌟 Key Features (Summary)
 
-### Smart Data Integration
-- **Web Search**: AI can search for current information
-- **ESPN Integration**: Real fantasy sports data
-- **Context Awareness**: Remembers conversation history
+-   Cross-Platform (Web & iOS)
+-   Real-Time AI Responses via SSE
+-   Structured Advice with Confidence
+-   ESPN & PyBaseball Data Integration
+-   Web Search Capability
 
 ## 🔧 Requirements
 
-### For Users
-- **Web**: Any modern browser
-- **iOS**: iOS 15.0+, iPhone or iPad
-
 ### For Development
-- **Python 3.11+**: Backend development
-- **Node.js 18+**: Web app development  
-- **Xcode 14+**: iOS development
-- **OpenAI API Key**: For AI functionality
-
-## 💡 Usage Examples
-
-### General Fantasy Questions
-- "Should I start Josh Allen or Lamar Jackson this week?"
-- "Who are the best waiver wire pickups?"
-- "Is this trade worth it: my Derrick Henry for their Cooper Kupp?"
-
-### With Web Search (use "search:" prefix)
-- "search: Who got injured in today's NFL games?"
-- "search: Latest news on Ja'Marr Chase injury status"
-- "search: Current weather forecast for Sunday's outdoor games"
-
-### iOS App Features
-- **Long Press**: Share any message
-- **Conversation History**: Browse past conversations
-- **Structured Advice**: Tap to expand detailed analysis
-- **Confidence Indicators**: See AI's confidence level
-
-## 🚀 Deployment
-
-### Current Live Deployments
-- **Backend**: https://genius-backend-nhl3.onrender.com
-- **Web App**: https://genius-frontend.onrender.com
-- **iOS App**: Build locally with Xcode
-
-### Deploy Your Own
-1. **Backend**: Deploy to Render, Railway, or similar
-2. **Web App**: Deploy to Vercel, Netlify, or Render
-3. **iOS App**: Deploy to App Store via Xcode
-
-## 🔄 Development Workflow
-
-### Making Changes
-1. **Backend Changes**: Update Python code, test locally, deploy
-2. **Web Changes**: Update React code, test locally, deploy
-3. **iOS Changes**: Update Swift code, test in simulator/device, archive for App Store
-
-### Testing
-- **Backend**: FastAPI provides automatic API docs at `/docs`
-- **Web**: React dev server with hot reload
-- **iOS**: Xcode simulator and device testing
-
-## 📈 Scaling Considerations
-
-- **Rate Limiting**: Implement per-user API limits
-- **Caching**: Cache frequent responses to reduce costs
-- **Analytics**: Track usage patterns and popular queries
-- **Error Handling**: Comprehensive error reporting and recovery
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly across platforms
-5. Submit a pull request
+-   Python 3.9+ (Backend, Utilities)
+-   Node.js 18+ & pnpm (Web App)
+-   Xcode 14+ (iOS App)
+-   OpenAI API Key
 
 ## 📄 License
 

@@ -68,3 +68,18 @@ See `prompts/README.md` for complete documentation and examples.
 ---
 
 This modular system makes prompt management **much easier** and more **systematic** than the previous single JSON file approach. You can now update prompts by simply editing markdown files!
+
+## 🤖 AI Reviewer Notes
+
+For AI agents reviewing the codebase, particularly how prompts influence AI behavior, these points are crucial:
+
+-   **Centralized Prompt Management**: The `shared-resources/prompts/` subdirectory is the definitive location for all markdown-based prompt components that define the AI's personality, response structure, and task-specific instructions (e.g., by sport).
+-   **Backend Prompt Loading Logic**: The backend module responsible for loading, combining, and caching these prompts is `backend/app/services/prompt_loader.py`. Understanding this script is key to seeing how the individual `.md` files are assembled into the final system prompt sent to the LLM.
+-   **`prompt_type` Parameter**: When clients (web app, iOS app) make requests to the backend API, they can specify a `prompt_type` (e.g., "football", "baseball", "default"). This parameter dictates which set of sport-specific prompts are combined with the universal prompts by the `prompt_loader.py`.
+-   **Prompt Loading Priority**: The `prompt_loader.py` observes a specific priority order when constructing the final system prompt:
+    1.  An environment variable (`SYSTEM_PROMPT` on the backend) can override all file-based prompts.
+    2.  If a `prompt_type` is specified and corresponding sport-specific files exist (e.g., `prompts/football/system-prompt.md`), these are loaded along with all files in `prompts/universal/`.
+    3.  If the `prompt_type` is "default" or no specific sport files are found, only the files in `prompts/universal/` are loaded.
+    4.  A hardcoded fallback prompt within `prompt_loader.py` is used if no files can be loaded and no environment variable is set.
+-   **Dynamic Updates**: Changes to the `.md` prompt files in the `prompts/` directory are typically picked up dynamically by the `prompt_loader.py` due to its caching mechanism (which reloads if files change), meaning backend restarts are often not required for prompt updates to take effect.
+-   **Deprecation of `prompts.json`**: Ensure that no new development relies on the old `prompts.json` file. All prompt logic should leverage the modular markdown system in the `prompts/` directory.
