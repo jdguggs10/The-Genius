@@ -18,16 +18,33 @@ struct MessagePayload: Codable {
 
 /// The request structure for the /advice endpoint.
 struct AdviceRequestPayload: Codable {
-    let conversation: [MessagePayload]
+    let conversation: [MessagePayload]?
     let model: String? // Optional: specify a model
-    // Add other fields like 'players' or 'enable_web_search' if needed by the iOS app's logic
-    // let players: [String]?
-    // let enable_web_search: Bool?
-
-    // Convenience initializer if you are creating this from existing Message structs
-    init(conversation: [MessagePayload], model: String? = nil) {
+    let previousResponseId: String? // Add support for previous_response_id
+    let enableWebSearch: Bool? // Optional: enable web search
+    
+    // Convenience initializer for new conversations (without previous_response_id)
+    init(conversation: [MessagePayload], model: String? = nil, enableWebSearch: Bool? = nil) {
         self.conversation = conversation
         self.model = model
+        self.previousResponseId = nil
+        self.enableWebSearch = enableWebSearch
+    }
+    
+    // Convenience initializer for continuing conversations (with previous_response_id)
+    init(userMessage: String, previousResponseId: String, model: String? = nil, enableWebSearch: Bool? = nil) {
+        // When using previous_response_id, we only need to send the new user message
+        self.conversation = [MessagePayload(role: .user, content: userMessage)]
+        self.model = model
+        self.previousResponseId = previousResponseId
+        self.enableWebSearch = enableWebSearch
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case conversation
+        case model
+        case previousResponseId = "previous_response_id"
+        case enableWebSearch = "enable_web_search"
     }
 }
 
@@ -49,6 +66,7 @@ struct StructuredAdviceResponse: Codable, Identifiable, Equatable {
     let confidenceScore: Double?
     let alternatives: [AdviceAlternativePayload]?
     let modelIdentifier: String?
+    let responseId: String? // Add response ID for future reference
 
     // CodingKeys can be used if your Swift property names differ from the JSON keys.
     // In this case, they match the Pydantic model if we use camelCase consistently in Swift for JSON keys like 'mainAdvice'.
@@ -62,6 +80,7 @@ struct StructuredAdviceResponse: Codable, Identifiable, Equatable {
         case confidenceScore = "confidence_score"
         case alternatives
         case modelIdentifier = "model_identifier"
+        case responseId = "response_id"
     }
     
     // Custom Equatable implementation - compare content for SwiftUI reactivity
@@ -70,7 +89,8 @@ struct StructuredAdviceResponse: Codable, Identifiable, Equatable {
                lhs.reasoning == rhs.reasoning &&
                lhs.confidenceScore == rhs.confidenceScore &&
                lhs.alternatives == rhs.alternatives &&
-               lhs.modelIdentifier == rhs.modelIdentifier
+               lhs.modelIdentifier == rhs.modelIdentifier &&
+               lhs.responseId == rhs.responseId
     }
 }
 

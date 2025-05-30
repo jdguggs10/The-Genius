@@ -263,16 +263,31 @@ struct ContentView: View {
     @ToolbarContentBuilder
     private func navigationToolbarContent() -> some ToolbarContent {
         ToolbarItem(placement: .navigationBarTrailing) {
-            Button(action: {
-                showSettingsInDetailView = false // Ensure settings detail is dismissed if open
-                selectedConversation = conversationManager.createNewConversation()
-                if horizontalSizeClass == .compact { withAnimation { showingSidebarForCompact = false } }
-            }) {
-                Image(systemName: "square.and.pencil").font(.system(size: 17, weight: .semibold))
+            Menu {
+                Button(action: {
+                    showSettingsInDetailView = false // Ensure settings detail is dismissed if open
+                    viewModel.startNewConversation()
+                    selectedConversation = conversationManager.conversations.first
+                    if horizontalSizeClass == .compact { withAnimation { showingSidebarForCompact = false } }
+                }) {
+                    Label("New Conversation", systemImage: "square.and.pencil")
+                }
+                
+                if selectedConversation != nil {
+                    Button(action: {
+                        viewModel.resetConversationContext()
+                    }) {
+                        Label("Reset Context", systemImage: "arrow.clockwise")
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 17, weight: .semibold))
                     .frame(minWidth: 44, minHeight: 44)
             }
-            .accessibilityLabel("New conversation").accessibilityHint("Creates a new conversation")
+            .accessibilityLabel("Conversation options")
         }
+        
         if horizontalSizeClass == .compact {
             ToolbarItem(placement: .navigationBarLeading) {
                 Button(action: { withAnimation(.easeInOut(duration: 0.3)) { showingSidebarForCompact.toggle() } }) {

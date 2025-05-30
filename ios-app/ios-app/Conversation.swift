@@ -14,6 +14,7 @@ struct Conversation: Identifiable, Codable, Equatable {
     var messages: [Message]
     let createdDate: Date
     var lastMessageDate: Date
+    var lastResponseId: String? // Track the last OpenAI response ID for context continuity
     
     init(id: UUID = UUID(), title: String = "New Chat", messages: [Message] = []) {
         self.id = id
@@ -21,6 +22,7 @@ struct Conversation: Identifiable, Codable, Equatable {
         self.messages = messages
         self.createdDate = Date()
         self.lastMessageDate = Date()
+        self.lastResponseId = nil
     }
     
     // Custom Equatable implementation
@@ -53,6 +55,16 @@ struct Conversation: Identifiable, Codable, Equatable {
     // Update last message date
     mutating func updateLastMessageDate() {
         self.lastMessageDate = Date()
+    }
+    
+    // Update the last response ID after receiving a response from OpenAI
+    mutating func updateLastResponseId(_ responseId: String?) {
+        self.lastResponseId = responseId
+    }
+    
+    // Reset conversation state (useful for starting fresh)
+    mutating func resetConversationState() {
+        self.lastResponseId = nil
     }
 }
 

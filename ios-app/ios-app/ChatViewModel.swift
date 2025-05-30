@@ -156,11 +156,44 @@ class ChatViewModel: ObservableObject {
         request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
         request.setValue("keep-alive", forHTTPHeaderField: "Connection")
         
-        // Prepare the conversation payload
-        let conversationPayloads = self.messages.filter { $0.id != assistantMessagePlaceholder.id }.map {
-            MessagePayload(role: $0.role, content: $0.content)
+        // Get the current conversation to check for last response ID
+        guard let manager = conversationManager,
+              let conversationId = currentConversationId,
+              var conversation = manager.conversations.first(where: { $0.id == conversationId }) else {
+            currentErrorMessage = "Error: Could not find current conversation."
+            isLoading = false
+            return
         }
-        let adviceRequest = AdviceRequestPayload(conversation: conversationPayloads)
+        
+        // Get the latest user message (excluding the placeholder assistant message)
+        guard let latestUserMessage = messages.dropLast().last(where: { $0.role == .user }) else {
+            currentErrorMessage = "Error: No user message found."
+            isLoading = false
+            return
+        }
+        
+        // Prepare the request payload using proper Responses API patterns
+        let adviceRequest: AdviceRequestPayload
+        
+        if let lastResponseId = conversation.lastResponseId {
+            // Continue conversation using previous_response_id (preferred approach)
+            adviceRequest = AdviceRequestPayload(
+                userMessage: latestUserMessage.content,
+                previousResponseId: lastResponseId,
+                model: "gpt-4.1", // Always use gpt-4.1 as per documentation
+                enableWebSearch: true
+            )
+        } else {
+            // Start new conversation with full history
+            let conversationPayloads = self.messages.filter { $0.id != assistantMessagePlaceholder.id }.map {
+                MessagePayload(role: $0.role, content: $0.content)
+            }
+            adviceRequest = AdviceRequestPayload(
+                conversation: conversationPayloads,
+                model: "gpt-4.1", // Always use gpt-4.1 as per documentation
+                enableWebSearch: true
+            )
+        }
 
         do {
             request.httpBody = try JSONEncoder().encode(adviceRequest)
@@ -187,6 +220,7 @@ class ChatViewModel: ObservableObject {
             }
             
             var accumulatedText = ""
+            var responseId: String? = nil
             var eventCount = 0
             var lineCount = 0
             var currentEventType: String? = nil
@@ -199,7 +233,10 @@ class ChatViewModel: ObservableObject {
                     // Process previous event if we have both type and data
                     if let eventType = currentEventType, let data = currentData {
                         eventCount += 1
-                        await processSSEEvent(eventType: eventType, data: data, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
+                        let extractedResponseId = await processSSEEvent(eventType: eventType, data: data, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
+                        if let extractedId = extractedResponseId {
+                            responseId = extractedId
+                        }
                     }
                     
                     // Start new event
@@ -211,7 +248,10 @@ class ChatViewModel: ObservableObject {
                     // Empty line - process current event if we have both type and data
                     if let eventType = currentEventType, let data = currentData {
                         eventCount += 1
-                        await processSSEEvent(eventType: eventType, data: data, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
+                        let extractedResponseId = await processSSEEvent(eventType: eventType, data: data, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
+                        if let extractedId = extractedResponseId {
+                            responseId = extractedId
+                        }
                         
                         // Reset for next event
                         currentEventType = nil
@@ -222,12 +262,21 @@ class ChatViewModel: ObservableObject {
             
             // Process final event if exists
             if let eventType = currentEventType, let data = currentData {
-                await processSSEEvent(eventType: eventType, data: data, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
+                let extractedResponseId = await processSSEEvent(eventType: eventType, data: data, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
+                if let extractedId = extractedResponseId {
+                    responseId = extractedId
+                }
             }
             
             // Handle any remaining content
             if !accumulatedText.isEmpty && messages[assistantMessageIndex].content.isEmpty {
                 messages[assistantMessageIndex].content = accumulatedText
+            }
+            
+            // Update conversation with the new response ID for future context
+            if let responseId = responseId {
+                conversation.updateLastResponseId(responseId)
+                manager.updateConversation(conversation)
             }
             
         } catch {
@@ -243,8 +292,8 @@ class ChatViewModel: ObservableObject {
         saveConversation()
     }
     
-    private func processSSEEvent(eventType: String, data: String, messageIndex: Int, accumulatedText: inout String) async {
-        // Handle different event types
+    private func processSSEEvent(eventType: String, data: String, messageIndex: Int, accumulatedText: inout String) async -> String? {
+        // Handle different event types based on Responses API specification
         if eventType == "status_update" {
             do {
                 if let jsonData = data.data(using: .utf8),
@@ -297,6 +346,7 @@ class ChatViewModel: ObservableObject {
                     let reasoning = finalJson["reasoning"] as? String
                     let confidence = finalJson["confidence_score"] as? Double
                     let modelId = finalJson["model_identifier"] as? String
+                    let responseId = finalJson["response_id"] as? String
                     
                     // Parse alternatives array
                     var alternatives: [AdviceAlternativePayload] = []
@@ -314,7 +364,8 @@ class ChatViewModel: ObservableObject {
                         reasoning: reasoning,
                         confidenceScore: confidence,
                         alternatives: alternatives,
-                        modelIdentifier: modelId
+                        modelIdentifier: modelId,
+                        responseId: responseId
                     )
                     
                     // Ensure UI updates happen on main thread with explicit update
@@ -333,6 +384,9 @@ class ChatViewModel: ObservableObject {
                         // Force UI update to ensure real-time display
                         forceUIUpdate()
                     }
+                    
+                    // Return the response ID for conversation tracking
+                    return responseId
                 }
             } catch {
                 // Failed to parse response complete - silently continue
@@ -352,11 +406,107 @@ class ChatViewModel: ObservableObject {
             } catch {
                 // Failed to parse error - silently continue
             }
+        } else if eventType == "response_created" {
+            // Handle response creation event to potentially extract response ID early
+            do {
+                if let jsonData = data.data(using: .utf8),
+                   let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                   let responseId = parsed["response_id"] as? String {
+                    return responseId
+                }
+            } catch {
+                // Failed to parse response created - silently continue
+            }
+        } else if eventType == "response.web_search_call.searching" || eventType == "web_search_started" {
+            // Handle web search events
+            await MainActor.run {
+                statusMessage = "🔍 Searching the web..."
+                isSearching = true
+            }
+        } else if eventType == "response.web_search_call.completed" || eventType == "web_search_completed" {
+            // Handle web search completion
+            await MainActor.run {
+                statusMessage = "✅ Web search completed"
+                isSearching = false
+            }
+        } else if eventType == "response.in_progress" {
+            // Handle response in progress
+            await MainActor.run {
+                statusMessage = "💭 Assistant is thinking..."
+                isSearching = false
+            }
+        } else if eventType == "response.output_text.delta" {
+            // Handle official Responses API text delta format
+            do {
+                if let jsonData = data.data(using: .utf8),
+                   let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                   let delta = parsed["delta"] as? String {
+                    accumulatedText += delta
+                    
+                    await MainActor.run {
+                        var updatedMessage = messages[messageIndex]
+                        updatedMessage.content = accumulatedText
+                        
+                        objectWillChange.send()
+                        messages[messageIndex] = updatedMessage
+                        
+                        statusMessage = nil
+                        isSearching = false
+                        forceUIUpdate()
+                    }
+                }
+            } catch {
+                // Failed to parse official text delta - silently continue
+            }
+        } else if eventType == "response.completed" {
+            // Handle official completion event
+            await MainActor.run {
+                statusMessage = nil
+                isSearching = false
+            }
         }
-        // Note: Unhandled event types are silently ignored
+        // Note: Unhandled event types are silently ignored per Responses API best practices
+        return nil
     }
     
     func saveConversation() {
         updateCurrentConversation()
+    }
+    
+    // Start a new conversation by resetting context
+    func startNewConversation() {
+        guard let manager = conversationManager else { return }
+        
+        // Create new conversation
+        let newConversation = manager.createNewConversation()
+        currentConversationId = newConversation.id
+        
+        // Reset conversation state
+        messages = [
+            Message(role: .assistant, content: "Welcome to Fantasy Genius! How can I help you today?")
+        ]
+        
+        // Clear any error states
+        currentErrorMessage = nil
+        isLoading = false
+        isSearching = false
+        streamingText = ""
+        statusMessage = nil
+    }
+    
+    // Reset current conversation context (useful for testing or troubleshooting)
+    func resetConversationContext() {
+        guard let manager = conversationManager,
+              let conversationId = currentConversationId,
+              var conversation = manager.conversations.first(where: { $0.id == conversationId }) else {
+            return
+        }
+        
+        // Reset the response ID to start fresh context
+        conversation.resetConversationState()
+        manager.updateConversation(conversation)
+        
+        // Clear error states
+        currentErrorMessage = nil
     }
 }
