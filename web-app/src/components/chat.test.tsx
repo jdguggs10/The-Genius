@@ -21,13 +21,6 @@ vi.mock('../hooks/useSSEClient', () => ({
   }))
 }));
 
-// Mock web search utilities
-vi.mock('../utils/webSearch', () => ({
-  shouldEnableWebSearch: vi.fn(() => false),
-  getActualInput: vi.fn((input) => input),
-  getSearchHint: vi.fn(() => '')
-}));
-
 // Mock environment variables
 vi.stubGlobal('importMeta', {
   env: {

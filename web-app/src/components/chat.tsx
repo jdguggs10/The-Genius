@@ -3,7 +3,6 @@ import { useState, useRef, useEffect } from 'react';
 import { PaperAirplaneIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import Message from './message';
 import type { MessageType, AdviceRequest } from '../types';
-import { shouldEnableWebSearch, getActualInput, getSearchHint } from '../utils/webSearch'; // Import utilities
 import { useConversationManager } from '../hooks/useConversationManager';
 import { useSSEClient } from '../hooks/useSSEClient';
 
@@ -59,12 +58,11 @@ export default function Chat() {
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
     
-    const enableWebSearch = shouldEnableWebSearch(input);
-    const actualInput = getActualInput(input);
+    const enableWebSearch = true;
+    const actualInput = input;
     
     console.log('Input:', input);
-    console.log('Web search enabled:', enableWebSearch);
-    console.log('Actual input to send:', actualInput);
+    console.log('Web search always enabled');
     console.log('Last response ID:', lastResponseId);
     
     // Create user message
@@ -97,7 +95,7 @@ export default function Chat() {
     
     const requestPayload: AdviceRequest = {
       conversation: conversationForAPI,
-      enable_web_search: enableWebSearch,
+      enable_web_search: true,
       previous_response_id: lastResponseId || undefined
     };
 
@@ -321,9 +319,6 @@ export default function Chat() {
               disabled={isLoading}
               className="w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed text-sm sm:text-base"
             />
-            {shouldEnableWebSearch(input) && (
-              <MagnifyingGlassIcon className="absolute right-2 sm:right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
-            )}
           </div>
           <button
             onClick={handleSend}
@@ -341,7 +336,7 @@ export default function Chat() {
         {/* Enhanced Status Display */}
         <div className="mt-1.5 sm:mt-2 text-xs">
           <span className="text-gray-400">
-            {input ? getSearchHint(input) : `Powered by ${modelName} with conversation memory ${lastResponseId ? '(Active)' : '(New)'}`}
+            Powered by {modelName} with conversation memory {lastResponseId ? '(Active)' : '(New)'}
           </span>
         </div>
       </div>
