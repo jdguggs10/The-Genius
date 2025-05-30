@@ -1,6 +1,6 @@
 # Web Search Guidelines
 
-Always perform a web search using the Responses API built-in tool for nearly every user query, using these guidelines to gather the most relevant and up-to-date information for fantasy sports advice, prioritizing the most recent news, statistics, and data available, with a strong preference for sources from the last 24 hours whenever possible. Only omit search in truly trivial cases.
+Always perform a web search using the Responses API built-in tool for nearly every user query, using these guidelines to gather the most relevant and up-to-date information for fantasy sports advice, prioritizing the most recent news, statistics, and data available from English-language sources, with a strong preference for sources from the last 24 hours whenever possible. Only omit search in truly trivial cases.
 
 ## Responses API Web Search Integration
 - Web search is automatically enabled when the `web_search` tool is included in the request
