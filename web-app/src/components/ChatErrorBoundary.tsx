@@ -1,0 +1,61 @@
+// web-app/src/components/ChatErrorBoundary.tsx
+import React, { Component, ErrorInfo, ReactNode } from 'react';
+
+interface Props {
+  children: ReactNode;
+}
+
+interface State {
+  hasError: boolean;
+  error?: Error;
+}
+
+class ChatErrorBoundary extends Component<Props, State> {
+  public state: State = {
+    hasError: false,
+  };
+
+  public static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, error };
+  }
+
+  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("Uncaught error in Chat component:", error, errorInfo);
+    // You could also log the error to an error reporting service here
+  }
+
+  public render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center h-screen bg-red-50 p-4">
+          <div className="bg-white p-8 rounded-lg shadow-xl text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Oops! Something went wrong.</h1>
+            <p className="text-gray-700 mb-2">
+              We encountered an unexpected problem. Please try refreshing the page.
+            </p>
+            {this.state.error && (
+              <details className="mt-4 text-left bg-gray-100 p-3 rounded">
+                <summary className="text-sm text-gray-600 cursor-pointer">Error Details</summary>
+                <pre className="mt-2 text-xs text-red-500 whitespace-pre-wrap">
+                  {this.state.error.toString()}
+                  {this.state.error.stack && `
+${this.state.error.stack}`}
+                </pre>
+              </details>
+            )}
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-6 bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded transition-colors"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+export default ChatErrorBoundary;

@@ -1,10 +1,43 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
+import ChatErrorBoundary from './components/ChatErrorBoundary.tsx';
+import { Toaster } from 'react-hot-toast';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <ChatErrorBoundary>
+      <App /> {/* App.tsx likely renders Chat.tsx */}
+      <Toaster
+        position="top-center"
+        reverseOrder={false}
+        toastOptions={{
+          className: '', // General class for toasts
+          duration: 5000,
+          style: { // Default style
+            background: '#363636',
+            color: '#fff',
+          },
+          success: {
+            duration: 3000,
+            // theme: { // 'theme' is not a standard property here, use style or className
+            //   primary: 'green',
+            //   secondary: 'black',
+            // },
+          },
+          error: {
+            style: {
+                background: '#fee2e2', // bg-red-100
+                color: '#b91c1c', // text-red-700
+            },
+            iconTheme: {
+                primary: '#ef4444', // text-red-500
+                secondary: '#fee2e2', // bg-red-100
+            }
+          }
+        }}
+      />
+    </ChatErrorBoundary>
+  </React.StrictMode>,
 )
