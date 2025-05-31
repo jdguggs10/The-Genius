@@ -6,10 +6,12 @@ import SkeletonMessage from './SkeletonMessage';
 // AnimatePresence removed as it's unlikely to work well with react-window item recycling without significant effort
 import type { MessageType, AdviceRequest } from '../types';
 import { useConversationManager } from '../hooks/useConversationManager';
-// useSSEClient removed
-import { useChatSocket, WebSocketState } from '../hooks/useChatSocket';
+// useSSEClient imported instead of useChatSocket
+import { useSSEClient } from '../hooks/useSSEClient';
 import { useScrollAnchor } from '../hooks/useScrollAnchor';
+// @ts-ignore: react-window has no type declarations
 import { FixedSizeList } from 'react-window';
+// @ts-ignore: react-hot-toast has no type declarations
 import toast from 'react-hot-toast';
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'; // Using outline for theme toggle
 import { useTheme } from '../hooks/useTheme';
@@ -55,16 +57,11 @@ export default function Chat() {
 
   const { theme, setTheme } = useTheme();
 
-  // Scroll anchor hook, now with listRef and messages.length
-  const {
-    scrollableContainerRef, // This will be FixedSizeList's outerRef
-    isAtBottom,
-    showNewMessagesChip,
-    setShowNewMessagesChip,
-    scrollToBottom,
-    handleScroll // This will be passed to FixedSizeList's onScroll
-  } = useScrollAnchor(listRef, messages.length);
-
+  // SSE client setup
+  const apiBase = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+  const adviceUrl = `${apiBase.replace(/\/$/, '')}/advice`;
+  const { streamSSEResponse } = useSSEClient();
+  
   // Use the conversation manager
   const {
     messages,
@@ -75,121 +72,16 @@ export default function Chat() {
     getConversationForAPI
   } = useConversationManager();
 
-  // WebSocket client
-  const apiUrl = new URL(import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000/advice');
-  const wsProtocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:';
-  const defaultWsUrl = `${wsProtocol}//${apiUrl.host}/chat`;
-  const wsUrl = import.meta.env.VITE_BACKEND_WS_URL || defaultWsUrl;
-
-  const { connect: connectSocket, disconnect: disconnectSocket, sendMessage: sendWsMessage, socketState } = useChatSocket(wsUrl, {
-    onOpen: () => {
-      console.log('WebSocket connected');
-      setStatusMessage('Connected to AI. Ready to chat!');
-      const currentMsgId = currentAssistantMessageIdRef.current;
-      if (isLoading && currentMsgId) {
-           const existingMsg = messages.find(m => m.id === currentMsgId);
-           if (existingMsg && (existingMsg.content.includes("Connection lost") || existingMsg.content.includes("Retrying attempt"))) {
-              updateMessage(currentMsgId, { content: "Reconnected. AI is processing..." });
-           } else {
-              updateMessage(currentMsgId, { content: "Connected. AI is processing..."});
-           }
-      }
-    },
-    onMessage: (eventData) => {
-      const assistantMessageId = currentAssistantMessageIdRef.current;
-      if (!assistantMessageId && !(eventData.type === 'error' || (eventData.type === 'status_update' && !eventData.data.response_id))) {
-          console.warn("No current assistant message ID for targeted message:", eventData);
-          return;
-      }
-
-      switch (eventData.type) {
-        case 'status_update':
-          const statusMsgContent = eventData.data.message || 'Processing...';
-          if (assistantMessageId && eventData.data.response_id) {
-              updateMessage(assistantMessageId, { content: statusMsgContent });
-          } else if (!eventData.data.response_id) {
-              setStatusMessage(statusMsgContent);
-          }
-          setCurrentAIMessageText('');
-          setStreamingText(''); // Clear old SSE streaming text
-          setIsSearching(eventData.data.status === 'web_search_searching' || eventData.data.status === 'web_search_started');
-          break;
-        case 'text_delta':
-          if (!assistantMessageId) break;
-          setStatusMessage(null);
-          setIsSearching(false);
-          const newText = currentAIMessageText + (eventData.data.delta || '');
-          setCurrentAIMessageText(newText);
-          updateMessage(assistantMessageId, { content: newText });
-          setStreamingText(newText); // Keep this for useEffect dependency if needed
-          break;
-        case 'response_complete':
-          if (!assistantMessageId) break;
-          setStatusMessage(null);
-          setIsSearching(false);
-          setIsLoading(false);
-          const structuredAdvice = eventData.data.final_json;
-          if (structuredAdvice?.model_identifier) setModelName(structuredAdvice.model_identifier);
-          updateMessage(assistantMessageId, {
-            content: structuredAdvice?.main_advice || currentAIMessageText || "Response complete.",
-            structuredAdvice: structuredAdvice || undefined,
-            responseId: eventData.data.response_id || undefined
-          });
-          if (eventData.data.response_id) setLastResponseId(eventData.data.response_id);
-          setCurrentAIMessageText('');
-          setStreamingText(''); // Clear old SSE streaming text
-          currentAssistantMessageIdRef.current = null;
-          break;
-        case 'error':
-          setStatusMessage(null);
-          setIsSearching(false);
-          setIsLoading(false);
-          const errorMsg = eventData.data.message || 'An unknown server error occurred';
-          toast.error(`AI Error: ${errorMsg}`, { id: `ai-err-${assistantMessageId || 'general'}` });
-          const errorContent = `Error: ${errorMsg}`;
-          if (assistantMessageId) updateMessage(assistantMessageId, { content: errorContent });
-          else setStatusMessage(errorContent); // Fallback if no specific message to update
-          setCurrentAIMessageText('');
-          setStreamingText('');
-          if (assistantMessageId) currentAssistantMessageIdRef.current = null;
-          break;
-        default:
-          console.log('Unhandled WebSocket event type from server:', eventData.type, eventData.data);
-      }
-    },
-    onError: (errorMessage) => {
-      console.error('WebSocket system error:', errorMessage);
-      toast.error(`Connection Error: ${errorMessage}`, { id: 'ws-conn-error' });
-      // setStatusMessage(`Connection issue: ${errorMessage}.`); // Optionally keep for inline status
-      if (isLoading) setIsLoading(false);
-      setIsSearching(false);
-      if (currentAssistantMessageIdRef.current) {
-        updateMessage(currentAssistantMessageIdRef.current, { content: `Connection error. Please try sending your message again.` });
-      }
-    },
-    onClose: (event) => {
-      console.log('WebSocket closed:', event.code, event.reason);
-      if (!event.wasClean && socketState === WebSocketState.CLOSED) { // Check if it was an unexpected closure that won't auto-reconnect
-          toast.error(`Disconnected: ${event.reason || "Connection lost."}`, { id: 'ws-closed-unexpectedly' });
-          // setStatusMessage(event.reason || 'Disconnected. Check connection.'); // Optionally keep
-      }
-    },
-    onRetrying: (attempt) => {
-      console.log(`WebSocket retrying to connect, attempt ${attempt}`);
-      const retryMsg = `Connection lost. Retrying attempt ${attempt}...`;
-      setStatusMessage(retryMsg);
-      if (isLoading && currentAssistantMessageIdRef.current) {
-           updateMessage(currentAssistantMessageIdRef.current, { content: retryMsg });
-      }
-    }
-  });
-
-  // Connection Management
-  useEffect(() => {
-    if (socketState === WebSocketState.CLOSED) {
-       connectSocket();
-    }
-  }, [connectSocket, socketState]);
+  // Scroll anchor hook, now that messages is defined
+  // eslint-disable-next-line no-use-before-define
+  const {
+    scrollableContainerRef,
+    isAtBottom,
+    showNewMessagesChip,
+    setShowNewMessagesChip,
+    scrollToBottom,
+    handleScroll // This will be passed to FixedSizeList's onScroll
+  } = useScrollAnchor(listRef, messages.length);
 
   // Fetch default model from backend on mount
   useEffect(() => {
@@ -277,13 +169,12 @@ export default function Chat() {
     setInput('');
     setIsLoading(true);
     setIsSearching(false);
-    // setStreamingText(''); // Handled by onMessage text_delta
-    setCurrentAIMessageText(''); // Reset current AI message text
+    setCurrentAIMessageText('');
     setStatusMessage(null);
     
     // Create assistant placeholder
     const assistantMessageId = `assistant-${Date.now()}`;
-    currentAssistantMessageIdRef.current = assistantMessageId; // Set ref to current assistant message ID
+    currentAssistantMessageIdRef.current = assistantMessageId;
     const assistantPlaceholder: MessageType = { 
       role: 'assistant', 
       content: PLACEHOLDER_AI_MESSAGE,
@@ -293,7 +184,7 @@ export default function Chat() {
     
     // Prepare request payload
     const conversationForAPI = getConversationForAPI();
-    conversationForAPI.push(userMessage); // Include the new user message
+    conversationForAPI.push(userMessage);
     
     const requestPayload: AdviceRequest = {
       conversation: conversationForAPI,
@@ -301,24 +192,91 @@ export default function Chat() {
       previous_response_id: lastResponseId || undefined
     };
 
-    console.log('Sending request payload via WebSocket:', {
+    console.log('Streaming request payload via SSE:', {
       conversationLength: conversationForAPI.length,
       previousResponseId: requestPayload.previous_response_id,
       enableWebSearch: requestPayload.enable_web_search
     });
 
-    if (socketState !== WebSocketState.OPEN) {
-      setStatusMessage("Connecting to send message...");
-      connectSocket(); // Attempt to connect if not already open, then send
-      // Ideally, queue the message and send onOpen, or wait for connection.
-      // For now, this might lead to a "WebSocket not open" error if connection is slow.
-      // A more robust solution would involve a queue or waiting for onOpen.
-    }
-    // Send the message - relies on the hook to handle if not open
-    sendWsMessage(requestPayload);
-
-    // Note: setIsLoading(false) is now handled by onMessage 'response_complete' or 'error'
-    // setStreamingText(''); and setStatusMessage(null); are also handled by onMessage events.
+    streamSSEResponse(adviceUrl, requestPayload, {
+      onEvent: (eventData) => {
+        const assistantMessageId = currentAssistantMessageIdRef.current;
+        if (!assistantMessageId && !(eventData.type === 'error' || (eventData.type === 'status_update' && !eventData.data.response_id))) {
+          console.warn("No current assistant message ID for targeted message:", eventData);
+          return;
+        }
+        switch (eventData.type) {
+          case 'status_update':
+            const statusMsgContent = eventData.data.message || 'Processing...';
+            if (assistantMessageId && eventData.data.response_id) {
+              updateMessage(assistantMessageId, { content: statusMsgContent });
+            } else if (!eventData.data.response_id) {
+              setStatusMessage(statusMsgContent);
+            }
+            setCurrentAIMessageText('');
+            setStreamingText('');
+            setIsSearching(eventData.data.status === 'web_search_searching' || eventData.data.status === 'web_search_started');
+            break;
+          case 'text_delta':
+            if (!assistantMessageId) break;
+            setStatusMessage(null);
+            setIsSearching(false);
+            const newText = currentAIMessageText + (eventData.data.delta || '');
+            setCurrentAIMessageText(newText);
+            updateMessage(assistantMessageId, { content: newText });
+            setStreamingText(newText);
+            break;
+          case 'response_complete':
+            if (!assistantMessageId) break;
+            setStatusMessage(null);
+            setIsSearching(false);
+            setIsLoading(false);
+            const structuredAdvice = eventData.data.final_json;
+            if (structuredAdvice?.model_identifier) setModelName(structuredAdvice.model_identifier);
+            updateMessage(assistantMessageId, {
+              content: structuredAdvice?.main_advice || currentAIMessageText || "Response complete.",
+              structuredAdvice: structuredAdvice || undefined,
+              responseId: eventData.data.response_id || undefined
+            });
+            if (eventData.data.response_id) setLastResponseId(eventData.data.response_id);
+            setCurrentAIMessageText('');
+            setStreamingText('');
+            currentAssistantMessageIdRef.current = null;
+            break;
+          case 'error':
+            setStatusMessage(null);
+            setIsSearching(false);
+            setIsLoading(false);
+            const errorMsg = eventData.data.message || 'An unknown server error occurred';
+            toast.error(`AI Error: ${errorMsg}`, { id: `ai-err-${assistantMessageId || 'general'}` });
+            const errorContent = `Error: ${errorMsg}`;
+            if (assistantMessageId) updateMessage(assistantMessageId, { content: errorContent });
+            else setStatusMessage(errorContent);
+            setCurrentAIMessageText('');
+            setStreamingText('');
+            if (assistantMessageId) currentAssistantMessageIdRef.current = null;
+            break;
+          default:
+            console.log('Unhandled SSE event type from server:', eventData.type, eventData.data);
+        }
+      },
+      onError: (error) => {
+        console.error('SSE streaming error:', error);
+        const assistantMessageId = currentAssistantMessageIdRef.current;
+        setStatusMessage(null);
+        setIsSearching(false);
+        setIsLoading(false);
+        const errorMsg = error.message || 'An unknown error occurred';
+        toast.error(`AI Error: ${errorMsg}`, { id: `ai-err-${assistantMessageId || 'general'}` });
+        if (assistantMessageId) {
+          updateMessage(assistantMessageId, { content: `Error: ${errorMsg}` });
+          currentAssistantMessageIdRef.current = null;
+        }
+      },
+      onComplete: () => {
+        // no-op; completion handled in 'response_complete'
+      }
+    });
   };
 
   // Main container: Full height, flex column
