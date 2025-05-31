@@ -1,11 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Dancing+Script:wght@400;700&display=swap');
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss/preflight";
+@import "tailwindcss/utilities";
 
 :root {
   font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
+  
+  /* Custom font definitions */
+  --font-headline: 'Snell Roundhand', 'Dancing Script', cursive;
+  --font-system: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+  --font-button: 'Futura', 'Avenir Next', 'AvenirNext-Bold', system-ui, sans-serif;
+  
   line-height: 1.5;
   font-weight: 400;
   /* color-scheme, color, and background-color will be handled by Tailwind via body classes */
@@ -18,14 +23,28 @@
 
 @layer base {
   body {
-    @apply bg-white text-gray-900;
-    @apply dark:bg-gray-900 dark:text-gray-100;
+    /* Set default text colors */
+    color: #1f2937; /* gray-800 equivalent */
     /* Add transition for smoother theme changes */
-    @apply transition-colors duration-300;
-
+    transition: color 0.3s ease;
+    
+    /* Set the custom background color */
+    background-color: #f3ebdf;
     margin: 0; /* Keep existing margin, min-width, min-height */
     min-width: 320px;
     min-height: 100vh;
+    overflow: hidden; /* Prevent scrolling on the body */
+  }
+  
+  body.dark {
+    color: #f3f4f6; /* gray-100 equivalent */
+    background-color: #f3ebdf;
+  }
+  
+  #root {
+    min-height: 100vh;
+    width: 100%;
+    background-color: #f3ebdf;
   }
 }
 
@@ -85,3 +104,31 @@ button:focus-visible {
   } */
 }
 /* Remove the media query as Tailwind's 'dark' class will handle this */
+
+/* DaisyUI Chat Customizations */
+.chat-bubble {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  max-width: 85%;
+}
+
+.chat-bubble-primary {
+  background-color: rgb(59 130 246);
+  color: rgb(255 255 255);
+}
+
+/* Ensure proper markdown styling in chat bubbles */
+.chat-bubble .prose {
+  color: inherit;
+}
+
+.chat-bubble .prose p {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+/* Dark mode adjustments */
+.dark .chat-start .chat-bubble {
+  background-color: rgb(64 64 64);
+  color: rgb(245 245 245);
+  border-color: rgb(82 82 82);
+}

@@ -2,16 +2,17 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import compression from 'vite-plugin-compression'
-import { VitePWA, VitePWAOptions } from 'vite-plugin-pwa'
+import { VitePWA, type VitePWAOptions } from 'vite-plugin-pwa'
 
 // Define manifest options (can be partial, plugin completes it)
 const manifestForPlugin: Partial<VitePWAOptions> = {
   registerType: 'autoUpdate', // Prompt for update or auto update
   injectRegister: 'auto', // or 'script' or null
   devOptions: {
-    enabled: true, // Enable PWA in development for testing
+    enabled: true, // Enable PWA in development to prevent console errors
     type: 'module',
   },
+  selfDestroying: false, // Don't clean up in development
   manifest: {
     name: 'The Genius - AI Sports Assistant',
     short_name: 'TheGenius',
@@ -23,23 +24,25 @@ const manifestForPlugin: Partial<VitePWAOptions> = {
     start_url: '/',
     icons: [
       {
-        src: 'icons/pwa-192x192.png', // Path in public folder
+        src: 'icons/pwa-192x192.png',
         sizes: '192x192',
         type: 'image/png',
+        purpose: 'any'
       },
       {
-        src: 'icons/pwa-512x512.png', // Path in public folder
+        src: 'icons/pwa-512x512.png',
         sizes: '512x512',
         type: 'image/png',
+        purpose: 'any'
       },
       {
-        src: 'icons/apple-touch-icon.png', // Path in public folder
+        src: 'apple-touch-icon.png', // Path in public folder
         sizes: '180x180',
         type: 'image/png',
-        purpose: 'apple touch icon',
+        purpose: 'any'
       },
       {
-        src: 'icons/pwa-maskable-192x192.png', // Maskable icon
+        src: 'icons/pwa-maskable-192x192.png',
         sizes: '192x192',
         type: 'image/png',
         purpose: 'maskable',
@@ -47,6 +50,7 @@ const manifestForPlugin: Partial<VitePWAOptions> = {
     ],
   },
   workbox: {
+    cleanupOutdatedCaches: true,
     globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'], // Cache these app shell assets
     runtimeCaching: [
       {
@@ -72,7 +76,7 @@ const manifestForPlugin: Partial<VitePWAOptions> = {
         // It's set to NetworkFirst, so it tries network, then cache.
         // It's a generic example; for POST requests or specific GETs, more tailored strategies might be needed.
         urlPattern: ({ url, request }) => {
-          const isBackendApi = request.destination === 'fetch' && url.origin !== self.location.origin;
+          const isBackendApi = request.destination === '' && url.origin !== self.location.origin;
           // Customize further if your backend URL is known and stable, e.g., by checking url.hostname
           // const backendHostname = import.meta.env.VITE_BACKEND_HOSTNAME || "your-backend-host.com";
           // return isBackendApi && url.hostname.includes(backendHostname);
@@ -96,26 +100,37 @@ const manifestForPlugin: Partial<VitePWAOptions> = {
 };
 
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [react(), compression(), VitePWA(manifestForPlugin)],
-  server: {
-    proxy: {
-      // During development, forward API calls to your backend
-      '/api': {
-        target: 'https://genius-backend-nhl3.onrender.com',
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),  // Remove /api prefix
-        secure: true
+export default defineConfig(({ mode }) => {
+  const isDevelopment = mode === 'development';
+  
+  const plugins = [react(), compression(), VitePWA(manifestForPlugin)];
+  
+  return {
+    plugins,
+    define: {
+      // Reduce React console warnings in development
+      __DEV__: isDevelopment,
+      'process.env.NODE_ENV': JSON.stringify(mode)
+    },
+    server: {
+      proxy: {
+        // During development, forward API calls to your backend
+        '/api': {
+          target: 'https://genius-backend-nhl3.onrender.com',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),  // Remove /api prefix
+          secure: true
+        }
       }
+    },
+    build: {
+      target: 'es2018',
+      outDir: 'dist'
+    },
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: ['./src/test-setup.ts'],
     }
-  },
-  build: {
-    target: 'es2018',
-    outDir: 'dist'
-  },
-  test: {
-    globals: true,
-    environment: 'jsdom',
-    setupFiles: ['./src/test-setup.ts'],
   }
 })

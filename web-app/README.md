@@ -559,22 +559,6 @@ pnpm run lint
 pnpm run build
 ```
 
-### Debug Mode
-
-**Enable verbose logging** (in `src/components/chat.tsx`):
-```typescript
-// Add more console.log statements:
-console.log('Sending request:', { conversation: [userMessage] });
-console.log('Response received:', response);
-console.log('Parsed data:', data);
-```
-
-**Check browser developer tools**:
-1. Press `F12` to open developer tools
-2. **Console tab**: See JavaScript errors and log messages
-3. **Network tab**: See API requests and responses
-4. **Application tab**: Check localStorage for quota data
-
 ### Performance Issues
 
 **Slow loading**:

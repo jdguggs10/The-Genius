@@ -1,7 +1,7 @@
 // web-app/src/components/Chat.tsx
 import { useState, useRef, useEffect } from 'react';
 import { PaperAirplaneIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
-import Message from './message';
+import MessageDaisyUI from './MessageDaisyUI';
 import SkeletonMessage from './SkeletonMessage';
 // AnimatePresence removed as it's unlikely to work well with react-window item recycling without significant effort
 import type { MessageType, AdviceRequest } from '../types';
@@ -15,9 +15,10 @@ import { FixedSizeList } from 'react-window';
 import toast from 'react-hot-toast';
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'; // Using outline for theme toggle
 import { useTheme } from '../hooks/useTheme';
+import { logger } from '../utils/logger';
 
 const PLACEHOLDER_AI_MESSAGE = "_PLACEHOLDER_AI_MESSAGE_";
-const ITEM_SIZE = 90; // Approximate height in pixels for a message row - NEEDS TUNING
+const ITEM_SIZE = 100; // Increased for DaisyUI chat components
 
 // Define Row component for FixedSizeList
 // It's defined outside Chat or wrapped in useCallback if inside and accessing Chat's props/state.
@@ -35,7 +36,7 @@ const Row = ({ index, style, data }: { index: number; style: React.CSSProperties
   }
   return (
     <div style={style}>
-      <Message key={message.id} message={message} />
+      <MessageDaisyUI key={message.id} message={message} />
     </div>
   );
 };
@@ -86,24 +87,29 @@ export default function Chat() {
   // Fetch default model from backend on mount
   useEffect(() => {
     const fetchDefaultModel = async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+        logger.info('Model fetch request was aborted (timeout)');
+      }, 10000);
+
       try {
-        const url = new URL(import.meta.env.VITE_BACKEND_URL ?? 'https://genius-backend-nhl3.onrender.com/advice');
-        url.pathname = '/model';
-        const response = await fetch(url.toString());
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
+        const response = await fetch(`${apiBase}/model`, {
+          signal: controller.signal
+        });
         const data = await response.json();
-        if (data.model) {
-          setModelName(data.model);
-        }
+        setModelName(data.model || 'GPT-4.1');
       } catch (error) {
-        console.error('Failed to fetch default model:', error);
+        if (error instanceof Error && error.name === 'AbortError') {
+          return;
+        }
         setModelName('GPT-4.1');
+      } finally {
+        clearTimeout(timeoutId);
       }
     };
     fetchDefaultModel();
-  }, []);
+  }, [apiBase]);
 
   // Updated scroll logic using useScrollAnchor
   useEffect(() => {
@@ -117,7 +123,7 @@ export default function Chat() {
       setListHeight(listContainerRef.current.clientHeight); // Initial height
       return () => resizeObserver.disconnect();
     }
-  }, []);
+  }, [messages.length]);
 
   // Updated scroll logic using useScrollAnchor
   useEffect(() => {
@@ -153,9 +159,9 @@ export default function Chat() {
     const enableWebSearch = true;
     const actualInput = input;
     
-    console.log('Input:', input);
-    console.log('Web search always enabled');
-    console.log('Last response ID:', lastResponseId);
+    logger.info('Input:', input);
+    logger.info('Web search always enabled');
+    logger.info('Last response ID:', lastResponseId);
     
     // Create user message
     const userMessage: MessageType = { 
@@ -192,7 +198,7 @@ export default function Chat() {
       previous_response_id: lastResponseId || undefined
     };
 
-    console.log('Streaming request payload via SSE:', {
+    logger.info('Streaming request payload via SSE:', {
       conversationLength: conversationForAPI.length,
       previousResponseId: requestPayload.previous_response_id,
       enableWebSearch: requestPayload.enable_web_search
@@ -200,9 +206,10 @@ export default function Chat() {
 
     streamSSEResponse(adviceUrl, requestPayload, {
       onEvent: (eventData) => {
+        logger.debug('🎯 Received SSE event:', eventData.type, eventData.data);
         const assistantMessageId = currentAssistantMessageIdRef.current;
         if (!assistantMessageId && !(eventData.type === 'error' || (eventData.type === 'status_update' && !eventData.data.response_id))) {
-          console.warn("No current assistant message ID for targeted message:", eventData);
+          logger.warn("No current assistant message ID for targeted message:", eventData);
           return;
         }
         switch (eventData.type) {
@@ -257,149 +264,246 @@ export default function Chat() {
             if (assistantMessageId) currentAssistantMessageIdRef.current = null;
             break;
           default:
-            console.log('Unhandled SSE event type from server:', eventData.type, eventData.data);
+            logger.info('Unhandled SSE event type from server:', eventData.type, eventData.data);
         }
       },
       onError: (error) => {
-        console.error('SSE streaming error:', error);
+        logger.error('SSE streaming error:', error);
         const assistantMessageId = currentAssistantMessageIdRef.current;
         setStatusMessage(null);
         setIsSearching(false);
         setIsLoading(false);
-        const errorMsg = error.message || 'An unknown error occurred';
-        toast.error(`AI Error: ${errorMsg}`, { id: `ai-err-${assistantMessageId || 'general'}` });
+        
+        // Handle timeout errors with user-friendly messages
+        let userFriendlyMessage: string;
+        let toastDuration = 5000;
+        
+        if (error.name === 'TimeoutError') {
+          if (error.message.includes('Connection timeout')) {
+            userFriendlyMessage = 'Connection timed out. The server may be busy. Please try again.';
+            toastDuration = 6000; // Longer duration for timeout messages
+          } else if (error.message.includes('Stream timeout')) {
+            userFriendlyMessage = 'Request timed out. The AI took too long to respond. Please try again.';
+            toastDuration = 6000;
+          } else {
+            userFriendlyMessage = 'Request timed out. Please try again.';
+            toastDuration = 6000;
+          }
+        } else {
+          userFriendlyMessage = error.message || 'An unknown error occurred';
+        }
+        
+        toast.error(`AI Error: ${userFriendlyMessage}`, { 
+          id: `ai-err-${assistantMessageId || 'general'}`,
+          duration: toastDuration
+        });
+        
         if (assistantMessageId) {
-          updateMessage(assistantMessageId, { content: `Error: ${errorMsg}` });
+          updateMessage(assistantMessageId, { content: `Error: ${userFriendlyMessage}` });
           currentAssistantMessageIdRef.current = null;
         }
       },
       onComplete: () => {
         // no-op; completion handled in 'response_complete'
-      }
+      },
+      // Timeout configuration - adjust based on expected response times
+      connectionTimeoutMs: 45000,  // 45 seconds for initial connection (web search can take time)
+      streamTimeoutMs: 180000      // 3 minutes for stream inactivity (AI generation can be slow)
     });
   };
 
-  // Main container: Full height, flex column
+  // Main container: Full height, flex column with custom background - Centered layout
   return (
-    <div className="flex flex-col h-full max-h-screen bg-gradient-to-br from-stone-100 to-stone-200 dark:from-neutral-800 dark:to-neutral-900">
-      {/* Enhanced Header */}
-      <header className="p-4 border-b border-gray-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm shadow-sm">
-        <div className="flex flex-col sm:flex-row items-center justify-between sm:space-y-0 space-y-2">
-          <div className="flex items-center space-x-2">
-            <h1 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-neutral-200">The Genius</h1>
-            {isSearching && (
-              <div className="flex items-center space-x-1 text-blue-600 dark:text-blue-400">
-                <MagnifyingGlassIcon className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
-                <span className="text-xs sm:text-sm">Searching...</span>
-              </div>
-            )}
-          </div>
-          {lastResponseId && (
-            <div className="text-xs text-gray-400 dark:text-neutral-500">
-              Conversation Active
-            </div>
+    <div className="flex flex-col h-full max-h-screen" style={{ backgroundColor: '#f3ebdf' }}>
+      {/* Theme toggle button - positioned absolutely in top right */}
+      <div className="absolute top-4 right-4 z-20">
+        <button
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          className="p-2 rounded-full hover:bg-white/20 dark:hover:bg-black/20 text-gray-600 dark:text-gray-300 transition-colors backdrop-blur-sm font-button"
+        >
+          {(theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches)) ? (
+            <SunIcon className="h-5 w-5" />
+          ) : (
+            <MoonIcon className="h-5 w-5" />
           )}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-              className="p-1.5 rounded-md hover:bg-gray-200 dark:hover:bg-neutral-700 text-gray-600 dark:text-gray-300 transition-colors"
-            >
-              {/* This logic correctly shows the icon for the *next* theme state upon click,
-                  or rather, shows the icon opposite to the current *displayed* theme.
-                  If current theme is dark (or system is dark), show SunIcon to switch to light.
-                  If current theme is light (or system is light), show MoonIcon to switch to dark.
-              */}
-              {(theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches)) ? (
-                <SunIcon className="h-5 w-5" />
-              ) : (
-                <MoonIcon className="h-5 w-5" />
+        </button>
+      </div>
+
+      {/* Main content area - Messages or Welcome */}
+      {messages.length > 0 || isLoading ? (
+        <>
+          {/* Header when there are messages */}
+          <header className="p-4 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm shadow-sm">
+            <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between sm:space-y-0 space-y-2">
+              <div className="flex items-center space-x-2">
+                <img 
+                  src="/favicon-32.png" 
+                  alt="The Genius Logo" 
+                  className="w-6 h-6 sm:w-8 sm:h-8"
+                />
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-headline font-bold text-gray-800 dark:text-neutral-200">The Genius</h1>
+                {isSearching && (
+                  <div className="flex items-center space-x-1 text-blue-600 dark:text-blue-400">
+                    <MagnifyingGlassIcon className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
+                    <span className="text-xs sm:text-sm">Searching...</span>
+                  </div>
+                )}
+              </div>
+              {lastResponseId && (
+                <div className="text-xs text-gray-400 dark:text-neutral-500">
+                  Conversation Active
+                </div>
               )}
-            </button>
-            {/* Optional: System theme button can be added here if desired */}
+            </div>
+          </header>
+
+          {/* Message Display Area */}
+          <div ref={listContainerRef} className="flex-grow overflow-hidden p-2 sm:p-4">
+            <div className="max-w-4xl mx-auto h-full">
+              {listHeight > 0 && (messages.length > 0 || isLoading) && (
+                <FixedSizeList
+                  height={listHeight}
+                  itemCount={messages.length}
+                  itemSize={ITEM_SIZE}
+                  itemData={messages}
+                  outerRef={scrollableContainerRef}
+                  ref={listRef}
+                  width="100%"
+                  onScroll={handleScroll}
+                >
+                  {Row}
+                </FixedSizeList>
+              )}
+            </div>
+          </div>
+
+          {/* Input Area for active conversations */}
+          <div className="p-2 sm:p-4 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm shadow-lg">
+            <div className="flex justify-center items-center">
+              <div className="flex items-center space-x-2">
+                <div className="relative">
+                  <input
+                    ref={inputRef}
+                    id="chat-input"
+                    name="chat-input"
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                    placeholder="Type here for Fantasy Advice..."
+                    disabled={isLoading}
+                    aria-label="Chat input for fantasy sports advice"
+                    className="pl-16 pr-20 py-4 bg-white dark:bg-white border border-gray-300 dark:border-gray-300 text-gray-800 placeholder-gray-500 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed text-sm shadow-md hover:shadow-lg"
+                    style={{
+                      backgroundColor: 'white',
+                      paddingLeft: '4rem',
+                      paddingRight: '5rem',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '9999px',
+                      width: '384px',
+                      height: '48px'
+                    }}
+                  />
+                </div>
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim() || isLoading}
+                  className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 shadow-lg font-button font-bold"
+                >
+                  {isLoading ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : (
+                    <PaperAirplaneIcon className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+              
+            {/* Status Display */}
+            <div className="mt-2 sm:mt-3 text-xs sm:text-sm text-center">
+              <span className="text-gray-500 dark:text-neutral-500">
+                Powered by {modelName} with conversation memory {lastResponseId ? '(Active)' : '(New)'}
+              </span>
+            </div>
+          </div>
+        </>
+      ) : (
+        /* Welcome/Landing View - Centered Layout */
+        <div className="flex-grow flex flex-col items-center justify-center p-4 sm:p-8">
+          <div className="mx-auto text-center">
+            {/* Main Title with Logo - Larger and Centered */}
+            <div className="flex items-center justify-center mb-8 sm:mb-12">
+              <img 
+                src="/apple-touch-icon.png" 
+                alt="The Genius Logo" 
+                className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 mr-4 sm:mr-6"
+              />
+              <h1 className="text-[6rem] sm:text-[7rem] lg:text-[8rem] xl:text-[9rem] font-headline font-bold text-gray-800 dark:text-neutral-200">
+                The Genius
+              </h1>
+            </div>
+            
+            {/* Welcome Input Card */}
+            <div className="mb-8 sm:mb-12 flex justify-center">
+              <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-1 sm:p-2">
+                <div className="flex items-center space-x-3">
+                  <div className="relative">
+                    <input
+                      ref={inputRef}
+                      id="chat-input"
+                      name="chat-input"
+                      type="text"
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                      placeholder="Type here for Fantasy Advice..."
+                      disabled={isLoading}
+                      aria-label="Chat input for fantasy sports advice"
+                      className="pl-16 pr-20 py-4 bg-white dark:bg-white border border-gray-300 dark:border-gray-300 text-gray-800 dark:text-gray-800 placeholder-gray-500 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400 transition-all text-base"
+                      style={{
+                        backgroundColor: 'white',
+                        paddingLeft: '4rem',
+                        paddingRight: '5rem',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '9999px',
+                        width: '384px',
+                        height: '48px'
+                      }}
+                    />
+                  </div>
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim() || isLoading}
+                    className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 shadow-lg font-button font-bold"
+                  >
+                    {isLoading ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <PaperAirplaneIcon className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Status/Model Info */}
+            <div className="mt-8 text-sm text-gray-500 dark:text-neutral-500">
+              Powered by {modelName || 'GPT-4.1'} with conversation memory
+            </div>
           </div>
         </div>
-      </header>
-
-      {/* Message Display Area (Scrollable) */}
-      <div ref={listContainerRef} className="flex-grow overflow-hidden p-2 sm:p-4"> {/* Parent for FixedSizeList, needs defined height */}
-        {listHeight > 0 && messages.length === 0 && !isLoading && (
-            <div className="flex flex-col items-center justify-center h-full text-gray-500 dark:text-neutral-400">
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl p-4 sm:p-8 shadow-lg border border-gray-100 dark:border-neutral-700 w-full max-w-md mx-auto">
-                    <h2 className="text-lg sm:text-xl font-medium mb-1 sm:mb-2 text-center text-gray-800 dark:text-neutral-200">The Genius</h2>
-                    <p className="text-xs sm:text-sm mb-2 sm:mb-4 text-center dark:text-neutral-400">Get AI-powered fantasy sports advice!</p>
-                    <div className="text-xs text-gray-400 dark:text-neutral-500 space-y-1 sm:space-y-2">
-                        <p className="bg-gray-50 dark:bg-neutral-700/50 rounded p-1.5 sm:p-2"><strong>Example:</strong> "Should I start Patrick Mahomes or Josh Allen?"</p>
-                        <p className="bg-blue-50 dark:bg-blue-900/30 rounded p-1.5 sm:p-2"><strong>Live Data:</strong> Prefix with "search:" or use keywords like "today", "current", "stats"</p>
-                        <p className="bg-green-50 dark:bg-green-900/30 rounded p-1.5 sm:p-2"><strong>Real-time:</strong> Get streaming responses with detailed analysis</p>
-                        <p className="bg-purple-50 dark:bg-purple-900/30 rounded p-1.5 sm:p-2"><strong>Context:</strong> Follow-up questions remember previous conversation</p>
-                    </div>
-                </div>
-            </div>
-        )}
-        {listHeight > 0 && (messages.length > 0 || isLoading) && (
-          <FixedSizeList
-            height={listHeight}
-            itemCount={messages.length}
-            itemSize={ITEM_SIZE}
-            itemData={messages}
-            outerRef={scrollableContainerRef}
-            ref={listRef}
-            width="100%"
-            onScroll={handleScroll}
-            // className="space-y-4" // Removed: FixedSizeList positions items absolutely, spacing should be in ITEM_SIZE or Row style
-          >
-            {Row}
-          </FixedSizeList>
-        )}
-        {/* messagesEndRef is removed as FixedSizeList handles scrolling */}
-      </div>
+      )}
 
       {/* New Messages Chip */}
       {showNewMessagesChip && (
         <button
           onClick={() => scrollToBottom('smooth', messages.length)}
-          className="fixed bottom-20 right-4 sm:right-10 z-10 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg transition-opacity duration-300 animate-bounce dark:bg-blue-600 dark:hover:bg-blue-700"
+          className="fixed bottom-20 right-4 sm:right-10 z-10 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg transition-opacity duration-300 animate-bounce dark:bg-blue-600 dark:hover:bg-blue-700 font-button"
         >
           ↓ New messages
         </button>
       )}
-
-      {/* Enhanced Input Area */}
-      <div className="p-2 sm:p-4 border-t border-gray-200 dark:border-neutral-700 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm">
-        <div className="flex items-center space-x-2 sm:space-x-3">
-          <div className="flex-1 relative">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Ask about fantasy sports..."
-              disabled={isLoading}
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 pr-10 sm:pr-12 border border-gray-300 dark:bg-neutral-800 dark:border-neutral-600 dark:text-neutral-100 dark:placeholder-neutral-400 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all disabled:bg-gray-100 dark:disabled:bg-neutral-700 disabled:cursor-not-allowed text-sm sm:text-base"
-            />
-          </div>
-          <button
-            onClick={handleSend}
-            disabled={!input.trim() || isLoading}
-            className="p-2 sm:p-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-lg sm:rounded-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 shadow-lg dark:from-blue-600 dark:to-blue-700 dark:hover:from-blue-700 dark:hover:to-blue-800"
-          >
-            {isLoading ? (
-              <div className="w-4 h-4 sm:w-5 sm:w-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            ) : (
-              <PaperAirplaneIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-            )}
-          </button>
-        </div>
-        
-        {/* Enhanced Status Display */}
-        <div className="mt-1.5 sm:mt-2 text-xs">
-          <span className="text-gray-400 dark:text-neutral-500">
-            Powered by {modelName} with conversation memory {lastResponseId ? '(Active)' : '(New)'}
-          </span>
-        </div>
-      </div>
     </div>
   );
 }

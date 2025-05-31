@@ -1,6 +1,7 @@
 // web-app/src/hooks/useChatSocket.ts
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AdviceRequest, SSEEventData } from '../types';
+import { logger } from '../utils/logger';
 
 export enum WebSocketState {
   CONNECTING,
@@ -55,15 +56,13 @@ export function useChatSocket(socketUrl: string, options: ChatSocketOptions) {
           const parsedData: SSEEventData = JSON.parse(event.data as string);
           onMessage(parsedData);
         } catch (e) {
-          console.error('Failed to parse WebSocket message:', e);
+          logger.error('Failed to parse WebSocket message:', e);
           if (onError) onError(`Failed to parse message: ${e instanceof Error ? e.message : String(e)}`);
         }
       };
 
       ws.current.onerror = (event) => {
-        // This event is usually followed by onclose, which handles reconnection logic.
-        // Log the error, but specific error handling (like updating UI) is better in onclose or custom onError.
-        console.error('WebSocket network error (will be followed by onclose):', event);
+        logger.error('WebSocket network error (will be followed by onclose):', event);
       };
 
       ws.current.onclose = (event) => {
@@ -78,12 +77,12 @@ export function useChatSocket(socketUrl: string, options: ChatSocketOptions) {
           if (reconnectTimeoutId.current) clearTimeout(reconnectTimeoutId.current);
           reconnectTimeoutId.current = setTimeout(connect, delay);
         } else if (!explicitlyClosed.current && reconnectAttempts.current >= MAX_RECONNECT_ATTEMPTS) {
-          console.error("Max reconnection attempts reached.");
+          logger.error("Max reconnection attempts reached.");
           if (onError) onError(`Max reconnection attempts reached. ${closeReason}`);
         }
       };
     } catch (error) {
-        console.error("Error creating WebSocket:", error);
+        logger.error("Error creating WebSocket:", error);
         const errorMsg = `Error creating WebSocket: ${error instanceof Error ? error.message : String(error)}`;
         if (onError) onError(errorMsg);
         setSocketState(WebSocketState.CLOSED);
@@ -124,7 +123,7 @@ export function useChatSocket(socketUrl: string, options: ChatSocketOptions) {
       try {
         ws.current.send(JSON.stringify(data));
       } catch (e) {
-        console.error('Failed to send message via WebSocket:', e);
+        logger.error('Failed to send message via WebSocket:', e);
         if (onError) onError(`Failed to send message: ${e instanceof Error ? e.message : String(e)}`);
       }
     } else {

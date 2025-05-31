@@ -6,6 +6,17 @@ import ChatErrorBoundary from './components/ChatErrorBoundary.tsx';
 // @ts-ignore: react-hot-toast has no type declarations
 import { Toaster } from 'react-hot-toast';
 
+// Suppress React DevTools message in development if needed
+if (import.meta.env.DEV) {
+  const originalLog = console.log;
+  console.log = (...args) => {
+    if (typeof args[0] === 'string' && args[0].includes('Download the React DevTools')) {
+      return; // Suppress this specific message
+    }
+    originalLog.apply(console, args);
+  };
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <ChatErrorBoundary>

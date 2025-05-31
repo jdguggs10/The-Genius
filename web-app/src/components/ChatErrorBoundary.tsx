@@ -1,6 +1,7 @@
 // web-app/src/components/ChatErrorBoundary.tsx
-import { Component } from 'react';
-import type { ErrorInfo, ReactNode } from 'react';
+import React, { Component } from 'react';
+import type { ReactNode } from 'react';
+import { logger } from '../utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -12,16 +13,17 @@ interface State {
 }
 
 class ChatErrorBoundary extends Component<Props, State> {
-  public state: State = {
-    hasError: false,
-  };
+  constructor(props: Props) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
-  public static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
   }
 
-  public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("Uncaught error in Chat component:", error, errorInfo);
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    logger.error("Uncaught error in Chat component:", error, errorInfo);
     // You could also log the error to an error reporting service here
   }
 
