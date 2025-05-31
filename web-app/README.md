@@ -44,6 +44,7 @@ This web app provides:
 - **pnpm**: Fast, disk space efficient package manager.
 
 ### Styling & UI
+- **DaisyUI**: Tailwind CSS plugin providing pre-built styled components, including chat bubbles with arrow tails for consistent, professional designs.
 - **Tailwind CSS**: Utility-first CSS framework for consistent, beautiful styling.
 - **Heroicons**: Clean, professional icons used throughout the application.
 - **Framer Motion**: Smooth animations for message appearance and UI elements, with support for reduced motion.
@@ -67,7 +68,8 @@ web-app/
 ├── src/                           # All the source code
 │   ├── components/               # Reusable UI pieces
 │   │   ├── chat.tsx             # Main chat interface
-│   │   ├── message.tsx          # Individual chat message bubbles
+│   │   ├── message.tsx          # (Deprecated) Legacy chat bubble component
+│   │   ├── MessageDaisyUI.tsx   # New DaisyUI-based message component
 │   │   ├── SkeletonMessage.tsx  # Loading placeholder for messages
 │   │   ├── ChatErrorBoundary.tsx # Catches React rendering errors
 │   │   └── QuotaModal.tsx       # Daily limit popup modal (if still used)
@@ -172,88 +174,13 @@ pnpm run dev
 
 ## 🎨 Features Deep Dive
 
-### Chat Interface (`src/components/chat.tsx`)
-**What it does**:
-- Handles all user interactions (typing, sending messages).
-- Connects to your backend API via WebSockets for real-time, streaming AI responses (`useChatSocket`).
-- Manages conversation history and display using a virtualized list (`FixedSizeList` from `react-window`) for optimal performance.
-- Implements theme switching (light/dark/system) via `useTheme` hook and toggle button.
-- Shows skeleton loaders (`SkeletonMessage`) while waiting for AI responses.
-- Implements enhanced scrolling with "New messages" chip and programmatic scroll control (`useScrollAnchor`).
-- Controls daily message limits.
-
-**Key features**:
-- **Real-time Streaming**: Messages stream in character by character via WebSockets.
-- **Virtualized Scrolling**: Handles thousands of messages smoothly.
-- **Message Actions**: Copy message text. (Edit/Delete are UI stubs).
-- **Visual Feedback**: Skeleton loaders, loading spinners on send button, toast notifications for errors/success.
-- **Error handling**: Gracefully handles WebSocket connection issues with retries and user notifications. Shows UI error boundary for critical rendering errors.
-- **Smart web search**: Automatically enables web search for questions that include keywords like "stats", "current", "latest", "today", "who plays", or if the message is prefixed with "search:".
-
-**Message flow (WebSocket)**:
-```
-User types message → Press Enter → Web app establishes WebSocket connection (if not already connected) → Sends request payload (conversation, flags) over WebSocket → Backend processes, streams back events (status_update, text_delta, response_complete, error) → UI updates dynamically based on received events.
-```
-
-### Daily Quota System (`src/hooks/useDailyQuota.ts`)
-
-**How it works**:
-1. **Tracks daily usage**: Stores count in browser's localStorage
-2. **Resets automatically**: Counter resets at midnight each day
-3. **Enforces limits**: Blocks new messages after 5 per day
-4. **Shows modal**: Encourages users to get the mobile app for unlimited access
-
-**Storage format**:
-```javascript
-// In browser localStorage:
-"quota-2024-03-15": "3"  // Used 3 messages on March 15, 2024
-```
-
-### Message Components (`src/components/message.tsx`)
-
-**User messages**: 
-- Blue bubbles on the right, with `UserIcon` avatar.
-- Actions bar on hover (Copy, Edit stub, Delete stub).
-**AI responses**:
-- Theme-aware bubbles on the left (e.g., dark gray in dark mode), with `SparklesIcon` (AI) avatar.
-- Supports Markdown formatting.
-- Actions bar on hover (Copy).
-- Animated appearance respecting reduced motion preferences.
-
-### Skeleton Message (`src/components/SkeletonMessage.tsx`)
-- Appears immediately when AI response is expected.
-- Provides a visual placeholder matching message structure.
-- Uses subtle pulse animation (disabled if reduced motion is preferred).
-
-### Error Handling & Notifications
-- **`ChatErrorBoundary.tsx`**: A React Error Boundary wrapping the main application in `main.tsx`. Catches JavaScript errors during rendering and displays a fallback UI.
-- **`react-hot-toast`**: Used for non-critical notifications:
-    - WebSocket connection errors/status.
-    - AI-generated errors from the backend.
-    - Success/failure of copying message text.
-    - Configured in `main.tsx` with default styling and specific styles for error toasts.
-
-### Theming (`src/hooks/useTheme.ts`)
-- Supports light, dark, and system themes.
-- Selected theme is persisted in `localStorage`.
-- Applies `.dark` class to `<html>` element.
-- Listens to OS-level theme changes when 'system' theme is active.
-- Most UI components now have `dark:` variants in their Tailwind CSS classes.
-
-### Progressive Web App (PWA)
-- Configured using `@vite-pwa/plugin` in `vite.config.ts`.
-- Includes a web app manifest (`manifest.webmanifest` generated by the plugin).
-- Service worker for caching app shell assets (`globPatterns`) and basic runtime caching for fonts and API GET requests (NetworkFirst).
-- App can be installed on compatible devices for an app-like experience.
-
-### Quota Modal (`src/components/QuotaModal.tsx`)
-
-**When it appears**: After user hits 5 message limit
-**What it shows**: 
-- "Daily Limit Reached" message
-- Explanation of the 5-message limit
-- Encouragement to download mobile app
-- Close button to dismiss
+## Advanced Guides & References
+For detailed breakdowns, customization, and integration steps, see:
+- `daisyui-chat-implementation-guide.md`
+- `src/components/MessageDaisyUI.tsx`
+- `src/hooks/useChatSocket.ts`
+- `tailwind.config.js`
+- `vite.config.ts`
 
 ## 🛠 Development Guide
 
@@ -631,3 +558,18 @@ For AI agents reviewing this web application, the following points are key to un
 -   **Styling**: Tailwind CSS with `dark:` variants for theming.
 -   **Virtualization**: `react-window` (`FixedSizeList`) in `chat.tsx` for rendering messages, with `Row` and `SkeletonMessage` as item renderers.
 -   **Accessibility**: Includes ARIA attributes, focus management, and reduced motion considerations.
+
+### DaisyUI Chat Component
+We've integrated DaisyUI to simplify and standardize our chat UI:
+1. **Tailwind Config**: In `tailwind.config.js`, ensure `plugins: [require('daisyui')]` and the `daisyui` theme settings are configured with our custom light and dark palettes.
+2. **Message Component**: We now use `src/components/MessageDaisyUI.tsx`, leveraging DaisyUI's `chat`, `chat-start`, `chat-end`, and `chat-bubble` classes for styling messages, including automatic arrow tails.
+3. **Skeleton Loader**: `SkeletonMessage.tsx` has been updated to use DaisyUI chat classes for placeholder bubbles.
+4. **Row Component**: In `src/components/chat.tsx`, the legacy `message.tsx` import has been replaced with `MessageDaisyUI`, and `ITEM_SIZE` has been increased to accommodate new bubble heights.
+
+## Advanced Guides & References
+For detailed breakdowns, customization, and integration steps, see:
+- `daisyui-chat-implementation-guide.md`
+- `src/components/MessageDaisyUI.tsx`
+- `src/hooks/useChatSocket.ts`
+- `tailwind.config.js`
+- `vite.config.ts`
