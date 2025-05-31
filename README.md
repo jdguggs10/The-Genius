@@ -43,12 +43,20 @@ The Genius Project
 ```
 
 ### 1. Web App (`/web-app`)
-- **Description**: The primary interface for users on desktop and mobile web browsers.
-- **Technology**: React, TypeScript, Vite.
+- **Description**: The primary interface for users on desktop and mobile web browsers, now enhanced with PWA capabilities, dark mode, and numerous UX improvements.
+- **Technology**: React, TypeScript, Vite, Tailwind CSS, Framer Motion, `react-window` (for virtualized lists), `react-hot-toast` (notifications), `@vite-pwa/plugin`.
 - **Key Features**:
-    - Clean chat interface.
-    - Real-time streaming of AI responses.
-    - Web search integration (e.g., "search: latest NFL injuries").
+    - Modern chat interface with real-time streaming via WebSockets.
+    - Light/Dark/System theme support.
+    - Installable as a Progressive Web App (PWA) with offline asset caching.
+    - High-performance virtualized message list for long conversations.
+    - Skeleton loaders and message appearance animations (respects reduced motion).
+    - Enhanced scroll UX with "New messages" chip.
+    - Message actions (copy text).
+    - User and AI avatars.
+    - Improved accessibility (ARIA attributes, focus management).
+    - Robust error handling (UI error boundary, toast notifications).
+    - Web search integration.
 
 ### 2. iOS App (`/ios-app`)
 - **Description**: A native iOS application providing a rich mobile experience.
@@ -209,11 +217,14 @@ This project is structured to be effectively reviewed and understood by AI agent
 
 ## 🌟 Key Features (Summary)
 
--   Cross-Platform (Web & iOS)
--   Real-Time AI Responses via SSE
--   Structured Advice with Confidence
--   ESPN & PyBaseball Data Integration
--   Web Search Capability
+-   **Cross-Platform Access**: Responsive Web App (PWA enabled) & native iOS App.
+-   **Real-Time AI Responses**: WebSockets for low-latency streaming on web; SSE on iOS.
+-   **Enhanced Web UX**: Dark mode, virtualized lists, skeleton loaders, improved scroll, message actions, avatars.
+-   **Accessibility**: Web app includes ARIA enhancements and respects reduced motion.
+-   **Structured Advice**: Detailed breakdowns and confidence scores (especially on iOS).
+-   **Data Integration**: ESPN & PyBaseball for up-to-date sports information.
+-   **Web Search Capability**: AI can perform web searches for current events.
+-   **Robust Error Handling**: UI error boundaries and user-friendly toast notifications on web.
 
 ## 🔧 Requirements
 

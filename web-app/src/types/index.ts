@@ -21,4 +21,20 @@ export type AdviceRequest = {
   enable_web_search?: boolean;
   model?: string;
   prompt_type?: 'default' | 'detailed' | 'baseball' | 'football' | 'basketball';
-}; 
+};
+
+export interface SSEEventData { // Consider renaming to ServerSentEventData or WSEventData if it diverges
+  type: 'status_update' | 'text_delta' | 'response_complete' | 'error' | string; // string for other custom types
+  data: {
+    message?: string;
+    delta?: string;
+    final_json?: { // Structure of final_json if known
+        main_advice?: string;
+        model_identifier?: string;
+        reasoning?: string;
+        // other fields from structured advice
+    };
+    status?: string;
+    response_id?: string;
+  };
+}
