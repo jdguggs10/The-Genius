@@ -4,6 +4,11 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  // Safelist dynamic or conditional classes used in JSX templates
+  safelist: [
+    { pattern: /^(bg|text|border|from|to)-/ },
+    { pattern: /^dark:/ }
+  ],
   theme: {
     extend: {},
   },

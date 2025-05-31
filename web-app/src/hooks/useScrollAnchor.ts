@@ -1,6 +1,7 @@
 // web-app/src/hooks/useScrollAnchor.ts
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { FixedSizeList } from 'react-window'; // Import type
+// @ts-ignore: react-window has no type declarations
+import type { FixedSizeList } from 'react-window';
 
 // Hook now needs the list instance ref and total item count for scrolling
 export function useScrollAnchor(

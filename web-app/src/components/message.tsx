@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from 'framer-motion';
 import type { MessageType } from '../types';
 import { ClipboardDocumentIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { UserIcon, SparklesIcon } from '@heroicons/react/24/solid'; // Using solid variants
+// @ts-ignore: react-hot-toast has no type declarations
 import toast from 'react-hot-toast';
 
 type MessageProps = {

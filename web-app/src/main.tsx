@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 import ChatErrorBoundary from './components/ChatErrorBoundary.tsx';
+// @ts-ignore: react-hot-toast has no type declarations
 import { Toaster } from 'react-hot-toast';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

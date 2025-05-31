@@ -1,5 +1,5 @@
 // web-app/src/components/Chat.tsx
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { PaperAirplaneIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
 import Message from './message';
 import SkeletonMessage from './SkeletonMessage';
