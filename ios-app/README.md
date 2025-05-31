@@ -95,6 +95,7 @@ Test these scenarios to verify improvements:
 - **📱 Native iOS Experience**: SwiftUI design following Apple HIG guidelines
 - **🖼️ Image Attachments**: Support for attaching images to messages
 - **⚡ Real-time Streaming**: Live typing effects with status updates
+- **🔒 ESPN Integration**: Allows users to log into their ESPN accounts via an in-app WebView. Session cookies (`espn_s2` and `SWID`) are securely extracted and stored for future authenticated requests to ESPN services.
 
 ## 🔧 Technology Stack
 
@@ -102,6 +103,7 @@ Test these scenarios to verify improvements:
 - **Combine & async/await**: Asynchronous operations and reactive programming
 - **URLSession**: HTTP streaming with proper SSE handling
 - **Codable**: Type-safe JSON encoding/decoding
+- **WebKit**: For in-app web browsing (ESPN Login)
 - **OpenAI Responses API**: GPT-4.1 with built-in tools integration
 
 ## 🚀 Getting Started
@@ -125,6 +127,9 @@ private let backendURLString = "http://localhost:8000/advice"
 | `Conversation.swift` | Conversation management with state tracking |
 | `ContentView.swift` | Main UI with enhanced conversation controls |
 | `MessageBubble.swift` | Message display with structured advice rendering |
+| `WebView.swift` | Generic SwiftUI wrapper for `WKWebView` |
+| `ESPNLoginWebView.swift` | Specific `WebView` implementation for ESPN login flow |
+| `ESPNCookieManager.swift` | Manages ESPN session cookies (storage and retrieval) |
 
 ## 🔌 API Integration
 
@@ -140,6 +145,32 @@ private let backendURLString = "http://localhost:8000/advice"
 3. iOS processes events → UI updates in real-time
 4. Response ID captured → stored for next conversation turn
 ```
+
+## ESPN Integration Details
+
+The ESPN integration allows users to log into their ESPN accounts to potentially enable access to personalized fantasy sports data in future features.
+
+### Login Flow
+1.  **Initiation**: The user navigates to "Settings" and selects the "ESPN Fantasy" integration option.
+2.  **WebView Presentation**: A `WKWebView` (via `ESPNLoginWebView.swift`) is presented as a sheet.
+3.  **Authentication URL**: The WebView loads the ESPN login page: `https://secure.web.plus.espn.com/identity/login?redirectUrl=https://www.espn.com/`.
+4.  **User Authentication**: The user enters their ESPN credentials directly into the web page provided by ESPN. The app does not handle or see these credentials.
+5.  **Redirection & Cookie Extraction**: Upon successful login, ESPN redirects the WebView to `https://www.espn.com/`. The `WebView`'s `WKNavigationDelegate` (the nested `Coordinator` class) detects this navigation completion.
+6.  **Cookie Retrieval**: The `Coordinator` then accesses `WKWebsiteDataStore.default().httpCookieStore` to retrieve all HTTP cookies for the `espn.com` domain.
+7.  **Cookie Storage**: The `onCookiesAvailable` callback in `ESPNLoginWebView.swift` filters these cookies for `espn_s2` and `SWID`. If found, these are passed to `ESPNCookieManager.shared.saveCookies()`, which currently stores them in `UserDefaults`.
+8.  **Dismissal**: After the cookies are processed (saved or not), the `ESPNLoginWebView` is automatically dismissed.
+
+### Using Stored Cookies
+To make authenticated requests to ESPN APIs (not yet implemented in this version but planned for), the stored cookies can be retrieved as a formatted header string:
+```swift
+if let cookieHeader = ESPNCookieManager.shared.getCookieHeader() {
+    // Add this string to the "Cookie" HTTP header for your URLRequest
+    // e.g., request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+}
+```
+
+### Security Note
+Currently, cookies (`espn_s2` and `SWID`) are stored in `UserDefaults`. While convenient for development, `UserDefaults` is not a secure storage mechanism for sensitive session information. **For enhanced security in a production environment, these cookies should be migrated to Keychain storage.**
 
 ## 🛠️ Development Notes
 

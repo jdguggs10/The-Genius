@@ -79,6 +79,9 @@ struct SettingsView: View {
                     .frame(minWidth: 44, minHeight: 44) // Ensure touch target
                 }
             }
+            .sheet(isPresented: $showingESPNLoginWebView) {
+                ESPNLoginWebView()
+            }
         }
         // Apply a maximum width for the settings view on iPad if it's not meant to be full screen
         // This is often handled by how it's presented (e.g. .sheet or .popover)
