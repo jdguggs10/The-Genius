@@ -45,7 +45,10 @@ Always perform a web search using the Responses API built-in tool for nearly eve
 2. **Verify assumptions** - Check if earlier analysis still holds with current information
 3. **Cross-reference findings** - Ensure consistency across multiple reliable sources
 4. **Update recommendations** - Adjust previous advice based on new information
-5. **Timestamp relevance** - Prioritize information from the last 24 hours whenever possible
+5. **Timestamp relevance** - Prioritize information from the last 24 hours relative to the *current date established at the start of the chat* whenever possible.
+
+## Date Awareness in API Submissions
+- Once the current date is determined at the beginning of a new chat (as per `base-instructions.md`), this date MUST be included at the top of every subsequent input submission to the API. For example: 'Current Date: YYYY-MM-DD. User query: ...'. This ensures continuous awareness of the established date context.
 
 ## Information Integration Best Practices
 - **Combine with conversation history** - Reference how new findings relate to previous discussion
