@@ -18,6 +18,12 @@ redis = "^5.0"
 fastapi-limiter = "^0.1.5"
 python-dotenv = "^1.0"
 psutil = ">=5.9.0,<6.0.0"
+# Step 5: Confidence Scoring Dependencies
+sqlalchemy = ">=2.0.0,<3.0.0"
+pandas = ">=2.0.0,<3.0.0"
+scikit-learn = ">=1.3.0,<2.0.0"
+# Step 6: Schema Validation Dependencies
+jsonschema = ">=4.20.0,<5.0.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
