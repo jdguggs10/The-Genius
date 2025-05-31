@@ -1,0 +1,105 @@
+{
+  "metricSetId": "baseball_park_factors_v1",
+  "version": "1.0.0",
+  "lastUpdated": "2025-01-02",
+  "description": "MLB ballpark factors and dimensions for fantasy analysis",
+  "usage": "Reference as 'MetricSet: baseball_park_factors_v1' in prompts",
+  
+  "parkFactors": {
+    "offense_friendly": [
+      {
+        "park": "Coors Field", 
+        "team": "COL",
+        "runFactor": 1.15,
+        "hrFactor": 1.12,
+        "dimensions": "347-415-350",
+        "altitude": 5200,
+        "notes": "High altitude, thin air"
+      },
+      {
+        "park": "Fenway Park",
+        "team": "BOS", 
+        "runFactor": 1.08,
+        "hrFactor": 1.05,
+        "dimensions": "310-420-302",
+        "altitude": 20,
+        "notes": "Green Monster LF wall"
+      },
+      {
+        "park": "Great American Ball Park",
+        "team": "CIN",
+        "runFactor": 1.06,
+        "hrFactor": 1.08,
+        "dimensions": "325-404-325",
+        "altitude": 550,
+        "notes": "Wind patterns favor offense"
+      }
+    ],
+    
+    "pitcher_friendly": [
+      {
+        "park": "Petco Park",
+        "team": "SD",
+        "runFactor": 0.92,
+        "hrFactor": 0.88,
+        "dimensions": "334-396-322",
+        "altitude": 62,
+        "notes": "Marine layer, large foul territory"
+      },
+      {
+        "park": "Marlins Park", 
+        "team": "MIA",
+        "runFactor": 0.93,
+        "hrFactor": 0.90,
+        "dimensions": "344-418-335",
+        "altitude": 10,
+        "notes": "Dome, air conditioning"
+      },
+      {
+        "park": "T-Mobile Park",
+        "team": "SEA",
+        "runFactor": 0.94,
+        "hrFactor": 0.89,
+        "dimensions": "331-401-326", 
+        "altitude": 56,
+        "notes": "Marine climate, spacious"
+      }
+    ],
+    
+    "neutral": [
+      {
+        "park": "Progressive Field",
+        "team": "CLE",
+        "runFactor": 1.00,
+        "hrFactor": 0.98,
+        "dimensions": "325-405-325",
+        "altitude": 650,
+        "notes": "Consistent conditions"
+      }
+    ]
+  },
+  
+  "weatherImpact": {
+    "wind": {
+      "out_to_rf": {"effect": "Favorable for LHB HR", "impact": "+5-10%"},
+      "out_to_lf": {"effect": "Favorable for RHB HR", "impact": "+5-10%"},
+      "in_from_cf": {"effect": "Suppresses HR", "impact": "-10-15%"},
+      "crosswind": {"effect": "Minimal HR impact", "impact": "0-3%"}
+    },
+    "temperature": {
+      "above_80f": {"effect": "Ball carries further", "impact": "+3-5%"},
+      "below_50f": {"effect": "Ball doesn't carry", "impact": "-5-8%"},
+      "optimal_65_75f": {"effect": "Neutral conditions", "impact": "0%"}
+    }
+  },
+  
+  "domeStadiums": [
+    "Tropicana Field", "Rogers Centre", "Minute Maid Park", "Marlins Park"
+  ],
+  
+  "referenceInstructions": {
+    "promptUsage": "Instead of listing park factors inline, reference: 'Use MetricSet: baseball_park_factors_v1 for park analysis'",
+    "tokenSavings": "Saves ~200-300 tokens per prompt",
+    "updateProcess": "Update this file and increment version when park factors change"
+  }
+} 

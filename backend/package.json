@@ -1,0 +1,18 @@
+{
+  "name": "genius-backend-scripts",
+  "version": "1.0.0",
+  "description": "Backend scripts for The Genius chatbot optimization",
+  "main": "index.js",
+  "scripts": {
+    "token-analysis": "node scripts/token-estimator.js",
+    "token-track": "node scripts/token-estimator.js track",
+    "token-install": "npm install glob --save-dev"
+  },
+  "dependencies": {
+    "glob": "^10.3.10"
+  },
+  "devDependencies": {},
+  "keywords": ["tokens", "optimization", "prompts", "analysis"],
+  "author": "The Genius Team",
+  "license": "MIT"
+} 

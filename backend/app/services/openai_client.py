@@ -14,6 +14,9 @@ from app.models import StructuredAdvice
 # Import the new modular prompt loader
 from app.services.prompt_loader import prompt_loader
 
+# Import the schema validator
+from app.services.schema_validator import schema_validator
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -44,7 +47,8 @@ async def get_streaming_response(
     enable_web_search: bool = True,
     prompt_type: str = "default",
     conversation_messages: List = None,
-    previous_response_id: str = None
+    previous_response_id: str = None,
+    use_step2_architecture: bool = True
 ) -> AsyncGenerator[str, None]:
     """
     Gets a streaming response from OpenAI's Responses API with structured JSON output.
@@ -54,6 +58,7 @@ async def get_streaming_response(
         conversation_messages: List of conversation messages (role/content dicts)
         previous_response_id: OpenAI response ID for conversation continuity
         prompt_type: Type of prompt to use from config ("default", "detailed", "baseball", "football", "basketball")
+        use_step2_architecture: Whether to use Step 2 slim prompt + assistant messages (default: True)
     
     Yields:
         str: Event-formatted chunks containing both text and structured JSON deltas.
@@ -61,7 +66,7 @@ async def get_streaming_response(
     try:
         # Get appropriate system instructions
         if instructions is None:
-            instructions = prompt_loader.get_system_prompt(prompt_type)
+            instructions = prompt_loader.get_system_prompt(prompt_type, use_slim_prompt=use_step2_architecture)
         
         # Prepare the input for OpenAI Responses API
         api_input = None
@@ -78,19 +83,44 @@ async def get_streaming_response(
                 api_input = prompt or ''
         elif conversation_messages and len(conversation_messages) > 0:
             # Use full conversation history when no previous_response_id
-            api_input = conversation_messages
+            if use_step2_architecture:
+                # Step 2: Build conversation messages with slim system prompt + assistant workflow
+                # Don't use the conversation_messages directly - rebuild with our structure
+                user_prompt = conversation_messages[-1].get('content', prompt or '') if conversation_messages else prompt
+                api_input = prompt_loader.build_conversation_messages(
+                    user_prompt=user_prompt,
+                    system_prompt=instructions,
+                    schema=StructuredAdvice.model_json_schema(),
+                    enable_web_search=enable_web_search,
+                    use_slim_prompt=True
+                )
+            else:
+                # Legacy: Use conversation messages as-is
+                api_input = conversation_messages
         else:
-            # Fallback to building full prompt (backward compatibility)
-            full_prompt = prompt_loader.build_full_prompt(
-                user_prompt=prompt,
-                system_prompt=instructions,
-                schema=StructuredAdvice.model_json_schema(),
-                enable_web_search=enable_web_search
-            )
-            api_input = full_prompt
+            # Fallback to building prompt
+            if use_step2_architecture:
+                # Step 2: Use conversation message format
+                api_input = prompt_loader.build_conversation_messages(
+                    user_prompt=prompt,
+                    system_prompt=instructions,
+                    schema=StructuredAdvice.model_json_schema(),
+                    enable_web_search=enable_web_search,
+                    use_slim_prompt=True
+                )
+            else:
+                # Legacy: Single prompt string
+                full_prompt = prompt_loader.build_full_prompt(
+                    user_prompt=prompt,
+                    system_prompt=instructions,
+                    schema=StructuredAdvice.model_json_schema(),
+                    enable_web_search=enable_web_search
+                )
+                api_input = full_prompt
         
         logger.info(f"Streaming request to OpenAI Responses API model: {model}")
         logger.info(f"Using previous_response_id: {previous_response_id is not None}")
+        logger.info(f"Using Step 2 architecture: {use_step2_architecture}")
         
         # Prepare tools if web search is enabled
         tools = [{"type": "web_search"}] if enable_web_search else None
@@ -111,8 +141,8 @@ async def get_streaming_response(
         if previous_response_id:
             api_params["previous_response_id"] = previous_response_id
         
-        # Add instructions only for new conversations (not when using previous_response_id)
-        if not previous_response_id and instructions:
+        # Add instructions only for new conversations and legacy mode
+        if not previous_response_id and instructions and not use_step2_architecture:
             api_params["instructions"] = instructions
         
         # Use the correct Responses API call
@@ -177,6 +207,27 @@ async def get_streaming_response(
                 continue
             elif evt_type == "response.completed":
                 try:
+                    # Step 6: Schema validation before finalizing response
+                    is_valid, error_msg = schema_validator.validate_streaming_chunk(
+                        accumulated_content, is_complete=True
+                    )
+                    
+                    if not is_valid:
+                        logger.warning(f"Schema validation failed: {error_msg}")
+                        # Create fallback response using schema validator
+                        fallback_data = schema_validator.create_fallback_response(
+                            accumulated_content, error_msg
+                        )
+                        final_data = {
+                            'status': 'complete',
+                            'final_json': fallback_data,
+                            'response_id': response_id_captured,
+                            'validation_error': error_msg
+                        }
+                        yield f"event: response_complete\ndata: {json.dumps(final_data)}\n\n"
+                        break
+                    
+                    # Parse the validated content
                     if accumulated_content.strip().startswith('{'):
                         parsed_advice = StructuredAdvice.model_validate_json(accumulated_content)
                     else:
@@ -185,27 +236,46 @@ async def get_streaming_response(
                             model_identifier=model
                         )
                     
-                    # Include response_id in the final response
-                    final_data = {
-                        'status': 'complete', 
-                        'final_json': parsed_advice.model_dump(),
-                        'response_id': response_id_captured
-                    }
+                    # Final schema validation on the parsed object
+                    advice_dict = parsed_advice.model_dump()
+                    is_valid, error_msg = schema_validator.validate_json(advice_dict)
+                    
+                    if not is_valid:
+                        logger.warning(f"Final schema validation failed: {error_msg}")
+                        # Create fallback response
+                        fallback_data = schema_validator.create_fallback_response(
+                            accumulated_content, error_msg
+                        )
+                        final_data = {
+                            'status': 'complete',
+                            'final_json': fallback_data,
+                            'response_id': response_id_captured,
+                            'validation_error': error_msg
+                        }
+                    else:
+                        # Include response_id in the successful final response
+                        final_data = {
+                            'status': 'complete', 
+                            'final_json': advice_dict,
+                            'response_id': response_id_captured
+                        }
+                    
                     yield f"event: response_complete\ndata: {json.dumps(final_data)}\n\n"
+                    
                 except Exception as e:
                     logger.error(f"Failed to parse final response: {e}")
-                    fallback_advice = StructuredAdvice(
-                        main_advice=accumulated_content.strip() or "No response received",
-                        reasoning="Failed to parse structured response",
-                        model_identifier=model
+                    fallback_advice = schema_validator.create_fallback_response(
+                        accumulated_content.strip() or "No response received",
+                        f"Parse error: {e}"
                     )
                     final_data = {
                         'status': 'complete',
-                        'final_json': fallback_advice.model_dump(),
-                        'response_id': response_id_captured
+                        'final_json': fallback_advice,
+                        'response_id': response_id_captured,
+                        'parse_error': str(e)
                     }
                     yield f"event: response_complete\ndata: {json.dumps(final_data)}\n\n"
-                break 
+                break
             # Error or failure events
             elif evt_type in ("response.error", "response.failed") or hasattr(event, 'error'):
                 err_msg = getattr(event, 'error', None)

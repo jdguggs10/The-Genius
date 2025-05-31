@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StructuredAdvice",
+  "description": "Structured format for AI advice responses that works with both streaming and non-streaming contexts while supporting the OpenAI Responses API format.",
+  "type": "object",
+  "properties": {
+    "main_advice": {
+      "type": "string",
+      "description": "Primary recommendation"
+    },
+    "reasoning": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Detailed explanation of the recommendation",
+      "default": null
+    },
+    "confidence_score": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Confidence level from 0.0 to 1.0",
+      "default": null
+    },
+    "alternatives": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "description": "Alternative considerations or options",
+      "default": null
+    },
+    "model_identifier": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Model used for generating the response",
+      "default": null
+    }
+  },
+  "required": [
+    "main_advice"
+  ],
+  "additionalProperties": false
+}

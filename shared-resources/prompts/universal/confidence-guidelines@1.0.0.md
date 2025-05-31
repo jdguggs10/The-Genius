@@ -1,4 +1,4 @@
-# Confidence Score Guidelines
+# Confidence Guidelines v1.0.0
 
 Provide confidence scores for all recommendations using this standardized scale, incorporating conversation context and real-time information quality:
 

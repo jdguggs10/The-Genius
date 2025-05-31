@@ -23,6 +23,11 @@ shared-resources/prompts/
 ├── basketball/                   # Basketball-specific prompts
 │   └── system-prompt.md          # NBA expertise and considerations
 │
+├── STEP_1_COMPLETION_SUMMARY.md  # ✅ Prompt versioning & CI/CD implementation
+├── STEP_2_COMPLETION_SUMMARY.md  # ✅ Slim system prompt architecture 
+├── STEP_3_IMPLEMENTATION.md      # ✅ Guardrails & scratchpad roles
+├── STEP_4_COMPLETION_SUMMARY.md  # ✅ Web search discipline automation
+├── STEP_5_COMPLETION_SUMMARY.md  # ✅ Confidence scoring calibration
 └── README.md                     # This documentation
 ```
 
@@ -169,3 +174,15 @@ For AI agents reviewing the codebase, especially concerning how prompts are cons
 -   **Combination Logic (Universal + Sport-Specific)**: A core feature is the combination of universal prompts (from `prompts/universal/`) with sport-specific prompts (e.g., from `prompts/football/`). The AI reviewer should pay attention to how these are layered to create contextually relevant system prompts.
 -   **Context from Parent README**: The `README.md` file located in the parent `shared-resources/` directory provides additional context on how this modular prompt system fits into the broader project and how it's invoked by the backend.
 -   **`prompt_type` in API Calls**: The selection of which sport-specific prompts to apply is typically determined by a `prompt_type` parameter sent in API requests to the backend. This is a key mechanism for tailoring the AI's expertise.
+
+## 📋 **Implementation Progress**
+
+The prompt engineering improvements follow a systematic approach outlined in the prompt improvement guide:
+
+- **✅ Step 1: Treat Prompts as Code** - Semantic versioning, CI linting, unit tests
+- **✅ Step 2: Slim the System Prompt** - Separated immutable policy from workflow logic  
+- **✅ Step 3: Guardrails & Scratchpad** - Added validation rules and hidden reasoning
+- **✅ Step 4: Web Search Discipline** - Automated search decisions with systematic rules
+- **✅ Step 5: Confidence Calibration** - Brier score analysis and automatic phrase tuning
+
+Each step summary contains detailed implementation notes, verification results, and architectural benefits achieved.

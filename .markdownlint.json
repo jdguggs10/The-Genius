@@ -1,0 +1,14 @@
+{
+  "default": true,
+  "line-length": {
+    "line_length": 120,
+    "heading_line_length": 60
+  },
+  "no-inline-html": false,
+  "no-hard-tabs": false,
+  "whitespace": false,
+  "no-emoji": true,
+  "no-trailing-punctuation": {
+    "punctuation": ".,;:!"
+  }
+} 

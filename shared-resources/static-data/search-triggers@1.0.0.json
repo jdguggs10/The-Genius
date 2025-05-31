@@ -1,0 +1,37 @@
+{
+  "metricSetId": "search_triggers_v1",
+  "version": "1.0.0",
+  "lastUpdated": "2025-01-02", 
+  "description": "Search trigger keywords for automatic web search decisions",
+  "usage": "Reference as 'TriggerSet: search_triggers_v1' in prompts",
+  
+  "timeSensitiveTriggers": {
+    "immediate": ["today", "tonight", "now", "current", "latest", "recent", "breaking"],
+    "temporal": ["this week", "this weekend", "upcoming", "tomorrow"],
+    "injury": ["injury", "hurt", "questionable", "doubtful", "out", "gtd", "ruled out"],
+    "performance": ["trending", "hot", "cold", "slump", "streak", "last game", "since"],
+    "conditions": ["weather", "wind", "rain", "snow", "temperature", "dome"],
+    "lineup": ["starting", "bench", "snap count", "targets", "role change", "depth chart"],
+    "news": ["news", "update", "report", "announced", "confirmed", "trade", "waiver"]
+  },
+  
+  "recentlyActiveTriggers": {
+    "fantasy_decisions": ["start", "sit", "lineup", "roster", "waiver", "trade", "pickup", "drop"],
+    "analysis": ["matchup", "projection", "ranking", "advice", "play", "avoid"],
+    "player_specific": ["proper_names", "vs_matchups", "performance_analysis"],
+    "daily_fantasy": ["dfs", "prop bet", "anytime td", "over/under"]
+  },
+  
+  "skipSearchIndicators": {
+    "historical": ["statistics older than current week", "pure biography", "established rules"],
+    "theoretical": ["what if scenarios", "general strategy", "league rules"]
+  },
+  
+  "userOverrides": ["/nosrch", "/nosearch", "--no-web-search"],
+  
+  "referenceInstructions": {
+    "promptUsage": "Instead of listing all triggers, reference: 'Apply TriggerSet: search_triggers_v1 for search decisions'",
+    "tokenSavings": "Saves ~300-400 tokens per prompt",
+    "autoExpansion": "System automatically applies trigger patterns without explicit enumeration"
+  }
+} 

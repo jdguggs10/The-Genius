@@ -201,6 +201,36 @@ For AI agents reviewing this backend module, the following points are crucial:
 -   **JSON Schema Enforcement**: `StructuredAdvice.model_json_schema()` is passed to the OpenAI API call within the `response_format` parameter, ensuring the AI's output conforms to the desired Pydantic model structure.
 -   **Streaming vs. Non-Streaming**: The client offers methods for both, impacting how data is received from OpenAI and relayed to the API caller.
 
+## Step 7: Automate Date Anchoring ✅
+
+**Implementation**: Automatic date prefixing middleware for all user messages.
+
+### What it does
+- Automatically prepends current date (`YYYY-MM-DD`) to the latest user message in every conversation
+- Ensures the AI has temporal context for time-sensitive queries
+- Applied consistently across both streaming and non-streaming endpoints
+
+### Format
+```
+Current Date: 2024-01-15
+
+[Original user message]
+```
+
+### Files modified
+- `app/main.py` - Added `add_date_anchoring_to_conversation()` middleware function
+- Applied to both `/advice` (streaming) and `/advice-non-streaming` endpoints
+- `test_step7_date_anchoring.py` - Comprehensive regression tests
+
+### Testing
+```bash
+cd backend
+python -m pytest test_step7_date_anchoring.py -v
+```
+
+### CI Integration
+Date anchoring regression tests run automatically on every pull request via GitHub Actions.
+
 ---
 
 This README aims to provide a clear and concise overview for developers and AI agents interacting with the Fantasy AI Backend.

@@ -1,0 +1,22 @@
+[
+  {
+    "date": "2025-05-31",
+    "totalTokens": 25293,
+    "fileCount": 25,
+    "avgTokensPerFile": 1012,
+    "topFiles": [
+      {
+        "file": "../shared-resources/prompts/STEP_5_COMPLETION_SUMMARY.md",
+        "tokens": 3333
+      },
+      {
+        "file": "../shared-resources/prompts/STEP_7_COMPLETION_SUMMARY.md",
+        "tokens": 2760
+      },
+      {
+        "file": "../shared-resources/prompts/STEP_4_COMPLETION_SUMMARY.md",
+        "tokens": 2077
+      }
+    ]
+  }
+]

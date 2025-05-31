@@ -1,4 +1,4 @@
-# Response Format Guidelines
+# Response Format Guidelines v1.0.0
 
 Always structure your responses according to the provided JSON schema with these specific requirements optimized for the Responses API streaming architecture:
 

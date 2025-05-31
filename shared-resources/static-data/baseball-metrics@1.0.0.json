@@ -1,0 +1,39 @@
+{
+  "metricSetId": "baseball_metrics_core_v1",
+  "version": "1.0.0", 
+  "lastUpdated": "2025-01-02",
+  "description": "Core baseball metrics for fantasy analysis",
+  "usage": "Reference as 'MetricSet: baseball_metrics_core_v1' in prompts",
+  
+  "hittingMetrics": {
+    "traditional": ["AVG", "OBP", "SLG", "HR", "RBI", "R", "SB"],
+    "advanced": ["wOBA", "ISO", "BABIP", "K%", "BB%", "wRC+"],
+    "statcast": ["xwOBA", "Barrel%", "HardHit%", "ExitVelo", "Launch Angle"],
+    "situational": ["vs_LHP", "vs_RHP", "Home_Road", "RISP", "Clutch"]
+  },
+  
+  "pitchingMetrics": {
+    "traditional": ["ERA", "WHIP", "K/9", "BB/9", "W", "SV", "IP"],
+    "advanced": ["FIP", "xFIP", "SIERA", "K%", "BB%", "LOB%", "HR/FB"],
+    "statcast": ["xERA", "SpinRate", "Velo", "CSW%", "Chase%"],
+    "usage": ["Pitch_Count", "Rest_Days", "Bullpen_Usage", "Leverage"]
+  },
+  
+  "contextualFactors": {
+    "matchup": ["Historical_vs_Opp", "L_R_Splits", "Recent_Form"],
+    "environment": ["Park_Factor", "Weather", "Day_Night", "Travel"],
+    "role": ["Lineup_Position", "Usage_Rate", "Opportunity", "Game_Script"]
+  },
+  
+  "positionSpecific": {
+    "catcher": ["Games_Behind_Plate", "Rest_Pattern", "Pitcher_Relationship"],
+    "closer": ["Save_Opp", "Leverage_Index", "Recent_Usage", "Role_Security"],
+    "starter": ["Pitch_Count_Trend", "Rest_Days", "Opp_Quality", "Weather"]
+  },
+  
+  "referenceInstructions": {
+    "promptUsage": "Instead of listing all metrics, reference: 'Apply MetricSet: baseball_metrics_core_v1 for analysis'",
+    "tokenSavings": "Saves ~150-200 tokens per prompt",
+    "expansionRule": "System should auto-expand relevant metrics based on context"
+  }
+} 

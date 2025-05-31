@@ -1,0 +1,84 @@
+name: Prompt Lint
+on: [pull_request]
+jobs:
+  markdown-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: npm i -g markdownlint-cli
+      - name: Lint markdown
+        run: markdownlint "shared-resources/prompts/**/*.md"
+  
+  schema-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install jsonschema
+      - name: Generate and validate schema
+        run: |
+          cd backend
+          python generate_schema_standalone.py
+          python test_schema_validation.py
+      - name: Check schema file exists
+        run: |
+          if [ ! -f backend/schemas/response.schema.json ]; then
+            echo "Schema file not generated"
+            exit 1
+          fi
+          echo "Schema validation passed"
+
+  prompt-version-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check prompt versioning
+        run: |
+          # Check that all prompt files follow versioning convention
+          find shared-resources/prompts -name "*.md" | while read file; do
+            if [[ ! "$file" =~ @[0-9]+\.[0-9]+\.[0-9]+\.md$ ]]; then
+              echo "File $file does not follow versioning convention (@x.y.z.md)"
+              exit 1
+            fi
+          done
+          echo "All prompt files follow versioning convention"
+
+  date-anchoring-regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install pytest sqlalchemy jsonschema fastapi openai python-dotenv
+      - name: Run Step 7 regression tests
+        run: |
+          cd backend
+          python -m pytest test_step7_date_anchoring.py -v
+      - name: Verify date anchoring implementation
+        run: |
+          cd backend
+          python -c "
+          from app.main import add_date_anchoring_to_conversation
+          from datetime import datetime
+          
+          # Test that the function exists and works
+          test_conv = [{'role': 'user', 'content': 'test message'}]
+          result = add_date_anchoring_to_conversation(test_conv)
+          current_date = datetime.now().strftime('%Y-%m-%d')
+          expected = f'Current Date: {current_date}\n\ntest message'
+          
+          assert result[0]['content'] == expected, f'Expected: {expected}, Got: {result[0]['content']}'
+          print('✅ Date anchoring implementation verified')
+          " 

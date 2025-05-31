@@ -5,6 +5,7 @@ Combines universal base prompts with sport-specific prompts for systematic promp
 
 import os
 import logging
+from datetime import datetime
 from typing import Dict, List, Optional
 from pathlib import Path
 
@@ -78,10 +79,12 @@ class PromptLoader:
     def _load_universal_prompts(self) -> Dict[str, str]:
         """Load all universal prompt components"""
         universal_files = {
-            'base_instructions': 'base-instructions.md',
-            'confidence_guidelines': 'confidence-guidelines.md', 
-            'response_format': 'response-format.md',
-            'web_search_guidelines': 'web-search-guidelines.md'
+            'base_instructions': 'base-instructions@2.0.0.md',
+            'legacy_base_instructions': 'base-instructions@1.0.0.md',  # Fallback for non-Step 2
+            'response_format': 'response-format@1.0.0.md',
+            'confidence_guidelines': 'confidence-guidelines@1.0.0.md',
+            'runtime_workflow': 'runtime-workflow@1.0.0.md',
+            'web_search_guidelines': 'web-search-guidelines@1.1.0.md'  # Updated to v1.1.0 for Step 4
         }
         
         universal_prompts = {}
@@ -93,15 +96,16 @@ class PromptLoader:
     
     def _load_sport_specific_prompt(self, sport: str) -> str:
         """Load sport-specific system prompt"""
-        sport_path = self.prompts_path / sport / "system-prompt.md"
+        sport_path = self.prompts_path / sport / "system-prompt@1.0.0.md"
         return self._load_file_content(sport_path)
     
-    def get_system_prompt(self, prompt_type: str = "default") -> str:
+    def get_system_prompt(self, prompt_type: str = "default", use_slim_prompt: bool = True) -> str:
         """
         Build complete system prompt by combining universal base + sport-specific content
         
         Args:
             prompt_type: Type of prompt ("default", "detailed", "baseball", "football", "basketball")
+            use_slim_prompt: Whether to use the new slim system prompt (Step 2 implementation)
         
         Returns:
             Complete system prompt string
@@ -115,26 +119,23 @@ class PromptLoader:
         # Load universal components
         universal = self._load_universal_prompts()
         
+        # Step 2: Use slim base instructions by default
+        base_key = 'base_instructions' if use_slim_prompt else 'legacy_base_instructions'
+        base_instructions = universal.get(base_key, universal.get('legacy_base_instructions', ''))
+        
         # Combine universal base instructions with sport-specific content
         if prompt_type in ["baseball", "football", "basketball"]:
             sport_specific = self._load_sport_specific_prompt(prompt_type)
             
             # Combine base instructions with sport-specific prompt
             if sport_specific:
-                combined_prompt = f"{universal['base_instructions']}\n\n{sport_specific}"
+                combined_prompt = f"{base_instructions}\n\n{sport_specific}"
             else:
                 logger.warning(f"Sport-specific prompt not found for {prompt_type}, using base instructions only")
-                combined_prompt = universal['base_instructions']
+                combined_prompt = base_instructions
         else:
-            # For "default" or "detailed", use enhanced base instructions
-            if prompt_type == "detailed":
-                enhanced_base = universal['base_instructions'].replace(
-                    "Your primary goal is to provide actionable, data-driven advice",
-                    "Your primary goal is to provide comprehensive, data-driven analysis with detailed reasoning and confidence assessments"
-                )
-                combined_prompt = enhanced_base
-            else:
-                combined_prompt = universal['base_instructions']
+            # For "default" or "detailed", use base instructions
+            combined_prompt = base_instructions
         
         # Fallback if no content was loaded
         if not combined_prompt.strip():
@@ -143,9 +144,87 @@ class PromptLoader:
         
         return combined_prompt
     
+    def get_assistant_workflow_template(self, current_date: str = None) -> str:
+        """
+        Get the assistant workflow template for injection into conversation
+        
+        Args:
+            current_date: Current date string to inject into template
+            
+        Returns:
+            Assistant workflow template with date populated
+        """
+        universal = self._load_universal_prompts()
+        runtime_workflow = universal.get('runtime_workflow', '')
+        
+        if current_date is None:
+            current_date = datetime.now().strftime("%Y-%m-%d")
+        
+        # Replace placeholder with actual date
+        return runtime_workflow.replace("{current_date}", current_date)
+    
+    def build_conversation_messages(self, user_prompt: str, system_prompt: str, schema: dict, 
+                                  enable_web_search: bool = False, use_slim_prompt: bool = True) -> List[Dict[str, str]]:
+        """
+        Build conversation messages for Responses API with Step 2 implementation
+        
+        Args:
+            user_prompt: The user's question/request
+            system_prompt: Base system prompt for the AI
+            schema: JSON schema for structured responses
+            enable_web_search: Whether web search is enabled
+            use_slim_prompt: Whether to use Step 2 slim prompt architecture
+            
+        Returns:
+            List of message dictionaries for OpenAI API
+        """
+        messages = []
+        
+        if use_slim_prompt:
+            # Step 2: Separate system prompt and assistant workflow
+            universal = self._load_universal_prompts()
+            
+            # System message: Only immutable policy
+            system_content = system_prompt
+            
+            # Add response format to system prompt
+            if universal['response_format']:
+                system_content += f"\n\n{universal['response_format']}"
+                
+            # Add confidence guidelines to system prompt
+            if universal['confidence_guidelines']:
+                system_content += f"\n\n{universal['confidence_guidelines']}"
+            
+            # Add schema requirement to system prompt
+            schema_instruction = f"\n\nPlease respond with structured JSON that matches this exact schema: {schema}"
+            system_content += schema_instruction
+            
+            messages.append({"role": "system", "content": system_content})
+            
+            # Assistant message: Runtime workflow instructions
+            workflow_template = self.get_assistant_workflow_template()
+            if workflow_template:
+                messages.append({"role": "assistant", "content": workflow_template})
+            
+            # Add web search guidelines as assistant message if enabled
+            if enable_web_search and universal['web_search_guidelines']:
+                web_search_guidance = f"## Web Search Guidelines\n{universal['web_search_guidelines']}"
+                messages.append({"role": "assistant", "content": web_search_guidance})
+            
+        else:
+            # Legacy: Single system message with everything
+            messages = [{"role": "system", "content": self.build_full_prompt(user_prompt, system_prompt, schema, enable_web_search)}]
+            return messages
+        
+        # User message
+        messages.append({"role": "user", "content": user_prompt})
+        
+        return messages
+
     def build_full_prompt(self, user_prompt: str, system_prompt: str, schema: dict, enable_web_search: bool = False) -> str:
         """
         Build the complete prompt with system instructions, universal guidelines, and user input
+        Legacy method for backward compatibility
         
         Args:
             user_prompt: The user's question/request
