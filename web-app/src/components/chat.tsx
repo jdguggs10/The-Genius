@@ -92,18 +92,24 @@ export default function Chat() {
       try {
         const response = await fetch(getDefaultModelSettingUrl());
         if (!response.ok) {
+          // Silently handle 404 - endpoint doesn't exist yet
+          if (response.status === 404) {
+            logger.debug('Default model endpoint not available yet, using fallback');
+            return;
+          }
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
         if (data && data.model) {
           setDefaultModelNameFromAPI(data.model);
         } else {
-          logger.error('Failed to fetch or parse default model name from API, using fallback.');
-          // setDefaultModelNameFromAPI is already initialized with a fallback
+          logger.debug('No model name in API response, using fallback');
         }
       } catch (error) {
-        logger.error('Error fetching default model name:', error);
-        // setDefaultModelNameFromAPI is already initialized with a fallback
+        // Only log actual errors, not expected 404s
+        if (error instanceof Error && !error.message.includes('404')) {
+          logger.error('Error fetching default model name:', error);
+        }
       }
     };
 
