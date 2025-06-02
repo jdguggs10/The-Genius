@@ -4,6 +4,7 @@ services:
 - type: web
   name: genius-frontend
   runtime: static
+  rootDir: web-app
   buildCommand: pnpm install --frozen-lockfile && pnpm run build
   staticPublishPath: dist
   envVars:
