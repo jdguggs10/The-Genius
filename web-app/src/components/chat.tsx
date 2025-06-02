@@ -59,7 +59,7 @@ export default function Chat() {
   const { theme, setTheme } = useTheme();
 
   // SSE client setup
-  const apiBase = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+  const apiBase = import.meta.env.VITE_BACKEND_URL || 'https://genius-backend-nhl3.onrender.com';
   const adviceUrl = `${apiBase.replace(/\/$/, '')}/advice`;
   const { streamSSEResponse } = useSSEClient();
   
