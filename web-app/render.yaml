@@ -8,9 +8,9 @@ services:
   staticPublishPath: dist
   envVars:
     - key: NODE_VERSION
-      value: "18"
+      value: "20"
     - key: PNPM_VERSION
-      value: "8"
+      value: "9"
     - key: NODE_ENV
       value: production
     - key: VITE_BACKEND_URL
