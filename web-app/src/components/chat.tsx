@@ -15,7 +15,7 @@ import toast from 'react-hot-toast';
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'; // Using outline for theme toggle
 import { useTheme } from '../hooks/useTheme';
 import { logger } from '../utils/logger';
-import { getAdviceUrl, getModelUrl, logApiConfig } from '../utils/api';
+import { getAdviceUrl, logApiConfig } from '../utils/api';
 
 const PLACEHOLDER_AI_MESSAGE = "_PLACEHOLDER_AI_MESSAGE_";
 const ITEM_SIZE = 100; // Increased for DaisyUI chat components
@@ -48,7 +48,6 @@ export default function Chat() {
   const [isSearching, setIsSearching] = useState(false);
   const [streamingText, setStreamingText] = useState(''); // Kept for compatibility with useEffect, but actual streaming text is now currentAIMessageText
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [modelName, setModelName] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
   const currentAssistantMessageIdRef = useRef<string | null>(null);
   const [currentAIMessageText, setCurrentAIMessageText] = useState('');
@@ -86,33 +85,6 @@ export default function Chat() {
   // Log API configuration on mount for debugging
   useEffect(() => {
     logApiConfig();
-  }, []);
-
-  // Fetch default model from backend on mount
-  useEffect(() => {
-    const fetchDefaultModel = async () => {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        controller.abort();
-        logger.info('Model fetch request was aborted (timeout)');
-      }, 10000);
-
-      try {
-        const response = await fetch(getModelUrl(), {
-          signal: controller.signal
-        });
-        const data = await response.json();
-        setModelName(data.model || 'GPT-4.1');
-      } catch (error) {
-        if (error instanceof Error && error.name === 'AbortError') {
-          return;
-        }
-        setModelName('GPT-4.1');
-      } finally {
-        clearTimeout(timeoutId);
-      }
-    };
-    fetchDefaultModel();
   }, []);
 
   // Updated scroll logic using useScrollAnchor
@@ -243,7 +215,6 @@ export default function Chat() {
             setIsSearching(false);
             setIsLoading(false);
             const structuredAdvice = eventData.data.final_json;
-            if (structuredAdvice?.model_identifier) setModelName(structuredAdvice.model_identifier);
             updateMessage(assistantMessageId, {
               content: structuredAdvice?.main_advice || currentAIMessageText || "Response complete.",
               structuredAdvice: structuredAdvice || undefined,
@@ -442,13 +413,6 @@ export default function Chat() {
               {isSearching && 'Searching for information...'}
               {statusMessage && statusMessage}
             </div>
-              
-            {/* Status Display */}
-            <div className="mt-2 sm:mt-3 text-xs sm:text-sm text-center composer-status">
-              <span className="text-app-text-muted dark:text-app-text-muted-dark">
-                Powered by {modelName} with conversation memory {lastResponseId ? '(Active)' : '(New)'}
-              </span>
-            </div>
           </div>
         </>
       ) : (
@@ -511,7 +475,7 @@ export default function Chat() {
 
             {/* Status/Model Info */}
             <div className="mt-8 text-sm text-app-text-muted dark:text-app-text-muted-dark composer-status">
-              Powered by {modelName || 'GPT-4.1'} with conversation memory
+              Powered by {import.meta.env.VITE_OPENAI_DEFAULT_MODEL || 'Default Model'}
             </div>
           </div>
         </div>
