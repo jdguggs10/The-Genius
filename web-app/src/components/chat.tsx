@@ -29,15 +29,15 @@ const Row = ({ index, style, data }: { index: number; style: React.CSSProperties
 
   if (message.role === 'assistant' && message.content === PLACEHOLDER_AI_MESSAGE) {
     return (
-      <div style={style}>
+      <li style={style} role="listitem" className="snap-start">
         <SkeletonMessage key={message.id} />
-      </div>
+      </li>
     );
   }
   return (
-    <div style={style}>
+    <li style={style} role="listitem" className="snap-start">
       <MessageDaisyUI key={message.id} message={message} />
-    </div>
+    </li>
   );
 };
 
@@ -318,13 +318,14 @@ export default function Chat() {
 
   // Main container: Full height, flex column with custom background - Centered layout
   return (
-    <div className="flex flex-col h-full max-h-screen" style={{ backgroundColor: '#f3ebdf' }}>
+    <div className="flex flex-col h-full max-h-screen bg-app-bg dark:bg-app-bg-dark chat-container">
       {/* Theme toggle button - positioned absolutely in top right */}
       <div className="absolute top-4 right-4 z-20">
         <button
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
           title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-          className="p-2 rounded-full hover:bg-white/20 dark:hover:bg-black/20 text-gray-600 dark:text-gray-300 transition-colors backdrop-blur-sm font-button"
+          aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+          className="p-2 rounded-full hover:bg-white/20 dark:hover:bg-black/20 text-app-text-muted dark:text-app-text-muted-dark transition-colors backdrop-blur-sm font-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500"
         >
           {(theme === 'dark' || (theme === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches)) ? (
             <SunIcon className="h-5 w-5" />
@@ -338,24 +339,24 @@ export default function Chat() {
       {messages.length > 0 || isLoading ? (
         <>
           {/* Header when there are messages */}
-          <header className="p-4 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm">
-            <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between sm:space-y-0 space-y-2">
+          <header className="p-4 bg-surface-card-light/90 dark:bg-surface-card-dark/90 backdrop-blur-sm chat-header">
+            <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between sm:space-y-0 space-y-2 chat-header-content">
               <div className="flex items-center space-x-2">
                 <img 
                   src="/favicon-32.png" 
                   alt="The Genius Logo" 
                   className="w-6 h-6 sm:w-8 sm:h-8"
                 />
-                <h1 className="text-lg sm:text-xl lg:text-2xl font-headline font-bold text-gray-800 dark:text-neutral-200">The Genius</h1>
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-headline font-bold text-app-text dark:text-app-text-dark chat-title">The Genius</h1>
                 {isSearching && (
-                  <div className="flex items-center space-x-1 text-blue-600 dark:text-blue-400">
+                  <div className="flex items-center space-x-1 text-primary-600 dark:text-primary-400 chat-search-indicator">
                     <MagnifyingGlassIcon className="h-3 w-3 sm:h-4 sm:w-4 animate-spin" />
                     <span className="text-xs sm:text-sm">Searching...</span>
                   </div>
                 )}
               </div>
               {lastResponseId && (
-                <div className="text-xs text-gray-400 dark:text-neutral-500">
+                <div className="text-xs text-app-text-muted dark:text-app-text-muted-dark">
                   Conversation Active
                 </div>
               )}
@@ -363,7 +364,7 @@ export default function Chat() {
           </header>
 
           {/* Message Display Area */}
-          <div ref={listContainerRef} className="flex-grow overflow-hidden p-2 sm:p-4">
+          <div ref={listContainerRef} className="flex-grow overflow-hidden p-2 sm:p-4 scroll-smooth message-list-container">
             <div className="max-w-4xl mx-auto h-full">
               {listHeight > 0 && (messages.length > 0 || isLoading) && (
                 <FixedSizeList
@@ -375,6 +376,18 @@ export default function Chat() {
                   ref={listRef}
                   width="100%"
                   onScroll={handleScroll}
+                  overscanCount={12}
+                  innerElementType="ul"
+                  outerElementType={(props: React.HTMLProps<HTMLDivElement>) => (
+                    <div 
+                      {...props}
+                      role="log"
+                      aria-live="polite"
+                      aria-relevant="additions"
+                      aria-label="Chat conversation messages"
+                      className="scroll-smooth snap-y snap-end overflow-y-auto"
+                    />
+                  )}
                 >
                   {Row}
                 </FixedSizeList>
@@ -383,9 +396,9 @@ export default function Chat() {
           </div>
 
           {/* Input Area for active conversations */}
-          <div className="p-2 sm:p-4 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-sm shadow-lg">
-            <div className="flex justify-center items-center">
-              <div className="flex items-center space-x-2">
+          <div className="p-2 sm:p-4 bg-surface-card-light/95 dark:bg-surface-card-dark/95 backdrop-blur-sm shadow-lg">
+            <div className="flex justify-center items-center composer-input-area">
+              <div className="flex items-center space-x-2 composer-input-wrapper">
                 <div className="relative">
                   <input
                     ref={inputRef}
@@ -398,12 +411,10 @@ export default function Chat() {
                     placeholder="Type here for Fantasy Advice..."
                     disabled={isLoading}
                     aria-label="Chat input for fantasy sports advice"
-                    className="pl-16 pr-20 py-4 bg-white dark:bg-white border border-gray-300 dark:border-gray-300 text-gray-800 placeholder-gray-500 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400 transition-all disabled:bg-gray-100 disabled:cursor-not-allowed text-sm shadow-md hover:shadow-lg"
+                    className="pl-16 pr-20 py-4 bg-surface-input-light dark:bg-surface-input-light border border-surface-border-light dark:border-surface-border-light text-app-text dark:text-app-text placeholder-app-text-muted rounded-full focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 focus:ring-2 focus:ring-primary-400/50 focus:border-primary-400 transition-all text-base composer-input"
                     style={{
-                      backgroundColor: 'white',
                       paddingLeft: '4rem',
                       paddingRight: '5rem',
-                      border: '1px solid #d1d5db',
                       borderRadius: '9999px',
                       width: '384px',
                       height: '48px'
@@ -413,7 +424,8 @@ export default function Chat() {
                 <button
                   onClick={handleSend}
                   disabled={!input.trim() || isLoading}
-                  className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 shadow-lg font-button font-bold"
+                  aria-label={isLoading ? 'Sending message...' : 'Send message'}
+                  className="p-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 shadow-lg font-button font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 composer-send-button"
                 >
                   {isLoading ? (
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -424,9 +436,16 @@ export default function Chat() {
               </div>
             </div>
               
+            {/* Hidden status for screen readers */}
+            <div id="chat-status" role="status" className="sr-only">
+              {isLoading && 'Sending message...'}
+              {isSearching && 'Searching for information...'}
+              {statusMessage && statusMessage}
+            </div>
+              
             {/* Status Display */}
-            <div className="mt-2 sm:mt-3 text-xs sm:text-sm text-center">
-              <span className="text-gray-500 dark:text-neutral-500">
+            <div className="mt-2 sm:mt-3 text-xs sm:text-sm text-center composer-status">
+              <span className="text-app-text-muted dark:text-app-text-muted-dark">
                 Powered by {modelName} with conversation memory {lastResponseId ? '(Active)' : '(New)'}
               </span>
             </div>
@@ -441,18 +460,18 @@ export default function Chat() {
               <img 
                 src="/apple-touch-icon.png" 
                 alt="The Genius Logo" 
-                className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 mr-4 sm:mr-6"
+                className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 mr-4 sm:mr-6 welcome-logo"
               />
-              <h1 className="text-[6rem] sm:text-[7rem] lg:text-[8rem] xl:text-[9rem] font-headline font-bold text-gray-800 dark:text-neutral-200">
+              <div className="text-[6rem] sm:text-[7rem] lg:text-[8rem] xl:text-[9rem] font-headline font-bold text-app-text dark:text-app-text-dark welcome-title">
                 The Genius
-              </h1>
+              </div>
             </div>
             
             {/* Welcome Input Card */}
-            <div className="mb-8 sm:mb-12 flex justify-center">
-              <div className="bg-white dark:bg-neutral-800 rounded-xl shadow-lg p-1 sm:p-2">
-                <div className="flex items-center space-x-3">
-                  <div className="relative">
+            <div className="mb-8 sm:mb-12 flex justify-center welcome-input-card">
+              <div className="bg-surface-card-light dark:bg-surface-card-dark rounded-xl shadow-lg p-1 sm:p-2">
+                <div className="flex items-center space-x-3 composer-input-area">
+                  <div className="relative composer-input-wrapper">
                     <input
                       ref={inputRef}
                       id="chat-input"
@@ -464,12 +483,10 @@ export default function Chat() {
                       placeholder="Type here for Fantasy Advice..."
                       disabled={isLoading}
                       aria-label="Chat input for fantasy sports advice"
-                      className="pl-16 pr-20 py-4 bg-white dark:bg-white border border-gray-300 dark:border-gray-300 text-gray-800 dark:text-gray-800 placeholder-gray-500 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-400/50 focus:border-blue-400 transition-all text-base"
+                      className="pl-16 pr-20 py-4 bg-surface-input-light dark:bg-surface-input-light border border-surface-border-light dark:border-surface-border-light text-app-text dark:text-app-text placeholder-app-text-muted rounded-full focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 focus:ring-2 focus:ring-primary-400/50 focus:border-primary-400 transition-all text-base composer-input"
                       style={{
-                        backgroundColor: 'white',
                         paddingLeft: '4rem',
                         paddingRight: '5rem',
-                        border: '1px solid #d1d5db',
                         borderRadius: '9999px',
                         width: '384px',
                         height: '48px'
@@ -479,7 +496,8 @@ export default function Chat() {
                   <button
                     onClick={handleSend}
                     disabled={!input.trim() || isLoading}
-                    className="p-3 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 shadow-lg font-button font-bold"
+                    aria-label={isLoading ? 'Sending message...' : 'Send message'}
+                    className="p-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-all transform hover:scale-105 active:scale-95 shadow-lg font-button font-bold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500 composer-send-button"
                   >
                     {isLoading ? (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -492,7 +510,7 @@ export default function Chat() {
             </div>
 
             {/* Status/Model Info */}
-            <div className="mt-8 text-sm text-gray-500 dark:text-neutral-500">
+            <div className="mt-8 text-sm text-app-text-muted dark:text-app-text-muted-dark composer-status">
               Powered by {modelName || 'GPT-4.1'} with conversation memory
             </div>
           </div>
@@ -503,7 +521,8 @@ export default function Chat() {
       {showNewMessagesChip && (
         <button
           onClick={() => scrollToBottom('smooth', messages.length)}
-          className="fixed bottom-20 right-4 sm:right-10 z-10 bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-full shadow-lg transition-opacity duration-300 animate-bounce dark:bg-blue-600 dark:hover:bg-blue-700 font-button"
+          aria-label="Scroll to new messages"
+          className="fixed bottom-20 right-4 sm:right-10 z-10 bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-full shadow-lg transition-opacity duration-300 animate-bounce dark:bg-primary-600 dark:hover:bg-primary-700 font-button focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         >
           ↓ New messages
         </button>

@@ -1,6 +1,6 @@
 ---
-description: Documentation on the Responses API for Open AI and GPT 4.1
-globs: 
+description: 
+globs: *.py
 alwaysApply: false
 ---
 Review this documentation for any request to code relating to the Responses API or the openai_client.py file or related files: https://platform.openai.com/docs/api-reference/responses
@@ -9,20 +9,20 @@ Review this documentation for any request to code relating to the Responses API 
 # OpenAI Responses API: Complete Implementation Guide
 
 ## Table of Contents
-1. [Overview](#overview)
-2. [Key Features](#key-features)
-3. [Getting Started](#getting-started)
-4. [Core Concepts](#core-concepts)
-5. [Implementation Examples](#implementation-examples)
-6. [Built-in Tools](#built-in-tools)
-7. [Function Calling](#function-calling)
-8. [Streaming Responses](#streaming-responses)
-9. [State Management](#state-management)
-10. [Error Handling](#error-handling)
-11. [Best Practices](#best-practices)
-12. [Migration from Chat Completions](#migration-from-chat-completions)
-13. [Rate Limits and Pricing](#rate-limits-and-pricing)
-14. [Troubleshooting](#troubleshooting)
+1. [Overview](mdc:#overview)
+2. [Key Features](mdc:#key-features)
+3. [Getting Started](mdc:#getting-started)
+4. [Core Concepts](mdc:#core-concepts)
+5. [Implementation Examples](mdc:#implementation-examples)
+6. [Built-in Tools](mdc:#built-in-tools)
+7. [Function Calling](mdc:#function-calling)
+8. [Streaming Responses](mdc:#streaming-responses)
+9. [State Management](mdc:#state-management)
+10. [Error Handling](mdc:#error-handling)
+11. [Best Practices](mdc:#best-practices)
+12. [Migration from Chat Completions](mdc:#migration-from-chat-completions)
+13. [Rate Limits and Pricing](mdc:#rate-limits-and-pricing)
+14. [Troubleshooting](mdc:#troubleshooting)
 
 ## Overview
 

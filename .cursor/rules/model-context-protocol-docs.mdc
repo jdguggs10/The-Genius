@@ -1,6 +1,6 @@
 ---
-description: Documentation on the latest MCP protocol
-globs: 
+description: 
+globs: *.py
 alwaysApply: false
 ---
 For anything regarding the MCP servers, view the linked documentation below:

@@ -8,14 +8,18 @@
     "dev:prod-backend": "VITE_BACKEND_URL=https://genius-backend-nhl3.onrender.com vite",
     "build": "tsc --project tsconfig.app.json && vite build",
     "build:local": "VITE_BACKEND_URL=http://localhost:8000 tsc --project tsconfig.app.json && vite build",
+    "build:safelist": "tsc --project tsconfig.app.json && vite build --safelist",
     "preview": "vite preview",
     "preview:local-backend": "VITE_BACKEND_URL=http://localhost:8000 vite build && vite preview",
     "start": "vite preview --port 3000 --host",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "tailwind:tokens": "npx tailwindcss tokens --json > src/design-tokens.json",
+    "tailwind:safelist-check": "npx tailwindcss --input src/index.css --output temp-output.css --safelist && rm temp-output.css"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@tailwindcss/typography": "^0.5.16",
     "ajv": "^8.17.1",
     "framer-motion": "^12.12.1",
     "react": "^19.1.0",

@@ -1,0 +1,141 @@
+# Tailwind v4.1 Safelist Configuration
+# This file contains regex patterns for dynamic classes that should be preserved in production builds
+# Tailwind's Oxide engine will scan this file and ensure these patterns are included in the final CSS
+
+# === Dynamic Color Classes ===
+# AI-generated content might reference arbitrary colors or color combinations
+text-\[#[0-9a-fA-F]{6}\]
+bg-\[#[0-9a-fA-F]{6}\]
+border-\[#[0-9a-fA-F]{6}\]
+text-\[rgb\(.+\)\]
+bg-\[rgb\(.+\)\]
+text-\[hsl\(.+\)\]
+bg-\[hsl\(.+\)\]
+
+# CSS Color-mix functions that might be computed
+text-\[color-mix\(.+\)\]
+bg-\[color-mix\(.+\)\]
+
+# Oklahoma Lab/OKLCH colors for wide gamut support
+text-\[oklch\(.+\)\]
+bg-\[oklch\(.+\)\]
+text-\[lab\(.+\)\]
+bg-\[lab\(.+\)\]
+
+# === Dynamic Spacing & Sizing ===
+# Computed spacing that might be generated based on container size or content
+w-\[\d+(\.\d+)?(px|rem|em|%|vw|vh)\]
+h-\[\d+(\.\d+)?(px|rem|em|%|vw|vh)\]
+p-\[\d+(\.\d+)?(px|rem|em|%|vw|vh)\]
+m-\[\d+(\.\d+)?(px|rem|em|%|vw|vh)\]
+max-w-\[\d+(\.\d+)?(px|rem|em|%|vw|vh)\]
+min-w-\[\d+(\.\d+)?(px|rem|em|%|vw|vh)\]
+
+# Grid and flex dynamic classes
+grid-cols-\[\d+\]
+grid-rows-\[\d+\]
+flex-\[\d+\]
+basis-\[\d+(\.\d+)?(px|rem|em|%)\]
+
+# === Dynamic Typography ===
+# Font sizes that might be computed based on content or user preferences
+text-\[\d+(\.\d+)?(px|rem|em)\]
+leading-\[\d+(\.\d+)?(px|rem|em)\]
+tracking-\[\-?\d+(\.\d+)?(px|rem|em)\]
+
+# Custom font families that might be injected
+font-\[\w+\]
+
+# === Animation & Transform Classes ===
+# Dynamic animations that might be applied based on state
+animate-\[.+\]
+transition-\[.+\]
+duration-\[\d+\]
+delay-\[\d+\]
+
+# Transform classes with arbitrary values
+translate-x-\[\-?\d+(\.\d+)?(px|rem|%)\]
+translate-y-\[\-?\d+(\.\d+)?(px|rem|%)\]
+rotate-\[\-?\d+deg\]
+scale-\[\d+(\.\d+)?\]
+
+# === Tailwind v4.1 Specific Classes ===
+# Text shadow classes with arbitrary values
+text-shadow-\[.+\]
+text-shadow-\w+-?\[\w\/#]+
+
+# Mask utilities with arbitrary values
+mask-\[.+\]
+mask-radial-\[.+\]
+
+# Container query classes that might be computed
+@container\s+\w+\s+\([^)]+\)
+
+# === Chat-Specific Dynamic Classes ===
+# Message bubble classes that might vary by content type
+chat-bubble-\w+
+message-\w+
+bubble-\w+
+
+# Avatar classes with dynamic sizing
+avatar-\[\d+(\.\d+)?(px|rem)\]
+
+# Status indicator classes
+status-\w+
+indicator-\w+
+
+# === AI Response Formatting ===
+# Classes that might be applied to AI-generated content
+prose-\w+
+code-\w+
+highlight-\w+
+syntax-\w+
+
+# Markdown content styling
+markdown-\w+
+md-\w+
+
+# === Interactive Elements ===
+# Button states and variants that might be computed
+btn-\w+
+button-\w+
+interactive-\w+
+
+# Form elements with dynamic styling
+input-\w+
+form-\w+
+field-\w+
+
+# === Theme & Dark Mode Variants ===
+# Dynamic theme classes
+theme-\w+
+dark:\w+-\w+
+light:\w+-\w+
+
+# === Performance & Layout ===
+# Virtual list item classes
+virtual-\w+
+list-item-\[\d+\]
+
+# Responsive classes with arbitrary breakpoints
+\w+:w-\[\d+(\.\d+)?(px|rem|%)\]
+\w+:h-\[\d+(\.\d+)?(px|rem|%)\]
+
+# === Error & Loading States ===
+# Dynamic state classes
+loading-\w+
+error-\w+
+success-\w+
+warning-\w+
+
+# === Accessibility ===
+# ARIA and focus states that might be computed
+focus-visible:\w+
+aria-\w+
+sr-only-\w+
+
+# === Development & Debug ===
+# Debug classes that might be added dynamically
+debug-\w+
+dev-\w+
+test-\w+ 

@@ -3,10 +3,73 @@
 @import "tailwindcss";
 
 @theme {
+  /* Font families using CSS custom property syntax */
   --font-family-headline: 'Snell Roundhand', 'Dancing Script', cursive;
-  --font-family-system: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
   --font-family-button: 'Futura', 'Avenir Next', 'AvenirNext-Bold', system-ui, sans-serif;
+  --font-family-system: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
   --font-family-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+  
+  /* Color tokens for chat UI theming */
+  --color-bubble-incoming: oklch(94% .17 245);
+  --color-bubble-outgoing: #0A84FF;
+  --color-bubble-warning: color-mix(in oklab, #FACC15 80%, #F97316);
+  
+  /* App-wide theming colors */
+  --color-app-bg: #f3ebdf;
+  --color-app-bg-dark: #1a1a1a;
+  --color-app-text: #1f2937;
+  --color-app-text-dark: #f3f4f6;
+  --color-app-text-muted: #6b7280;
+  --color-app-text-muted-dark: #9ca3af;
+  
+  /* Interactive element colors */
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  
+  /* Surface colors for cards, inputs, etc. */
+  --color-surface-card-light: #ffffff;
+  --color-surface-card-dark: #374151;
+  --color-surface-input-light: #ffffff;
+  --color-surface-input-dark: #4b5563;
+  --color-surface-border-light: #d1d5db;
+  --color-surface-border-dark: #6b7280;
+  
+  /* Typography/Prose color tokens for @tailwindcss/typography */
+  --color-prose-body: var(--color-app-text);
+  --color-prose-body-dark: var(--color-app-text-dark);
+  --color-prose-headings: var(--color-app-text);
+  --color-prose-headings-dark: var(--color-app-text-dark);
+  --color-prose-links: var(--color-primary-600);
+  --color-prose-links-dark: var(--color-primary-400);
+  --color-prose-bold: var(--color-app-text);
+  --color-prose-bold-dark: var(--color-app-text-dark);
+  --color-prose-counters: var(--color-app-text-muted);
+  --color-prose-counters-dark: var(--color-app-text-muted-dark);
+  --color-prose-bullets: var(--color-app-text-muted);
+  --color-prose-bullets-dark: var(--color-app-text-muted-dark);
+  --color-prose-hr: var(--color-surface-border-light);
+  --color-prose-hr-dark: var(--color-surface-border-dark);
+  --color-prose-quotes: var(--color-app-text);
+  --color-prose-quotes-dark: var(--color-app-text-dark);
+  --color-prose-quote-borders: var(--color-surface-border-light);
+  --color-prose-quote-borders-dark: var(--color-surface-border-dark);
+  --color-prose-captions: var(--color-app-text-muted);
+  --color-prose-captions-dark: var(--color-app-text-muted-dark);
+  --color-prose-code: var(--color-app-text);
+  --color-prose-code-dark: var(--color-app-text-dark);
+  --color-prose-pre-code: #e5e7eb;
+  --color-prose-pre-code-dark: #d1d5db;
+  --color-prose-pre-bg: #f9fafb;
+  --color-prose-pre-bg-dark: #1f2937;
+  --color-prose-th-borders: var(--color-surface-border-light);
+  --color-prose-th-borders-dark: var(--color-surface-border-dark);
+  --color-prose-td-borders: var(--color-surface-border-light);
+  --color-prose-td-borders-dark: var(--color-surface-border-dark);
 }
 
 /* Dark mode custom variant */
@@ -14,16 +77,8 @@
 
 :root {
   font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
-  
-  /* Custom font definitions - keep these for backward compatibility */
-  --font-headline: 'Snell Roundhand', 'Dancing Script', cursive;
-  --font-system: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
-  --font-button: 'Futura', 'Avenir Next', 'AvenirNext-Bold', system-ui, sans-serif;
-  
   line-height: 1.5;
   font-weight: 400;
-  /* color-scheme, color, and background-color will be handled by Tailwind via body classes */
-
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -32,39 +87,35 @@
 
 @layer base {
   body {
-    /* Set default text colors */
-    color: #1f2937; /* gray-800 equivalent */
-    /* Add transition for smoother theme changes */
-    transition: color 0.3s ease;
-    
-    /* Set the custom background color */
-    background-color: #f3ebdf;
-    margin: 0; /* Keep existing margin, min-width, min-height */
+    /* Use the CSS custom properties from @theme */
+    color: var(--color-app-text);
+    background-color: var(--color-app-bg);
+    transition: color 0.3s ease, background-color 0.3s ease;
+    margin: 0;
     min-width: 320px;
     min-height: 100vh;
-    overflow: hidden; /* Prevent scrolling on the body */
+    overflow: hidden;
   }
   
   body.dark {
-    color: #f3f4f6; /* gray-100 equivalent */
-    background-color: #f3ebdf;
+    color: var(--color-app-text-dark);
+    background-color: var(--color-app-bg-dark);
   }
   
   #root {
     min-height: 100vh;
     width: 100%;
-    background-color: #f3ebdf;
+    background-color: inherit;
   }
 }
 
 a {
   font-weight: 500;
-  color: #646cff; /* Consider dark mode variant for links if needed */
-  /* Example: @apply text-blue-600 dark:text-blue-400; */
+  @apply text-primary-600 dark:text-primary-400;
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2; /* Example: @apply dark:text-blue-300; */
+  @apply text-primary-700 dark:text-primary-300;
 }
 
 /* body related styles moved to @layer base */
@@ -96,21 +147,7 @@ button:focus-visible {
 */
 
 @media (prefers-color-scheme: light) {
-  /*
-  We've made the main :root light-themed,
-  so this block might be redundant or adjusted later for explicit dark mode.
-  For now, let's comment it out to avoid conflicts.
-  */
-  /* :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  } */
+  /* Removed redundant styles - handled by theme tokens and dark variant */
 }
 /* Remove the media query as Tailwind's 'dark' class will handle this */
 
@@ -119,16 +156,408 @@ button:focus-visible {
   @apply max-w-[85%];
 }
 
-/* Ensure proper markdown styling in chat bubbles */
-.chat-bubble .prose {
-  @apply text-inherit;
+/* Tailwind v4.1 Text Shadow & Mask Enhancements for Step 8 */
+/* AI bubbles (chat-start) get subtle text shadows for depth and readability */
+.chat-start .chat-bubble {
+  @apply text-shadow-sm text-shadow-black/10 dark:text-shadow-white/15;
 }
 
+/* User bubbles (chat-end) get slightly stronger shadows for contrast */
+.chat-end .chat-bubble {
+  @apply text-shadow-xs text-shadow-black/20 dark:text-shadow-black/25;
+}
+
+/* Enhanced AI bubble visual effects with mask utilities for subtle gradients */
+.chat-start .chat-bubble:not(.chat-bubble-primary) {
+  /* Subtle mask gradient from top for a soft appearance */
+  @apply mask-t-from-95% mask-b-to-100%;
+  /* Additional text shadow enhancements for AI responses */
+  @apply text-shadow-md/15 dark:text-shadow-md/20;
+}
+
+/* Structured advice sections get extra visual enhancement */
+.chat-start .chat-bubble .mt-3.pt-3 {
+  /* Subtle radial mask for the structured advice section */
+  @apply mask-radial-from-90% mask-radial-to-100%;
+  /* Light text shadow for reasoning text */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Code blocks in AI responses get enhanced shadows for better readability */
+.chat-start .chat-bubble .prose code {
+  @apply text-shadow-2xs text-shadow-black/15 dark:text-shadow-white/20;
+}
+
+/* Blockquotes in AI responses get subtle mask effects */
+.chat-start .chat-bubble .prose blockquote {
+  @apply mask-l-from-90% mask-r-to-100%;
+  /* Enhanced text shadow for quoted content */
+  @apply text-shadow-sm/20;
+}
+
+/* Avatar enhancements with mask utilities for Step 8 */
+/* AI avatar gets a subtle radial mask for a soft glow effect */
+.chat-start .chat-image .rounded-full {
+  @apply mask-radial-from-85% mask-radial-to-100%;
+  /* Subtle drop shadow enhancement */
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+/* User avatar gets a stronger contrast with enhanced shadows */
+.chat-end .chat-image .rounded-full {
+  /* Enhanced drop shadow for user avatars */
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.15));
+}
+
+/* Enhanced SparklesIcon in AI avatars with subtle text shadow */
+.chat-start .chat-image .rounded-full svg {
+  @apply text-shadow-2xs text-shadow-white/30;
+}
+
+/* Enhanced Tailwind v4.1 Typography Plugin Integration */
+.chat-bubble .prose {
+  @apply text-inherit max-w-none;
+  /* Inherit text color from chat bubble for consistent theming */
+  color: inherit;
+}
+
+/* Optimized prose spacing for chat bubbles */
 .chat-bubble .prose p {
   margin: 0.25rem 0;
 }
 
-/* Dark mode adjustments */
+.chat-bubble .prose p:first-child {
+  margin-top: 0;
+}
+
+.chat-bubble .prose p:last-child {
+  margin-bottom: 0;
+}
+
+.chat-bubble .prose h1,
+.chat-bubble .prose h2,
+.chat-bubble .prose h3,
+.chat-bubble .prose h4,
+.chat-bubble .prose h5,
+.chat-bubble .prose h6 {
+  margin-top: 0.75rem;
+  margin-bottom: 0.25rem;
+  color: inherit;
+  font-weight: 600;
+}
+
+.chat-bubble .prose h1:first-child,
+.chat-bubble .prose h2:first-child,
+.chat-bubble .prose h3:first-child,
+.chat-bubble .prose h4:first-child,
+.chat-bubble .prose h5:first-child,
+.chat-bubble .prose h6:first-child {
+  margin-top: 0;
+}
+
+.chat-bubble .prose ul,
+.chat-bubble .prose ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.chat-bubble .prose li {
+  margin: 0.125rem 0;
+}
+
+.chat-bubble .prose a {
+  @apply text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+.chat-bubble .prose code {
+  @apply bg-black/10 dark:bg-white/10 text-inherit;
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+
+.chat-bubble .prose pre {
+  @apply bg-black/5 dark:bg-white/5;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin: 0.5rem 0;
+  overflow-x: auto;
+}
+
+.chat-bubble .prose pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+.chat-bubble .prose blockquote {
+  @apply border-l-primary-500 dark:border-l-primary-400;
+  border-left-width: 4px;
+  padding-left: 1rem;
+  margin: 0.75rem 0;
+  font-style: italic;
+  opacity: 0.9;
+}
+
+.chat-bubble .prose table {
+  @apply border-collapse border-surface-border-light dark:border-surface-border-dark;
+  margin: 0.75rem 0;
+  width: 100%;
+  font-size: 0.875em;
+}
+
+.chat-bubble .prose th,
+.chat-bubble .prose td {
+  @apply border border-surface-border-light dark:border-surface-border-dark;
+  padding: 0.375rem 0.5rem;
+  text-align: left;
+}
+
+.chat-bubble .prose th {
+  @apply bg-surface-card-light dark:bg-surface-card-dark;
+  font-weight: 600;
+}
+
+/* Dark mode adjustments using theme-aware utilities */
 .dark .chat-start .chat-bubble {
-  @apply bg-neutral-700 text-neutral-100 border-neutral-600;
+  @apply bg-surface-card-dark text-app-text-dark border-surface-border-dark;
+}
+
+/* Tailwind v4.1 Smooth Scrolling & Snap Enhancements */
+.scroll-smooth {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch; /* Enhanced iOS scrolling */
+}
+
+/* Optimize scroll snapping for chat messages */
+.snap-y {
+  scroll-snap-type: y mandatory;
+}
+
+.snap-end {
+  scroll-snap-align: end;
+}
+
+.snap-start {
+  scroll-snap-align: start;
+}
+
+/* Enhanced scroll performance for message list */
+[role="log"] {
+  scroll-padding-bottom: 1rem; /* Space at bottom when snapping */
+  overscroll-behavior: contain; /* Prevent parent scroll when at boundaries */
+}
+
+/* Smooth transitions for scroll-triggered animations */
+@media (prefers-reduced-motion: no-preference) {
+  .scroll-smooth {
+    scroll-behavior: smooth;
+    scroll-snap-stop: normal; /* Allow fast scrolling through multiple snap points */
+  }
+}
+
+/* ✅ Step 9: Tailwind v4.1 Container Queries for Responsive Composer */
+
+/* Main container with container-type for container queries */
+.chat-container {
+  container-type: inline-size;
+  container-name: chat;
+}
+
+/* Composer container queries for responsive layout */
+@container chat (max-width: 28rem) {
+  /* Extra small containers: Mobile-first compact layout */
+  .composer-input-area {
+    @apply flex-col space-y-2 space-x-0;
+  }
+  
+  .composer-input-wrapper {
+    @apply w-full;
+  }
+  
+  .composer-input {
+    @apply w-full text-sm px-3 py-2;
+    width: 100% !important;
+    height: 40px !important;
+    padding-left: 2.5rem !important;
+    padding-right: 3rem !important;
+  }
+  
+  .composer-send-button {
+    @apply self-end p-2;
+  }
+  
+  .composer-status {
+    @apply text-xs;
+  }
+}
+
+@container chat (min-width: 28rem) and (max-width: 48rem) {
+  /* Medium containers: Optimized for tablets and small desktops */
+  .composer-input-area {
+    @apply flex-row items-center space-x-3 space-y-0;
+  }
+  
+  .composer-input-wrapper {
+    @apply flex-1;
+  }
+  
+  .composer-input {
+    @apply text-base px-4 py-3;
+    width: 320px !important;
+    height: 44px !important;
+    padding-left: 3.5rem !important;
+    padding-right: 4rem !important;
+  }
+  
+  .composer-send-button {
+    @apply p-2.5;
+  }
+  
+  .composer-status {
+    @apply text-sm;
+  }
+}
+
+@container chat (min-width: 48rem) {
+  /* Large containers: Full desktop layout with maximum comfort */
+  .composer-input-area {
+    @apply flex-row items-center space-x-4 space-y-0;
+  }
+  
+  .composer-input-wrapper {
+    @apply flex-1 max-w-lg;
+  }
+  
+  .composer-input {
+    @apply text-base px-4 py-4;
+    width: 384px !important;
+    height: 48px !important;
+    padding-left: 4rem !important;
+    padding-right: 5rem !important;
+  }
+  
+  .composer-send-button {
+    @apply p-3;
+  }
+  
+  .composer-status {
+    @apply text-sm;
+  }
+}
+
+/* Container-responsive header adjustments */
+@container chat (max-width: 48rem) {
+  .chat-header {
+    @apply sticky top-0 bg-surface-card-light/90 dark:bg-surface-card-dark/90 backdrop-blur-sm z-10;
+  }
+  
+  .chat-header-content {
+    @apply flex-col items-center text-center space-y-2 py-3 px-4;
+  }
+  
+  .chat-title {
+    @apply text-lg;
+  }
+  
+  .chat-search-indicator {
+    @apply text-xs;
+  }
+}
+
+@container chat (min-width: 48rem) {
+  .chat-header {
+    @apply relative bg-surface-card-light/95 dark:bg-surface-card-dark/95 backdrop-blur-sm;
+  }
+  
+  .chat-header-content {
+    @apply flex-row items-center justify-between space-y-0 py-4 px-6;
+  }
+  
+  .chat-title {
+    @apply text-xl lg:text-2xl;
+  }
+  
+  .chat-search-indicator {
+    @apply text-sm;
+  }
+}
+
+/* Container-responsive message display adjustments */
+@container chat (max-width: 32rem) {
+  /* Very narrow containers: Optimize for phone portrait */
+  .message-list-container {
+    @apply p-1;
+  }
+  
+  .chat-bubble {
+    @apply max-w-[90%] text-sm;
+  }
+  
+  .chat-image {
+    @apply w-8 h-8;
+  }
+}
+
+@container chat (min-width: 32rem) and (max-width: 64rem) {
+  /* Medium containers: Tablet and small desktop optimization */
+  .message-list-container {
+    @apply p-3;
+  }
+  
+  .chat-bubble {
+    @apply max-w-[85%] text-base;
+  }
+  
+  .chat-image {
+    @apply w-10 h-10;
+  }
+}
+
+@container chat (min-width: 64rem) {
+  /* Large containers: Full desktop with generous spacing */
+  .message-list-container {
+    @apply p-4;
+  }
+  
+  .chat-bubble {
+    @apply max-w-[80%] text-base;
+  }
+  
+  .chat-image {
+    @apply w-12 h-12;
+  }
+}
+
+/* Container-responsive welcome screen adjustments */
+@container chat (max-width: 40rem) {
+  .welcome-title {
+    @apply text-[4rem] sm:text-[5rem];
+  }
+  
+  .welcome-logo {
+    @apply w-12 h-12 sm:w-16 sm:h-16;
+  }
+  
+  .welcome-input-card {
+    @apply mb-6 p-1;
+  }
+}
+
+@container chat (min-width: 40rem) {
+  .welcome-title {
+    @apply text-[6rem] sm:text-[7rem] lg:text-[8rem] xl:text-[9rem];
+  }
+  
+  .welcome-logo {
+    @apply w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24;
+  }
+  
+  .welcome-input-card {
+    @apply mb-8 sm:mb-12 p-2;
+  }
 }

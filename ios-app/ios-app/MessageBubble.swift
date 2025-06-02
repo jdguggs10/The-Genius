@@ -295,7 +295,8 @@ struct MessageBubble_Previews: PreviewProvider {
                     AdviceAlternativePayload(player: "Player Y", reason: "If Player X is unexpectedly out."),
                     AdviceAlternativePayload(player: "Player Z", reason: "A risky high-upside play if you need it.")
                 ],
-                modelIdentifier: "gpt-4o-mini-preview_0720"
+                modelIdentifier: "gpt-4o-mini-preview_0720",
+                responseId: "preview-response-123"
             )))
         }
         .padding()

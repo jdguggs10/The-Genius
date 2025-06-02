@@ -3,120 +3,184 @@ description:
 globs: *.tsx,*.css,*.ts
 alwaysApply: false
 ---
-Use these implementation details for Tailwind's v4 rules and implementation details.
+# Tailwind CSS v4.x Chat‑UI Best Practices (2025)
 
-## Overview
-Tailwind CSS v4.0 is a ground-up rewrite focused on performance, modern CSS primitives, and a radically simpler **CSS-first** configuration model. It replaces the old `tailwind.config.js` workflow with design-token-driven custom properties that you author directly in your stylesheet, while the new **Oxide** engine delivers 3–5× faster full builds and >100× faster HMR updates.
+## Executive Overview
+Tailwind CSS moved from **v4.0** to **v4.1** in early 2025, introducing a Rust‑powered **Oxide** engine (≈ 100 ms full builds) and fresh utilities like `text-shadow-*`, `mask-*`, and wide‑gamut color helpers. These changes, plus a new CSS‑first design‑token workflow (`@theme`) and the `@custom-variant` directive, make it faster to ship accessible, high‑performance chat UIs. This guide distills the latest official docs and community wisdom into a markdown playbook your AI coding agent can follow.
 
-## Quick-Start (CLI)
+---
+
+## 1 What’s New in v4.1
+
+| Feature | Why it Matters | Quick Example |
+|---------|----------------|---------------|
+| **`text-shadow-*` utilities** | Add subtle glow/elevation to chat bubbles. | `<p class="text-shadow-sm">Shadow!</p>` |
+| **`mask-*` utilities** | One‑liner masks for avatar rings or media previews. | `<div class="mask-radial"></div>` |
+| **Oxide engine** | Full builds ≈ 100 ms; incremental < 5 ms. | `npx tailwindcss --watch` |
+| **Automatic file scanning** | No `content` array — Oxide walks your repo. | _n/a_ |
+| **`@custom-variant`** | Define domain‑specific states like `typing:`. | `@custom-variant typing &.is-typing;` |
+| **Safelist flag** | Keep AI‑generated classes in production. | `npx tailwindcss --safelist` |
+
+---
+
+## 2 Installation & CLI Quick Start
+
 ```bash
-# 1 Install Tailwind and the dedicated CLI package
-npm install -D tailwindcss @tailwindcss/cli                 # v4+
+# Install Tailwind v4.1 and the CLI
+npm install -D tailwindcss@latest @tailwindcss/cli
 
-# 2 Create your entry stylesheet
-echo '@import "tailwindcss";' > src/styles.css              # CSS-first config
+# Create an entry stylesheet
+echo '@import "tailwindcss";' > src/styles.css
 
-# 3 Build once
-npx @tailwindcss/cli -i ./src/styles.css -o ./dist/output.css
+# Build once
+npx tailwindcss -i ./src/styles.css -o ./dist/output.css
 
-# 4 Or watch for changes (fast incremental rebuilds)
-npx @tailwindcss/cli -i ./src/styles.css -o ./dist/output.css --watch
+# Watch for changes (hot‑reload)
+npx tailwindcss -i ./src/styles.css -o ./dist/output.css --watch
 ```
-The CLI automatically **discovers content files** (HTML/JS/TS/MDX, etc.) using Git-aware heuristics—no `content` array needed.
 
-### Via Vite (first-party plugin)
-Add the official plugin, then import Tailwind in any CSS file:
-```ts
-// vite.config.ts
-import { defineConfig } from 'vite'
-import tailwindcss from '@tailwindcss/vite'
+> **Tip 🧠** Oxide’s hot‑reload loop is fast enough for real‑time LLM code generation.
 
-export default defineConfig({
-  plugins: [tailwindcss()],
-})
-```
-```css
-/* src/app.css */
-@import "tailwindcss";
-```
-The plugin wires up Oxide for lightning-fast, HMR-friendly builds.
+---
 
-## CSS-First Configuration
-### Declaring Design Tokens
-All theme values become CSS custom properties under the `--tw` namespace:
+## 3 Design‑Token‑First Workflow
+
+Tailwind v4 exposes every `@theme` value as a CSS custom property (`--tw-*`):
+
 ```css
 @theme {
   colors: {
-    primary: #1e40af;        /* --tw-color-primary */
-    accent:  oklch(80% 0.2 200); /* wide-gamut OKLCH */
-  }
-  spacing: { 72: 18rem; }
+    bubble-incoming: oklch(94% .17 245);
+    bubble-outgoing: #0A84FF;
+    bubble-warning: color-mix(in oklab, #FACC15 80%, #F97316);
+  };
 }
 ```
-Use them anywhere:
+
+You can theme bubbles at runtime without a rebuild:
+
 ```css
-.card {
-  background: var(--tw-color-primary / 8%);
+:root {
+  --tw-color-bubble-outgoing: #4f46e5; /* swap palette on brand change */
 }
 ```
-Theme variables are registered with `@property`, enabling type-safe, animated use in plain CSS.
 
-### Custom Variants
-Define your own state/media variants with the new `@custom-variant` directive:
+---
+
+## 4 Modern Chat‑UI Architecture
+
+### 4.1 Semantic Skeleton
+
+```html
+<ul role="log"
+    aria-live="polite"
+    aria-relevant="additions"
+    class="flex flex-col gap-3 overflow-y-auto snap-y snap-end scroll-smooth">
+  <!-- Messages injected here -->
+</ul>
+```
+
+### 4.2 Responsive Composer (Container Queries)
+
 ```css
-@custom-variant sidebar &.sidebar-open;
-```
-Then use it: `sidebar:bg-gray-900`.
-
-## Core Concepts Refresh
-| Feature | v4 Behaviour | Notes |
-|---------|--------------|-------|
-| **Engine** | Oxide (Rust + Lightning CSS) | 5× faster full builds, 100×+ incremental. |
-| **Scanning** | Automatic file discovery | No `content` key required. |
-| **Config** | Pure CSS `@theme`, `@custom-variant` | JS config optional, not primary. |
-| **Colors** | Wide-gamut + `color-mix()` utilities | Modern color functions. |
-| **Cascade Layers** | Utilities isolated in `@layer` | Maintains predictable override order. |
-| **Imports** | Native `@import` support | Multiple CSS entry points allowed. |
-
-## Extending Tailwind
-### Writing Plugins (v4 API)
-Plugins now export a function that receives a **CSS helper** instead of the old `addUtilities` object-syntax, embracing CSS-first patterns:
-```js
-// plugin.js
-export default ({ css }) => css`
-  @keyframes wiggle { 0%,100%{transform:rotate(-3deg)} 50%{transform:rotate(3deg)} }
-  .animate-wiggle { animation: wiggle 200ms ease-in-out infinite; }
-`
+@container (max-width: 48rem) {
+  .composer { @apply sticky bottom-0 bg-white/80 backdrop-blur; }
+}
 ```
 
-## Framework Recipes
-- **Next.js (app router)** – import `"./globals.css"` in `layout.tsx`; no `tailwind.config.js` needed unless you require legacy JS-driven theming.  
-- **SvelteKit** – install `@tailwindcss/cli`, add a preprocess step, then include `@import "tailwindcss";` in `app.postcss`.  
-- **Remix / Astro / SolidStart** – same CLI flow; just point the build output at your route’s stylesheet link.
+### 4.3 Message Bubbles
 
-## Migrating from v3 → v4
-1. **Upgrade packages**: `npm uninstall tailwindcss && npm i -D tailwindcss @tailwindcss/cli`.  
-2. Delete `tailwind.config.js`; move theme overrides into `@theme { ... }` in your CSS entry.  
-3. Remove the `content` key; let Oxide auto-detect templates.  
-4. Replace any `tw`-prefixed custom directives with `@custom-variant` where appropriate.  
-5. If you rely on `darkMode: 'class'`, rewrite as: `@custom-variant dark .dark & { … }`.  
-See the full migration checklist for edge cases (e.g., purging safelisted classes).
+```html
+<li class="self-end max-w-prose animate-in fade-in slide-in-from-right-2">
+  <div class="rounded-2xl bg-[--tw-color-bubble-outgoing] text-white px-4 py-2 shadow-md text-shadow-sm">
+    Got the file — thanks!
+  </div>
+</li>
+```
 
-## Performance & DX Tips for AI Agents
-- Invoke the CLI with `--watch` during code generation to give agents live feedback without rebuilding manually.  
-- Use **design token introspection** (`tailwind tokens --json`) to let the agent reason about available colors, spacing, etc. (experimental flag).  
-- Prefer CSS custom property overrides (`:root{--tw-color-primary:#...}`) over re-executing the full build when tweaking palettes.  
-- Leverage the **Vite plugin’s** HMR hooks so generated components instantly reflect style changes.
+### 4.4 Typing Indicator with `@custom-variant`
 
-## Known Caveats
-| Gotcha | Work-around |
-|--------|-------------|
-| Non-CSS template files in obscure extensions (".tmpl") aren’t auto-scanned | Pass `--include "**/*.tmpl"` to the CLI.  |
-| Hashing class names for e2e tests | Use `NODE_ENV=production npx @tailwindcss/cli …` to enable hash mode, or add PostCSS hashing plugin. |
+```css
+@custom-variant typing &.is-typing;
 
-## Further Reading
-- Official v4 Release Post  
-- Upgrade Guide  
-- "What’s New & Migration Guide" by Kasenda  
-- "Tailwind v4: What Devs Need to Know" (Eagerworks)  
-- Plugin API changes discussion  
+.typing::before {
+  content: '';
+  @apply inline-block w-2 h-2 mr-1 animate-ping rounded-full bg-[--tw-color-bubble-incoming];
+}
+```
+
+Activate via `typing:flex` when `.is-typing` is present.
+
+### 4.5 Virtualized Log (React Example)
+
+```tsx
+import { useVirtual } from '@tanstack/react-virtual';
+
+const rowVirtualizer = useVirtual({
+  itemCount: messages.length,
+  overscan: 12,
+});
+```
+
+---
+
+## 5 Performance Checklist
+
+| Technique | Tailwind Hook | Impact |
+|-----------|---------------|--------|
+| Oxide `--watch` | Instant rebuilds (< 5 ms). | Tight LLM feedback loop |
+| Design‑token overrides | Theme via CSS vars at runtime. | Zero rebuilds |
+| Safelist file | `/src/tailwind.safelist` regex. | Prevents purge of AI‑invented classes |
+| Virtualized DOM | TanStack Virtual. | DOM node count < 200 |
+| Lazy‑load avatars | `loading="lazy"` | Lower LCP |
+
+---
+
+## 6 Accessibility To‑Do
+
+| Item | Snippet | Spec |
+|------|---------|------|
+| Announce new messages | `role="log" aria-live="polite"` | WAI‑ARIA |
+| Hidden status | `<div role="status" class="sr-only">Sent</div>` | WCAG 2.2 |
+| Focus ring | `focus-visible:outline-2 outline-offset-2 outline-blue-500` | MDN |
+
+---
+
+## 7 Component Libraries
+
+| Library | Tailwind v4 Status | Chat‑Assets |
+|---------|-------------------|-------------|
+| Flowbite 3 | v4‑ready (`npm i flowbite@latest`) | Chat bubbles, typing dots |
+| shadcn/ui | Update via `pnpm dlx shadcn-ui@latest init` | Headless popovers |
+| Tailwind Plus | Premium kit; 12 chat layouts | DM & group chat |
+| Community snippets | Reddit / GitHub gists | Reactions, link previews |
+
+---
+
+## 8 Migration from v3
+
+1. Remove `tailwind.config.js`; move overrides into `@theme`.
+2. Replace `dark:` with `@custom-variant dark .dark &`.
+3. Switch old `purge.safelist` to CLI `--safelist`.
+4. Update custom plugins to the new `({ css }) => css\`` shape.
+
+---
+
+## 9 Further Reading
+
+- Official Tailwind v4.0 Release Post  
+- Tailwind v4.1 Release Post  
+- Oxide engine deep dive  
+- Container queries guide (Tailkits)  
+- ARIA `log` role (MDN)  
+- Virtualized chat lists in React  
+
+---
+
+### 🚀 Next Steps for Your AI Agent
+1. Run `tailwindcss --watch` for micro‑feedback.  
+2. Parse `tailwind tokens --json` to understand live design tokens.  
+3. Pre‑register dynamic classes in `/src/tailwind.safelist`.  
+4. Use TanStack Virtual to keep the DOM lean.  
+
+Happy building!  

@@ -100,9 +100,13 @@ export default defineConfig(({ mode }) => {
     compression({
       algorithm: 'gzip',
       ext: '.gz',
-    }),
-    VitePWA(manifestForPlugin)
+    })
   ];
+
+  // Only add PWA plugin in production builds
+  if (isProduction) {
+    plugins.push(VitePWA(manifestForPlugin));
+  }
   
   return {
     plugins,

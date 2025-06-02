@@ -74,12 +74,26 @@ export function useScrollAnchor(
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth', count?: number) => {
     const currentItemCount = count ?? itemCount ?? 0;
     if (listRef?.current && currentItemCount > 0) {
-      // FixedSizeList's scrollToItem aligns the item. To scroll to the absolute bottom,
-      // it's often listRef.current.scrollTo(totalHeight).
-      // Or ensure the last item is fully visible: listRef.current.scrollToItem(currentItemCount - 1, 'end')
-      // 'auto' or 'smooth' are valid for alignment.
-      const align = behavior === 'smooth' ? 'smooth' : 'auto'; // react-window uses 'auto', 'smart', 'center', 'end', 'start'
-      listRef.current.scrollToItem(currentItemCount - 1, align === 'smooth' ? 'smooth' : 'auto');
+      // Enhanced scroll behavior for Tailwind v4.1 snap utilities
+      // Use 'end' alignment to work with snap-end behavior
+      const align = behavior === 'smooth' ? 'end' : 'auto';
+      
+      // For better snap behavior, scroll to the last item with 'end' alignment
+      // This works well with snap-y snap-end utilities
+      listRef.current.scrollToItem(currentItemCount - 1, align);
+      
+      // Additional smooth scroll enhancement for snap behavior
+      if (behavior === 'smooth' && scrollableContainerRef.current) {
+        // Small delay to ensure snap points are respected
+        setTimeout(() => {
+          if (scrollableContainerRef.current) {
+            scrollableContainerRef.current.scrollTo({
+              top: scrollableContainerRef.current.scrollHeight,
+              behavior: 'smooth'
+            });
+          }
+        }, 50);
+      }
     } else if (scrollableContainerRef.current) { // Fallback for non-list scenarios
       scrollableContainerRef.current.scrollTo({
         top: scrollableContainerRef.current.scrollHeight,
