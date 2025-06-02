@@ -2,12 +2,28 @@
 
 A production-ready React web application that provides AI-powered fantasy sports advice using OpenAI GPT-4.1.
 
+## Table of Contents
+
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Recent Updates](#recent-updates)
+- [Production Deployment](#production-deployment)
+- [Configuration](#configuration)
+- [Development](#development)
+- [Browser Support](#browser-support)
+- [PWA Features](#pwa-features)
+- [Architecture](#architecture)
+- [License](#license)
+
 ## Features
 
 - 🤖 AI-powered fantasy sports advice
 - 💬 Real-time chat interface with **Server-Sent Events (SSE) streaming**
 - 📱 Progressive Web App (PWA) support
 - 🎨 Modern, responsive UI with **Tailwind CSS v4** and DaisyUI
+- ✨ Smooth animations with **Framer Motion**
+- 🔔 Toast notifications for user feedback (e.g., using **react-hot-toast**)
+- 📄 Markdown rendering for formatted content display (via **react-markdown**)
 - 🌙 Dark/Light theme support
 - ⚡ **Ultra-fast builds** with Tailwind's new Oxide engine (100×+ faster HMR)
 - 🔄 Automatic error recovery and retry logic
@@ -18,6 +34,11 @@ A production-ready React web application that provides AI-powered fantasy sports
 - **Frontend**: React 19, TypeScript, Vite
 - **Styling**: **Tailwind CSS v4** (CSS-first configuration), DaisyUI
 - **State Management**: React Hooks
+- **Animation**: Framer Motion
+- **Notifications**: React Hot Toast
+- **Markdown Rendering**: React Markdown
+- **Data Validation**: AJV (for schema validation, if used on frontend)
+- **Virtualization**: React Window (for efficient rendering of large lists, if applicable)
 - **Real-time Communication**: **Server-Sent Events (SSE)** for streaming responses
 - **PWA**: Vite PWA Plugin with Workbox
 - **Build**: Vite with compression and optimization
@@ -56,7 +77,7 @@ npm run build
 # Preview production build locally
 npm run preview
 
-# Start production server
+# Preview production build locally on port 3000
 npm start
 ```
 
@@ -88,6 +109,68 @@ The built files in the `dist/` directory can be deployed to any static hosting s
 - **Tree Shaking**: Unused code is automatically removed
 - **Minification**: Production builds are minified with esbuild
 
+## Configuration
+
+### Automatic Environment Detection
+
+Your web app is now configured to automatically detect the correct backend URL based on the environment:
+
+#### Development Mode (`npm run dev`)
+- **Automatically uses**: Vite proxy to `http://localhost:8000`
+- **Requirement**: Make sure your backend is running on port 8000
+- **No configuration needed**: Just run `npm run dev` and it will work with your local backend
+
+#### Production Build (`npm run build`)
+- **Automatically uses**: `https://genius-backend-nhl3.onrender.com`
+- **No configuration needed**: Deploy to Render and it will automatically connect to your production backend
+
+### Optional Overrides
+
+If you need to override the automatic detection, you can use these commands:
+
+#### Testing Against Production Backend Locally
+```bash
+npm run dev:prod-backend
+```
+This runs development mode but connects to your production backend on Render.
+
+#### Building for Local Backend
+```bash
+npm run build:local
+```
+This creates a production build that connects to your local backend.
+
+### Environment Variables
+
+You can create a `.env.local` file to override the backend URL:
+
+```bash
+# .env.local
+VITE_BACKEND_URL=https://your-custom-backend.onrender.com
+```
+
+### No More Switching!
+
+With this setup, you should never need to manually switch configurations:
+
+1. **Local Development**: `npm run dev` (connects to localhost:8000)
+2. **Production Deployment**: `npm run build` (connects to Render backend)
+3. **Testing Production Backend**: `npm run dev:prod-backend` (if needed)
+
+The app automatically detects the environment and chooses the correct backend URL.
+
+### Debugging
+
+Check the browser console when the app loads - you'll see API configuration logs like:
+```text
+🔧 API Configuration: {
+  environment: 'development',
+  baseUrl: '/api',
+  health_url: '/api/health',
+  advice_url: '/api/advice'
+}
+```
+
 ## Development
 
 ```bash
@@ -102,6 +185,22 @@ npm run lint
 
 # Fix linting issues
 npm run lint:fix
+```
+
+### Utility Scripts
+
+```bash
+# Builds the project including a specific safelist for Tailwind CSS
+npm run build:safelist
+
+# Builds the project and previews it using a local backend configuration
+npm run preview:local-backend
+
+# Generates a JSON file of Tailwind CSS design tokens
+npm run tailwind:tokens
+
+# Checks the Tailwind CSS output against a safelist without generating a full build
+npm run tailwind:safelist-check
 ```
 
 ## Browser Support
