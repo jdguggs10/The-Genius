@@ -1,10 +1,10 @@
-# Render.com deployment configuration for The Genius Frontend
-# Updated: 2025-01-21 - Corrected for static site deployment
+# Render.com deployment configuration for The Genius Web App
+# Fresh deployment - Updated: 2025-01-21
 services:
 - type: web
-  name: genius-frontend
+  name: genius-webapp
   runtime: static
-  buildCommand: pnpm install --frozen-lockfile && pnpm run build
+  buildCommand: pnpm install --frozen-lockfile && pnpm approve-builds && pnpm run build
   staticPublishPath: dist
   envVars:
     - key: NODE_VERSION
@@ -19,13 +19,31 @@ services:
     - type: rewrite
       source: /api/*
       destination: https://genius-backend-nhl3.onrender.com/:splat
+    - type: rewrite
+      source: /*
+      destination: /index.html
   headers:
     - path: /assets/*
       name: Cache-Control
       value: max-age=31536000, immutable
+    - path: /sw.js
+      name: Cache-Control
+      value: no-cache
+    - path: /workbox-*.js
+      name: Cache-Control
+      value: max-age=31536000, immutable
+    - path: /manifest.webmanifest
+      name: Cache-Control
+      value: max-age=86400
     - path: /*
       name: X-Frame-Options
       value: DENY
     - path: /*
       name: X-Content-Type-Options
       value: nosniff
+    - path: /*
+      name: X-XSS-Protection
+      value: 1; mode=block
+    - path: /*
+      name: Referrer-Policy
+      value: strict-origin-when-cross-origin
