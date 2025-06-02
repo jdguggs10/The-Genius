@@ -44,9 +44,10 @@ The Genius Project
 
 ### 1. Web App (`/web-app`)
 - **Description**: The primary interface for users on desktop and mobile web browsers, now enhanced with PWA capabilities, dark mode, and numerous UX improvements.
-- **Technology**: React, TypeScript, Vite, Tailwind CSS, Framer Motion, `react-window` (for virtualized lists), `react-hot-toast` (notifications), `@vite-pwa/plugin`.
+- **Technology**: React, TypeScript, Vite, Tailwind CSS v4, Framer Motion, `react-window` (for virtualized lists), `react-hot-toast` (notifications), `@vite-pwa/plugin`.
 - **Key Features**:
-    - Modern chat interface with real-time streaming via WebSockets.
+    - Modern chat interface with real-time streaming via Server-Sent Events (SSE).
+    - Automatic backend URL configuration for seamless development and production workflows.
     - Light/Dark/System theme support.
     - Installable as a Progressive Web App (PWA) with offline asset caching.
     - High-performance virtualized message list for long conversations.
@@ -60,9 +61,11 @@ The Genius Project
 
 ### 2. iOS App (`/ios-app`)
 - **Description**: A native iOS application providing a rich mobile experience.
-- **Technology**: Swift, SwiftUI (iOS 15+).
+- **Technology**: Swift, SwiftUI (iOS 16.0+).
 - **Key Features**:
     - Real-time streaming responses.
+    - Enhanced real-time streaming with improved context management (e.g., using previous_response_id).
+    - ESPN account login via in-app WebView.
     - Structured advice display with confidence scores.
     - Native iOS design following Apple Human Interface Guidelines.
     - Conversation management and sharing.
@@ -72,23 +75,29 @@ The Genius Project
 - **Technology**: Python, FastAPI.
 - **Key Features**:
     - Integration with OpenAI GPT-4.1 for advanced AI capabilities.
+    - Delivers AI-generated advice in structured JSON format.
+    - Automatic date anchoring for user messages to provide temporal context to the AI.
     - Server-Sent Events (SSE) for real-time communication.
     - Pydantic models for structured data validation.
     - OpenAPI documentation for clear API contracts.
 
 ### 4. ESPN Integration (`/espn-api-util`)
-- **Description**: A utility service for fetching real-time fantasy sports data from ESPN.
+- **Description**: A utility service for fetching real-time Fantasy Baseball data from ESPN, primarily via a Machine Comprehensible Plan (MCP) interface.
 - **Technology**: Python, ESPN API, MCP (Machine Comprehensible Plan) protocol for tool definition.
 - **Key Features**:
     - Access to player statistics, rosters, and league information.
-    - Supports private leagues with appropriate authentication.
+    - Supports private leagues with appropriate authentication. (requires session-based cookie authentication).
 
 ### 5. PyBaseball API Utility (`/pybaseball-api-util`)
-- **Description**: A utility service providing access to baseball-specific data and analytics.
+- **Description**: A utility service providing access to MLB (Major League Baseball) specific data and analytics, primarily via a Machine Comprehensible Plan (MCP) interface and leveraging the pybaseball library.
 - **Technology**: Python, leveraging the pybaseball library.
+- **Key Features**:
+    - Provides tools for player statistics (e.g., `player_stats`) and league data (e.g., `mlb_standings`).
+    - Utilizes `pybaseball` library's caching for improved performance.
+    - Operates primarily in MCP STDIO mode, with a FastAPI fallback.
 
 ### 6. Shared Resources (`/shared-resources`)
-- **Description**: Contains common assets, configurations, and notably, modular prompt engineering templates used by the backend for interacting with the LLM.
+- **Description**: Contains common assets and configurations. Notably, it includes the modular prompt engineering system (markdown files in `prompts/`, replacing the legacy `prompts.json`) used by the backend for LLM interaction.
 
 ## 🚀 Quick Start Guide
 
@@ -184,12 +193,12 @@ the-genius/
 │   ├── requirements.txt           # Python dependencies
 │   └── README.md                  # Backend specific details
 │
-├── 📊 espn-api-util/             # ESPN fantasy sports data integration (Python)
+├── 📊 espn-api-util/             # ESPN Fantasy Baseball data integration (Python, MCP)
 │   ├── espn_api/                  # ESPN API interaction logic
 │   ├── mcp_tools/                 # MCP tool definitions for ESPN functions
-│   └── README.md                  # ESPN utility specific details
+│   └── readme-espn-api-util.md    # ESPN utility specific details
 │
-├── ⚾ pybaseball-api-util/        # PyBaseball data utility (Python)
+├── ⚾ pybaseball-api-util/        # MLB data utility via PyBaseball (Python, MCP)
 │   ├── utils/                     # Baseball data functions
 │   └── README.md                  # PyBaseball utility specific details
 │

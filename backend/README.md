@@ -31,7 +31,14 @@ This backend server:
 backend/
 ├── app/                           # Main application source code
 │   ├── services/                  # Modules for interacting with external services
-│   │   └── openai_client.py       # Handles all communication with OpenAI API, including prompt construction, streaming, and structured JSON response enforcement.
+│   │   ├── __init__.py            # Makes 'services' a Python package
+│   │   ├── confidence_phrase_tuner.py # Tunes confidence phrases based on scores
+│   │   ├── confidence_scoring.py  # Calculates confidence scores for advice
+│   │   ├── openai_client.py       # Handles all communication with OpenAI API, including prompt construction, streaming, and structured JSON response enforcement.
+│   │   ├── prompt_loader.py       # Loads and manages system prompts
+│   │   ├── response_logger.py     # Logs AI responses
+│   │   ├── schema_validator.py    # Validates JSON schemas
+│   │   └── web_search_discipline.py # Manages web search integration (if enabled)
 │   ├── models.py                  # Defines Pydantic models for API request/response bodies and the schema for OpenAI's structured JSON output.
 │   └── main.py                    # FastAPI application entry point, defining API routes, request handlers, and global configurations (e.g., CORS).
 ├── tests/                         # Automated tests
@@ -168,38 +175,238 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - **Request Body**: Same as `/advice`.
 - **Response Body (`StructuredAdvice`, `application/json`)**: A single JSON object as shown above.
 
+### 5. `POST /search-discipline`
+- **Description**: Test endpoint for web search discipline logic. Useful for understanding how a given query will be treated by the search decision system.
+- **Request Parameters (Query)**:
+    - `query: str` (required): The user query to test.
+    - `search_override: Optional[str]` (optional): An optional command to override default search behavior (e.g., "/nosrch" to force no search, "/search" to force search).
+- **Response Body (`application/json`)**:
+  ```json
+  {
+    "query": "Is player X injured?",
+    "search_override": null,
+    "decision": "MANDATORY", // Or "DISALLOWED", "USER_OVERRIDE_NO", "USER_OVERRIDE_YES", "DEFAULT_NO", "DEFAULT_YES"
+    "reasoning": "Query contains time-sensitive keywords.",
+    "should_search": true,
+    "policy_payload": {
+      "user_query": "Is player X injured?",
+      "conversation_context": null,
+      "user_override": null,
+      "system_rules_decision": "MANDATORY",
+      "system_rules_reasoning": "Query contains time-sensitive keywords.",
+      "final_decision": "MANDATORY",
+      "final_reasoning": "Query contains time-sensitive keywords."
+    },
+    "query_analysis": {
+      "is_time_sensitive": true,
+      "has_active_entities": false,
+      "time_sensitive_keywords": ["injured"],
+      "active_entity_reasons": [],
+      "query_classification": "interrogative"
+    }
+  }
+  ```
+
+### 6. `GET /model`
+- **Description**: Returns the default AI model name currently configured for the backend.
+- **Response Body (`application/json`)**:
+  ```json
+  {
+    "model": "o4-mini" 
+  }
+  ```
+  *(Note: The actual model name is determined by the `OPENAI_DEFAULT_MODEL_INTERNAL` variable in the backend.)*
+
+### 7. `POST /feedback`
+- **Description**: Submit outcome feedback for a specific AI response. This is used to evaluate and improve the confidence calibration of the AI.
+- **Request Body (`OutcomeFeedback`)**:
+  ```json
+  {
+    "response_id": "resp_xxxxxxxxxxxx",
+    "outcome": true, // true if advice was correct/helpful, false if incorrect/unhelpful
+    "feedback_notes": "The advice was spot on, player X had a great game." // Optional
+  }
+  ```
+- **Response Body (`application/json`)**:
+    - **Success (200 OK)**:
+      ```json
+      {
+        "status": "success",
+        "message": "Feedback recorded successfully",
+        "response_id": "resp_xxxxxxxxxxxx"
+      }
+      ```
+    - **Error (404 Not Found)**: If `response_id` is not found.
+    - **Error (500 Internal Server Error)**: For other processing errors.
+
+### 8. `GET /confidence/stats`
+- **Description**: Get aggregated confidence scoring statistics, including Brier score analysis, over a specified period.
+- **Request Parameters (Query)**:
+    - `days_back: int` (optional, default: 7): The number of days to look back for statistics.
+- **Response Body (`application/json`)**:
+  ```json
+  {
+    "total_responses": 150,
+    "responses_with_feedback": 120,
+    "positive_feedback_count": 90,
+    "negative_feedback_count": 30,
+    "avg_confidence_score": 0.75,
+    "brier_score_overall": 0.18,
+    "calibration_data": [
+      {"confidence_band": "0.0-0.1", "count": 10, "observed_accuracy": 0.05, "brier_score_band": 0.01},
+      // ... more bands ...
+      {"confidence_band": "0.9-1.0", "count": 25, "observed_accuracy": 0.88, "brier_score_band": 0.02}
+    ],
+    "last_updated": "YYYY-MM-DDTHH:MM:SSZ"
+  }
+  ```
+  *(Note: The actual structure of `calibration_data` and other fields might vary based on `response_logger.get_confidence_stats` implementation.)*
+
+### 9. `GET /confidence/recent`
+- **Description**: Retrieve recent confidence scoring logs for monitoring and debugging purposes.
+- **Request Parameters (Query)**:
+    - `limit: int` (optional, default: 20): The maximum number of recent logs to return.
+- **Response Body (`application/json`)**:
+  ```json
+  {
+    "logs": [
+      {
+        "id": 123,
+        "response_text": "Advice given...",
+        "confidence_score": 0.85,
+        "user_query": "User question...",
+        "model_used": "o4-mini",
+        "web_search_used": false,
+        "outcome": true,
+        "timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+        "feedback_timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+        "response_id": "resp_zzzzzzzzzz"
+      }
+      // ... more logs ...
+    ],
+    "total_count": 20, // or the actual number of logs returned
+    "timestamp": "YYYY-MM-DDTHH:MM:SSZ" // Timestamp of the most recent log in the list
+  }
+  ```
+
+### 10. `GET /confidence/brier-score`
+- **Description**: Calculate the Brier score, a measure of confidence calibration, over a specified period.
+- **Request Parameters (Query)**:
+    - `days_back: int` (optional, default: 7): The number of days to include in the Brier score calculation.
+- **Response Body (`application/json`)**:
+  ```json
+  {
+    "brier_score": 0.18,
+    "total_predictions": 120,
+    "calibration_curve_data": [
+      {"predicted_probability": 0.1, "observed_frequency": 0.08},
+      // ... more points ...
+      {"predicted_probability": 0.9, "observed_frequency": 0.85}
+    ],
+    "reliability_diagram_data": { /* ... data for plotting ... */ }
+  }
+  ```
+  *(Note: The actual structure is defined by `confidence_scoring_service.calculate_brier_score`.)*
+
+### 11. `GET /confidence/calibration`
+- **Description**: Get a detailed analysis of confidence calibration, typically by confidence bands or bins.
+- **Request Parameters (Query)**:
+    - `days_back: int` (optional, default: 30): The number of days to include in the calibration analysis.
+- **Response Body (`application/json`)**:
+  ```json
+  {
+    "overall_calibration": {
+      "average_confidence": 0.75,
+      "observed_accuracy": 0.72,
+      "expected_calibration_error (ECE)": 0.05
+    },
+    "calibration_bands": [
+      {"band": "[0.0, 0.1]", "count": 10, "avg_confidence": 0.05, "observed_accuracy": 0.08, "is_calibrated": true},
+      // ... more bands ...
+      {"band": "[0.9, 1.0]", "count": 25, "avg_confidence": 0.95, "observed_accuracy": 0.88, "is_calibrated": false}
+    ],
+    "drift_analysis": { /* ... details on calibration changes over time ... */ }
+  }
+  ```
+  *(Note: The actual structure is defined by `confidence_phrase_tuner.analyze_calibration_drift`.)*
+
+### 12. `POST /confidence/auto-tune`
+- **Description**: Run an automatic process to tune confidence phrases based on recent calibration performance.
+- **Request Parameters (Query)**:
+    - `days_back: int` (optional, default: 7): The number of days of data to analyze for auto-tuning.
+    - `dry_run: bool` (optional, default: True): If `true`, the endpoint will report what changes it would make without actually applying them. If `false`, changes are applied.
+- **Response Body (`application/json`)**:
+  ```json
+  {
+    "status": "dry_run_complete", // or "tuning_applied"
+    "analyzed_period_days": 7,
+    "previous_calibration": { /* ... calibration data before tuning ... */ },
+    "suggested_adjustments": [
+      {"phrase_key": "high_confidence", "old_threshold": 0.8, "new_threshold": 0.85, "reason": "Overconfident in 0.8 band"}
+      // ... more adjustments ...
+    ],
+    "new_phrase_configuration": { /* ... updated phrase settings if not a dry run ... */ },
+    "summary": "Suggested 2 adjustments based on calibration analysis."
+  }
+  ```
+  *(Note: The actual structure is defined by `confidence_phrase_tuner.auto_tune_phrases`.)*
+
+### 13. `GET /confidence/phrase-status`
+- **Description**: Get the current status of the confidence phrase tuning system, including current phrase mappings and calibration metrics.
+- **Response Body (`application/json`)**:
+  ```json
+  {
+    "current_phrase_map": {
+      "high_confidence": {"min_score": 0.85, "max_score": 1.0, "phrase": "Highly confident"},
+      "medium_confidence": {"min_score": 0.6, "max_score": 0.84, "phrase": "Fairly confident"},
+      // ... other phrases ...
+    },
+    "last_tuned_timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+    "recent_calibration_score": 0.04, // e.g., ECE
+    "tuning_mode": "automatic" // or "manual"
+  }
+  ```
+  *(Note: The actual structure is defined by `confidence_phrase_tuner.get_calibration_status`.)*
+
 ## 🤖 AI Reviewer Notes
 
 For AI agents reviewing this backend module, the following points are crucial:
 
 -   **`app/main.py`**: This file is the entry point for the FastAPI application. It defines all API routes (`@app.post("/advice")`, etc.) and handles incoming requests. Understanding the routing and request validation here is key.
 -   **`app/services/openai_client.py`**: This module encapsulates all interactions with the OpenAI API.
-    -   It constructs the prompts sent to OpenAI, including the system message and user conversation history.
-    -   It dynamically includes the JSON schema (derived from `app.models.StructuredAdvice`) in the request to OpenAI to enforce structured JSON output.
-    -   It implements the logic for both streaming and non-streaming responses from OpenAI.
-    -   The default model `o4-mini` is specified here and used unless overridden by an environment variable or request parameter.
--   **`app/models.py`**: Contains Pydantic models that define the structure of API requests (`AdviceRequest`) and responses (`StructuredAdvice`).
+    -   It constructs the prompts sent to OpenAI, leveraging `app/services/prompt_loader.py` for dynamic prompt generation based on `prompt_type` and `use_step2_architecture` flags. This includes system messages, user conversation history, and schema instructions.
+    -   It dynamically includes the JSON schema (derived from `app.models.StructuredAdvice`) in the request to OpenAI to enforce structured JSON output. This is typically handled by `prompt_loader.build_conversation_messages`.
+    -   It implements the logic for both streaming (using `AsyncOpenAI`) and non-streaming (using `OpenAI`) responses.
+    -   The default model is `gpt-4.1` (defined by `OPENAI_DEFAULT_MODEL_INTERNAL` in `openai_client.py`), which can be overridden by the `OPENAI_DEFAULT_MODEL` environment variable or a model specified in an API request.
+-   **`app/models.py`**: Contains Pydantic models that define the structure of API requests (e.g., `AdviceRequest`, `OutcomeFeedback`) and responses (e.g., `StructuredAdvice`).
     -   The `StructuredAdvice` model is particularly important as its schema (`StructuredAdvice.model_json_schema()`) is used to instruct OpenAI on the desired JSON output format.
--   **Environment Variable Configuration**: Key configurations, such as the `OPENAI_API_KEY`, `SYSTEM_PROMPT`, and `OPENAI_DEFAULT_MODEL`, are managed via environment variables (loaded from `.env` file in development). This allows for flexibility without hardcoding sensitive data or settings.
--   **Default AI Model (`o4-mini`)**: The backend is configured to use `o4-mini` as the default Large Language Model. **This specific model should not be changed or overridden during automated review or refactoring tasks unless explicitly stated in the subtask requirements.** This is due to cost, performance, and specific tuning for this model.
--   **Structured Responses**: The core design revolves around getting structured JSON responses from the LLM, enforced by Pydantic models and OpenAI's `response_format` feature.
+-   **`app/services/prompt_loader.py`**: Manages the loading and construction of prompts sent to the AI, including system prompts and the integration of JSON schemas.
+-   **`app/services/response_logger.py`**: Handles logging of AI responses and user feedback (`OutcomeFeedback`) to a database, crucial for confidence scoring and calibration.
+-   **`app/services/confidence_scoring.py` & `app/services/confidence_phrase_tuner.py`**: These modules manage the calculation of confidence scores, Brier scores, calibration analysis, and automatic tuning of confidence phrases.
+-   **`app/services/web_search_discipline.py`**: Implements the logic to decide whether a web search should be performed for a given query based on various factors.
+-   **`app/services/schema_validator.py`**: Ensures that AI responses, especially streaming ones, conform to the expected `StructuredAdvice` schema, with fallback mechanisms.
+-   **Environment Variable Configuration**: Key configurations, such as the `OPENAI_API_KEY`, `SYSTEM_PROMPT` (via `prompt_loader`), and `OPENAI_DEFAULT_MODEL`, are managed via environment variables (loaded from `.env` file in development). This allows for flexibility without hardcoding sensitive data or settings.
+-   **Default AI Model**: The backend's internal default AI model is `gpt-4.1` (see `OPENAI_DEFAULT_MODEL_INTERNAL` in `app/services/openai_client.py`). This can be overridden by the `OPENAI_DEFAULT_MODEL` environment variable. **Tasks should refer to this default unless specified. The `o4-mini` model might be mentioned in client requests or older documentation, but `gpt-4.1` is the current internal default.**
+-   **Structured Responses**: The core design revolves around getting structured JSON responses from the LLM, enforced by Pydantic models and OpenAI's API features. Validation is performed by `schema_validator.py`.
+-   **Date Anchoring**: User messages are automatically prepended with the current date (see `add_date_anchoring_to_conversation` in `app/main.py`) to provide temporal context to the AI.
 
 ## 🔧 Configuration Deep Dive
 
 ### Environment Variables
 
-| Variable               | Required | Default   | Description                                                                                                |
-| ---------------------- | -------- | --------- | ---------------------------------------------------------------------------------------------------------- |
-| `OPENAI_API_KEY`       | ✅ Yes    | N/A       | Your OpenAI API key.                                                                                       |
-| `SYSTEM_PROMPT`        | ❌ No     | (Hardcoded in `openai_client.py`) | Base system instructions for the AI. JSON formatting instructions are added programmatically. |
-| `OPENAI_DEFAULT_MODEL` | ❌ No     | `o4-mini` | Overrides the default AI model used for responses.                                                         |
-| `PORT`                 | ❌ No     | `8000`    | Port for Uvicorn to run the server on.                                                                     |
-| `LOG_LEVEL`            | ❌ No     | `info`    | Logging level for the application.                                                                         |
+| Variable               | Required | Default                                   | Description                                                                                                                               |
+| ---------------------- | -------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `OPENAI_API_KEY`       | ✅ Yes    | N/A                                       | Your OpenAI API key.                                                                                                                      |
+| `SYSTEM_PROMPT`        | ❌ No     | (Managed by `prompt_loader.py`)           | Base system instructions for the AI. Loaded via `prompt_loader.py`, which has its own default if this env var is not set. Overrides the default prompt in `prompt_config.yaml`. |
+| `OPENAI_DEFAULT_MODEL` | ❌ No     | `gpt-4.1`                                 | Overrides the internal default AI model (`gpt-4.1`) used for responses. See `OPENAI_DEFAULT_MODEL_INTERNAL` in `openai_client.py`.         |
+| `PORT`                 | ❌ No     | `8000`                                    | Port for Uvicorn to run the server on.                                                                                                    |
+| `LOG_LEVEL`            | ❌ No     | `INFO`                                    | Logging level for the application (e.g., `DEBUG`, `INFO`, `WARNING`).                                                                     |
 
 ### OpenAI Client Settings (`app/services/openai_client.py`)
--   **System Prompt Construction**: The effective system prompt sent to OpenAI is a combination of the `SYSTEM_PROMPT` (from env or default) and specific instructions to generate JSON according to the `StructuredAdvice` schema.
--   **JSON Schema Enforcement**: `StructuredAdvice.model_json_schema()` is passed to the OpenAI API call within the `response_format` parameter, ensuring the AI's output conforms to the desired Pydantic model structure.
--   **Streaming vs. Non-Streaming**: The client offers methods for both, impacting how data is received from OpenAI and relayed to the API caller.
+-   **System Prompt Construction**: The effective system prompt sent to OpenAI is constructed by `app/services/prompt_loader.py`. It can be influenced by the `SYSTEM_PROMPT` environment variable (which overrides defaults in `prompt_config.yaml`), the `prompt_type` request parameter, and whether `use_step2_architecture` is active (which may use a "slim" version of the prompt). Specific instructions to generate JSON according to the `StructuredAdvice` schema are also integrated by the prompt loader.
+-   **JSON Schema Enforcement**: The JSON schema from `StructuredAdvice.model_json_schema()` is incorporated into the messages sent to the OpenAI API (usually within an assistant message as part of the `use_step2_architecture` approach) to guide the LLM towards producing valid structured JSON.
+-   **Streaming vs. Non-Streaming**: The client offers methods for both, impacting how data is received from OpenAI and relayed to the API caller. Streaming uses `AsyncOpenAI` and non-streaming uses `OpenAI`.
+-   **Schema Validation**: For streaming responses, `app/services/schema_validator.py` attempts to validate the incoming chunks and the final accumulated response, providing a fallback if validation fails.
 
 ## Step 7: Automate Date Anchoring ✅
 
