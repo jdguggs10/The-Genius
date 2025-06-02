@@ -1,3 +1,5 @@
+# Render.com deployment configuration
+# Updated: 2025-06-02 - Fixed pnpm build command
 services:
 - type: web
   name: genius-frontend
