@@ -94,6 +94,12 @@ export default defineConfig(({ mode }) => {
   const isDevelopment = mode === 'development';
   const isProduction = mode === 'production';
   
+  // Update manifest options with current mode
+  const pwaOptions: Partial<VitePWAOptions> = {
+    ...manifestForPlugin,
+    disable: isDevelopment, // Disable PWA in development
+  };
+  
   const plugins = [
     react(),
     tailwindcss(),
@@ -105,7 +111,7 @@ export default defineConfig(({ mode }) => {
 
   // Only add PWA plugin in production builds
   if (isProduction) {
-    plugins.push(VitePWA(manifestForPlugin));
+    plugins.push(VitePWA(pwaOptions));
   }
   
   return {
