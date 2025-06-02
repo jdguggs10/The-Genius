@@ -6,16 +6,17 @@
 - [x] Updated render.yaml with new service name "genius-webapp"
 - [x] All dependencies properly configured in package.json
 - [x] Environment variables defined
-- [x] Build command includes `pnpm approve-builds`
+- [x] Build command updated to avoid interactive prompts
 - [x] PWA assets generated correctly
 - [x] Security headers configured
+- [x] Fixed TypeScript import issues
 
 ## Deployment Steps
 
 ### Step 1: Commit Changes
 ```bash
 git add .
-git commit -m "feat: prepare fresh deployment as genius-webapp"
+git commit -m "fix: resolve build issues for genius-webapp deployment"
 git push origin main
 ```
 
@@ -27,7 +28,7 @@ git push origin main
 - [ ] Connect GitHub repository
 - [ ] Configure:
   - Name: `genius-webapp`
-  - Build Command: `pnpm install --frozen-lockfile && pnpm approve-builds && pnpm run build`
+  - Build Command: `pnpm install --frozen-lockfile && pnpm config set auto-install-peers true && pnpm run build`
   - Publish Directory: `dist`
   - Root Directory: `web-app`
 - [ ] Add Environment Variables:
@@ -79,6 +80,7 @@ If deployment fails:
 2. Verify environment variables are set correctly
 3. Ensure pnpm version is specified
 4. Check that backend service is running
+5. Verify all imports use correct paths without file extensions
 
 ## Success Criteria
 

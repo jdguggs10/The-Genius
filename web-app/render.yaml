@@ -4,7 +4,7 @@ services:
 - type: web
   name: genius-webapp
   runtime: static
-  buildCommand: pnpm install --frozen-lockfile && pnpm approve-builds && pnpm run build
+  buildCommand: pnpm install --frozen-lockfile && pnpm config set auto-install-peers true && pnpm run build
   staticPublishPath: dist
   envVars:
     - key: NODE_VERSION

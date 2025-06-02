@@ -27,7 +27,7 @@ This guide will help you deploy your web app to Render with the new service name
 4. **Configure Build Settings**
    ```
    Name: genius-webapp
-   Build Command: pnpm install --frozen-lockfile && pnpm approve-builds && pnpm run build
+   Build Command: pnpm install --frozen-lockfile && pnpm config set auto-install-peers true && pnpm run build
    Publish Directory: dist
    Root Directory: web-app
    ```
@@ -87,7 +87,7 @@ Before deploying, you can verify the build works locally:
 ```bash
 cd web-app
 pnpm install --frozen-lockfile
-pnpm approve-builds
+pnpm config set auto-install-peers true
 pnpm run build
 pnpm run preview
 ```
@@ -105,6 +105,10 @@ pnpm run preview
 3. **Assets not loading**
    - Check the staticPublishPath is set to "dist"
    - Ensure the build command generates files in the dist folder
+
+4. **TypeScript import errors**
+   - Ensure imports don't include file extensions (.tsx, .ts)
+   - Check that all imported files exist
 
 ### Build Output Verification:
 After a successful build, you should see these files in the `dist` folder:
