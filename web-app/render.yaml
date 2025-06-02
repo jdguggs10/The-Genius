@@ -1,7 +1,7 @@
 services:
 - type: web
   name: genius-frontend
-  buildCommand: npm install && npm run build
+  buildCommand: pnpm install --frozen-lockfile && pnpm run build
   staticPublishPath: dist
   routes:
     - type: rewrite
