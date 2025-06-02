@@ -19,11 +19,17 @@ struct ios_appApp: App {
 // A wrapper to host ContentView in a UIHostingController subclass with no input accessory view
 struct RootViewControllerWrapper: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
-        class NoAccessoryHostingController: UIHostingController<ContentView> {
+        let conversationManager = ConversationManager()
+        let contentView = ContentView()
+            .environmentObject(conversationManager)
+        
+        class NoAccessoryHostingController<Content: View>: UIHostingController<Content> {
             override var inputAccessoryView: UIView? { UIView() }
             override var canBecomeFirstResponder: Bool { true }
         }
-        return NoAccessoryHostingController(rootView: ContentView())
+        
+        return NoAccessoryHostingController(rootView: contentView)
     }
+    
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
 }

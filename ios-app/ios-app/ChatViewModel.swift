@@ -25,6 +25,9 @@ class ChatViewModel: ObservableObject {
     var conversationManager: ConversationManager?
     var currentConversationId: UUID?
     
+    // Default model configuration - synced with backend
+    private let defaultModel = "gpt-4.1-mini" // Matches backend OPENAI_DEFAULT_MODEL
+    
     // Use ApiConfiguration for backend URL management
     private var backendURLString: String {
         return ApiConfiguration.getAdviceURL()
@@ -48,6 +51,35 @@ class ChatViewModel: ObservableObject {
         
         return URLSession(configuration: config)
     }()
+    
+    // MARK: - Model Configuration
+    
+    /// Fetch the backend's current default model
+    func fetchBackendDefaultModel() async -> String? {
+        guard let url = URL(string: ApiConfiguration.getModelURL()) else {
+            return nil
+        }
+        
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let model = json["model"] as? String {
+                return model
+            }
+        } catch {
+            print("Failed to fetch backend default model: \(error)")
+        }
+        
+        return nil
+    }
+    
+    /// Get the model to use for requests (fetches from backend or uses fallback)
+    private func getModelToUse() async -> String {
+        if let backendModel = await fetchBackendDefaultModel() {
+            return backendModel
+        }
+        return defaultModel // Fallback to hardcoded default
+    }
     
     func setConversationManager(_ manager: ConversationManager) {
         self.conversationManager = manager
@@ -177,6 +209,9 @@ class ChatViewModel: ObservableObject {
             return
         }
         
+        // Get the model to use
+        let modelToUse = await getModelToUse()
+        
         // Prepare the request payload using proper Responses API patterns
         let adviceRequest: AdviceRequestPayload
         
@@ -185,7 +220,7 @@ class ChatViewModel: ObservableObject {
             adviceRequest = AdviceRequestPayload(
                 userMessage: latestUserMessage.content,
                 previousResponseId: lastResponseId,
-                model: "gpt-4.1", // Always use gpt-4.1 as per documentation
+                model: modelToUse, // Use dynamically fetched model or fallback
                 enableWebSearch: true
             )
         } else {
@@ -195,7 +230,7 @@ class ChatViewModel: ObservableObject {
             }
             adviceRequest = AdviceRequestPayload(
                 conversation: conversationPayloads,
-                model: "gpt-4.1", // Always use gpt-4.1 as per documentation
+                model: modelToUse, // Use dynamically fetched model or fallback
                 enableWebSearch: true
             )
         }
@@ -491,7 +526,7 @@ class ChatViewModel: ObservableObject {
             Message(role: .assistant, content: "Welcome to Fantasy Genius! How can I help you today?")
         ]
         
-        // Clear any error states
+        // Clear error states
         currentErrorMessage = nil
         isLoading = false
         isSearching = false

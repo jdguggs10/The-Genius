@@ -2,7 +2,7 @@
 
 ## Overview
 
-The iOS Fantasy Genius app is a SwiftUI-based mobile client that provides AI-powered fantasy sports advice through real-time streaming conversations. The app integrates with OpenAI's GPT-4.1 Responses API via a FastAPI backend, offering users contextual and structured fantasy sports recommendations.
+The iOS Fantasy Genius app is a SwiftUI-based mobile client that provides AI-powered fantasy sports advice through real-time streaming conversations. The app integrates with OpenAI's GPT-4.1-Mini Responses API via a FastAPI backend, offering users contextual and structured fantasy sports recommendations.
 
 ## 🚨 Recent SSE Issues Resolution
 
@@ -37,8 +37,18 @@ struct Conversation: Identifiable, Codable, Equatable {
 #### Smart Request Logic
 - **Continuing Conversations**: Uses `previous_response_id` + new message only (optimal)
 - **New Conversations**: Sends full conversation history as fallback
-- **Always Uses**: `gpt-4.1` model for best performance
+- **Dynamic Model Selection**: Fetches current backend default model or uses `gpt-4.1-mini` fallback
 - **Response ID Tracking**: Captures and stores IDs from SSE events
+
+#### Model Configuration Management
+```swift
+// Dynamic model fetching from backend
+func fetchBackendDefaultModel() async -> String?
+private func getModelToUse() async -> String
+
+// Automatic sync with backend's current default model
+// Falls back to gpt-4.1-mini if backend is unavailable
+```
 
 #### Enhanced SSE Event Handling
 ```swift
@@ -52,7 +62,7 @@ struct Conversation: Identifiable, Codable, Equatable {
 
 ### 🎯 **Responses API Best Practices Implemented**
 
-1. ✅ **Always uses `gpt-4.1` model** for optimal performance
+1. ✅ **Dynamic model selection** synced with backend configuration
 2. ✅ **Server-side state management** with `previous_response_id`
 3. ✅ **Optimized token usage** - only new messages sent when continuing
 4. ✅ **Official event handling** for all Responses API event types
@@ -104,7 +114,7 @@ Test these scenarios to verify improvements:
 - **URLSession**: HTTP streaming with proper SSE handling
 - **Codable**: Type-safe JSON encoding/decoding
 - **WebKit**: For in-app web browsing (ESPN Login)
-- **OpenAI Responses API**: GPT-4.1 with built-in tools integration
+- **OpenAI Responses API**: GPT-4.1-Mini with built-in tools integration
 
 ## 🚀 Getting Started
 
@@ -182,7 +192,7 @@ if let lastResponseId = conversation.lastResponseId {
     adviceRequest = AdviceRequestPayload(
         userMessage: latestUserMessage.content,
         previousResponseId: lastResponseId,
-        model: "gpt-4.1"
+        model: "gpt-4.1-mini"
     )
 }
 ```
@@ -209,7 +219,7 @@ if let lastResponseId = conversation.lastResponseId {
 - **State Management**: Uses `previous_response_id` for optimal context continuity  
 - **SSE Processing**: Robust line-by-line parsing with comprehensive event handling
 - **Error Recovery**: Graceful fallbacks and proper error propagation
-- **Model Usage**: Always `gpt-4.1` following OpenAI best practices
+- **Model Usage**: Always `gpt-4.1-mini` following OpenAI best practices
 - **Data Models**: Type-safe `Codable` structs matching backend API contracts
 
 The implementation follows OpenAI's official Responses API patterns and resolves all identified SSE issues for production-ready fantasy sports advice delivery.
