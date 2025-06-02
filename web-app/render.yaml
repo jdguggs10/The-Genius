@@ -5,6 +5,9 @@ services:
   name: genius-frontend
   buildCommand: pnpm install --frozen-lockfile && pnpm run build
   staticPublishPath: dist
+  envVars:
+    - key: NODE_VERSION
+      value: "18"
   routes:
     - type: rewrite
       source: /api/*
