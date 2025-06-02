@@ -1,12 +1,12 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
+import { StrictMode } from 'react'
+import App from './App.tsx';
+import { createRoot } from 'react-dom/client';
 import './index.css';
-import ChatErrorBoundary from './components/ChatErrorBoundary';
+import ChatErrorBoundary from './components/ChatErrorBoundary.tsx';
 import { Toaster } from 'react-hot-toast';
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
     <ChatErrorBoundary>
       <App />
       <Toaster
@@ -35,5 +35,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         }}
       />
     </ChatErrorBoundary>
-  </React.StrictMode>,
+  </StrictMode>,
 )
