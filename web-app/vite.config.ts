@@ -1,6 +1,7 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 import compression from 'vite-plugin-compression'
 import { VitePWA, type VitePWAOptions } from 'vite-plugin-pwa'
 
@@ -95,6 +96,7 @@ export default defineConfig(({ mode }) => {
   
   const plugins = [
     react(),
+    tailwindcss(),
     compression({
       algorithm: 'gzip',
       ext: '.gz',

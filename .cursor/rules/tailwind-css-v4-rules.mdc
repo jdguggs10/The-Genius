@@ -1,0 +1,122 @@
+---
+description: 
+globs: *.tsx,*.css,*.ts
+alwaysApply: false
+---
+Use these implementation details for Tailwind's v4 rules and implementation details.
+
+## Overview
+Tailwind CSS v4.0 is a ground-up rewrite focused on performance, modern CSS primitives, and a radically simpler **CSS-first** configuration model. It replaces the old `tailwind.config.js` workflow with design-token-driven custom properties that you author directly in your stylesheet, while the new **Oxide** engine delivers 3–5× faster full builds and >100× faster HMR updates.
+
+## Quick-Start (CLI)
+```bash
+# 1 Install Tailwind and the dedicated CLI package
+npm install -D tailwindcss @tailwindcss/cli                 # v4+
+
+# 2 Create your entry stylesheet
+echo '@import "tailwindcss";' > src/styles.css              # CSS-first config
+
+# 3 Build once
+npx @tailwindcss/cli -i ./src/styles.css -o ./dist/output.css
+
+# 4 Or watch for changes (fast incremental rebuilds)
+npx @tailwindcss/cli -i ./src/styles.css -o ./dist/output.css --watch
+```
+The CLI automatically **discovers content files** (HTML/JS/TS/MDX, etc.) using Git-aware heuristics—no `content` array needed.
+
+### Via Vite (first-party plugin)
+Add the official plugin, then import Tailwind in any CSS file:
+```ts
+// vite.config.ts
+import { defineConfig } from 'vite'
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [tailwindcss()],
+})
+```
+```css
+/* src/app.css */
+@import "tailwindcss";
+```
+The plugin wires up Oxide for lightning-fast, HMR-friendly builds.
+
+## CSS-First Configuration
+### Declaring Design Tokens
+All theme values become CSS custom properties under the `--tw` namespace:
+```css
+@theme {
+  colors: {
+    primary: #1e40af;        /* --tw-color-primary */
+    accent:  oklch(80% 0.2 200); /* wide-gamut OKLCH */
+  }
+  spacing: { 72: 18rem; }
+}
+```
+Use them anywhere:
+```css
+.card {
+  background: var(--tw-color-primary / 8%);
+}
+```
+Theme variables are registered with `@property`, enabling type-safe, animated use in plain CSS.
+
+### Custom Variants
+Define your own state/media variants with the new `@custom-variant` directive:
+```css
+@custom-variant sidebar &.sidebar-open;
+```
+Then use it: `sidebar:bg-gray-900`.
+
+## Core Concepts Refresh
+| Feature | v4 Behaviour | Notes |
+|---------|--------------|-------|
+| **Engine** | Oxide (Rust + Lightning CSS) | 5× faster full builds, 100×+ incremental. |
+| **Scanning** | Automatic file discovery | No `content` key required. |
+| **Config** | Pure CSS `@theme`, `@custom-variant` | JS config optional, not primary. |
+| **Colors** | Wide-gamut + `color-mix()` utilities | Modern color functions. |
+| **Cascade Layers** | Utilities isolated in `@layer` | Maintains predictable override order. |
+| **Imports** | Native `@import` support | Multiple CSS entry points allowed. |
+
+## Extending Tailwind
+### Writing Plugins (v4 API)
+Plugins now export a function that receives a **CSS helper** instead of the old `addUtilities` object-syntax, embracing CSS-first patterns:
+```js
+// plugin.js
+export default ({ css }) => css`
+  @keyframes wiggle { 0%,100%{transform:rotate(-3deg)} 50%{transform:rotate(3deg)} }
+  .animate-wiggle { animation: wiggle 200ms ease-in-out infinite; }
+`
+```
+
+## Framework Recipes
+- **Next.js (app router)** – import `"./globals.css"` in `layout.tsx`; no `tailwind.config.js` needed unless you require legacy JS-driven theming.  
+- **SvelteKit** – install `@tailwindcss/cli`, add a preprocess step, then include `@import "tailwindcss";` in `app.postcss`.  
+- **Remix / Astro / SolidStart** – same CLI flow; just point the build output at your route’s stylesheet link.
+
+## Migrating from v3 → v4
+1. **Upgrade packages**: `npm uninstall tailwindcss && npm i -D tailwindcss @tailwindcss/cli`.  
+2. Delete `tailwind.config.js`; move theme overrides into `@theme { ... }` in your CSS entry.  
+3. Remove the `content` key; let Oxide auto-detect templates.  
+4. Replace any `tw`-prefixed custom directives with `@custom-variant` where appropriate.  
+5. If you rely on `darkMode: 'class'`, rewrite as: `@custom-variant dark .dark & { … }`.  
+See the full migration checklist for edge cases (e.g., purging safelisted classes).
+
+## Performance & DX Tips for AI Agents
+- Invoke the CLI with `--watch` during code generation to give agents live feedback without rebuilding manually.  
+- Use **design token introspection** (`tailwind tokens --json`) to let the agent reason about available colors, spacing, etc. (experimental flag).  
+- Prefer CSS custom property overrides (`:root{--tw-color-primary:#...}`) over re-executing the full build when tweaking palettes.  
+- Leverage the **Vite plugin’s** HMR hooks so generated components instantly reflect style changes.
+
+## Known Caveats
+| Gotcha | Work-around |
+|--------|-------------|
+| Non-CSS template files in obscure extensions (".tmpl") aren’t auto-scanned | Pass `--include "**/*.tmpl"` to the CLI.  |
+| Hashing class names for e2e tests | Use `NODE_ENV=production npx @tailwindcss/cli …` to enable hash mode, or add PostCSS hashing plugin. |
+
+## Further Reading
+- Official v4 Release Post  
+- Upgrade Guide  
+- "What’s New & Migration Guide" by Kasenda  
+- "Tailwind v4: What Devs Need to Know" (Eagerworks)  
+- Plugin API changes discussion  

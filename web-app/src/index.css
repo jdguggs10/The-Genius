@@ -1,12 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Dancing+Script:wght@400;700&display=swap');
 
-@import "tailwindcss/preflight";
-@import "tailwindcss/utilities";
+@import "tailwindcss";
+
+@theme {
+  --font-family-headline: 'Snell Roundhand', 'Dancing Script', cursive;
+  --font-family-system: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+  --font-family-button: 'Futura', 'Avenir Next', 'AvenirNext-Bold', system-ui, sans-serif;
+  --font-family-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
+}
+
+/* Dark mode custom variant */
+@custom-variant dark .dark &;
 
 :root {
   font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
   
-  /* Custom font definitions */
+  /* Custom font definitions - keep these for backward compatibility */
   --font-headline: 'Snell Roundhand', 'Dancing Script', cursive;
   --font-system: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', system-ui, sans-serif;
   --font-button: 'Futura', 'Avenir Next', 'AvenirNext-Bold', system-ui, sans-serif;
