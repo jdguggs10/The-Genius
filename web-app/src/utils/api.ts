@@ -63,6 +63,13 @@ export function getModelUrl(): string {
 }
 
 /**
+ * Get default model setting URL
+ */
+export function getDefaultModelSettingUrl(): string {
+  return getApiUrl('settings/default-model');
+}
+
+/**
  * Log current API configuration (useful for debugging)
  */
 export function logApiConfig(): void {

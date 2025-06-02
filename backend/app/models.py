@@ -98,3 +98,7 @@ class ConfidenceLog(Base):
 class AdviceResponse(BaseModel):
     reply: str
     model: Optional[str] = None  # Model used for generating the response
+
+class ModelResponse(BaseModel):
+    """Simple Pydantic model for returning a model name."""
+    model: str = Field(description="The name of the AI model.")

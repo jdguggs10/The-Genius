@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, HTTPException, Response, Request
+from fastapi import FastAPI, Query, HTTPException, Response, Request, APIRouter
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 import os
@@ -9,12 +9,22 @@ import json # For constructing the final JSON object if needed, or for error res
 from typing import Optional
 from datetime import datetime
 
-from app.models import AdviceRequest, StructuredAdvice, OutcomeFeedback # Import StructuredAdvice and new Step 5 models
+from app.models import AdviceRequest, StructuredAdvice, OutcomeFeedback, ModelResponse # Import StructuredAdvice and new Step 5 models
 from app.services.openai_client import get_streaming_response, OPENAI_DEFAULT_MODEL_INTERNAL, SYSTEM_DEFAULT_INSTRUCTIONS, get_response as get_openai_non_streaming_response
 from app.services.web_search_discipline import web_search_discipline, SearchDecision
 from app.services.response_logger import response_logger # Step 5: Import response logger
 from app.services.confidence_scoring import confidence_scoring_service # Step 5: Import confidence service
 from app.services.confidence_phrase_tuner import confidence_phrase_tuner # Step 5: Import phrase tuner
+
+# from app.services.chat_service import (
+#     handle_advice_request,
+#     handle_web_search_request,
+#     get_current_openai_model_from_env  # Assuming this might be useful or refactored
+# )
+#from app.services.espn_api_service import get_espn_api_data_sync
+# from app.services.pybaseball_service import get_pybaseball_data_sync
+# from app.utils.logging_config import get_logger
+# from app.utils.rate_limiter import get_limiter_key 
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -44,6 +54,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Environment variable for the default model
+OPENAI_DEFAULT_MODEL = os.getenv("OPENAI_DEFAULT_MODEL", "gpt-4.1-mini") 
+
+# --- Router Definitions ---
+api_router = APIRouter()
+settings_router = APIRouter(prefix="/api/v1/settings", tags=["Settings"])
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -508,7 +525,26 @@ async def get_phrase_tuning_status():
         logger.error(f"Error getting phrase status: {e}")
         raise HTTPException(status_code=500, detail=f"Error getting phrase status: {str(e)}")
 
-# Add more endpoints as needed...
+# --- New Settings Endpoint ---
+@settings_router.get("/default-model", response_model=ModelResponse)
+async def get_default_openai_model_endpoint(): # Renamed to avoid conflict if get_default_openai_model exists elsewhere
+    """
+    Retrieves the default OpenAI model name from environment variables.
+    """
+    model_name = os.getenv("OPENAI_DEFAULT_MODEL")
+    if not model_name:
+        logger.warning("OPENAI_DEFAULT_MODEL environment variable is not set.")
+        # Consider raising HTTPException or returning a default based on ModelResponse specifics
+        # For now, returning a placeholder if ModelResponse allows it, or adjust as needed.
+        # If ModelResponse.model is not Optional, this will cause an error if model_name is None.
+        # Assuming ModelResponse can handle a potentially None or specific default string.
+        return ModelResponse(model= os.getenv("OPENAI_DEFAULT_MODEL", "fallback_model_not_set"))
+    return ModelResponse(model=model_name)
+
+# --- Include Routers ---
+# Make sure to include your main api_router if it contains other endpoints like /advice
+# Example: app.include_router(api_router, prefix="/api/v1") 
+app.include_router(settings_router)
 
 # To run this app (for development):
 # uvicorn app.main:app --reload

@@ -15,7 +15,7 @@ import toast from 'react-hot-toast';
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'; // Using outline for theme toggle
 import { useTheme } from '../hooks/useTheme';
 import { logger } from '../utils/logger';
-import { getAdviceUrl, logApiConfig } from '../utils/api';
+import { getAdviceUrl, logApiConfig, getDefaultModelSettingUrl } from '../utils/api';
 
 const PLACEHOLDER_AI_MESSAGE = "_PLACEHOLDER_AI_MESSAGE_";
 const ITEM_SIZE = 100; // Increased for DaisyUI chat components
@@ -48,6 +48,7 @@ export default function Chat() {
   const [isSearching, setIsSearching] = useState(false);
   const [streamingText, setStreamingText] = useState(''); // Kept for compatibility with useEffect, but actual streaming text is now currentAIMessageText
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [defaultModelNameFromAPI, setDefaultModelNameFromAPI] = useState<string>('Default Model'); // Initialize with a fallback
   const inputRef = useRef<HTMLInputElement>(null);
   const currentAssistantMessageIdRef = useRef<string | null>(null);
   const [currentAIMessageText, setCurrentAIMessageText] = useState('');
@@ -85,6 +86,28 @@ export default function Chat() {
   // Log API configuration on mount for debugging
   useEffect(() => {
     logApiConfig();
+
+    // Fetch default model name from API
+    const fetchModelName = async () => {
+      try {
+        const response = await fetch(getDefaultModelSettingUrl());
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        if (data && data.model) {
+          setDefaultModelNameFromAPI(data.model);
+        } else {
+          logger.error('Failed to fetch or parse default model name from API, using fallback.');
+          // setDefaultModelNameFromAPI is already initialized with a fallback
+        }
+      } catch (error) {
+        logger.error('Error fetching default model name:', error);
+        // setDefaultModelNameFromAPI is already initialized with a fallback
+      }
+    };
+
+    fetchModelName();
   }, []);
 
   // Updated scroll logic using useScrollAnchor
@@ -475,7 +498,7 @@ export default function Chat() {
 
             {/* Status/Model Info */}
             <div className="mt-8 text-sm text-app-text-muted dark:text-app-text-muted-dark composer-status">
-              Powered by {import.meta.env.VITE_OPENAI_DEFAULT_MODEL || 'Default Model'}
+              Powered by {defaultModelNameFromAPI}
             </div>
           </div>
         </div>
