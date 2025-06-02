@@ -1,5 +1,5 @@
 import './App.css'
-import Chat from './components/Chat';
+import Chat from './components/Chat.tsx';
 
 function App() {
   return (
