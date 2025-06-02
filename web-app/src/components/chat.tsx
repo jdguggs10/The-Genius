@@ -334,7 +334,7 @@ export default function Chat() {
       {messages.length > 0 || isLoading ? (
         <>
           {/* Header when there are messages */}
-          <header className="p-4 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm shadow-sm">
+          <header className="p-4 bg-white/90 dark:bg-neutral-900/90 backdrop-blur-sm">
             <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between sm:space-y-0 space-y-2">
               <div className="flex items-center space-x-2">
                 <img 

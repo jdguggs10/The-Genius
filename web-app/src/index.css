@@ -107,11 +107,7 @@ button:focus-visible {
 
 /* DaisyUI Chat Customizations */
 .chat-bubble {
-  @apply shadow-sm max-w-[85%];
-}
-
-.chat-bubble-primary {
-  @apply bg-primary text-primary-content;
+  @apply max-w-[85%];
 }
 
 /* Ensure proper markdown styling in chat bubbles */
@@ -120,7 +116,7 @@ button:focus-visible {
 }
 
 .chat-bubble .prose p {
-  @apply my-1;
+  margin: 0.25rem 0;
 }
 
 /* Dark mode adjustments */

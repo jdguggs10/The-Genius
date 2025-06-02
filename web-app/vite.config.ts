@@ -4,21 +4,21 @@ import react from '@vitejs/plugin-react'
 import compression from 'vite-plugin-compression'
 import { VitePWA, type VitePWAOptions } from 'vite-plugin-pwa'
 
-// Define manifest options (can be partial, plugin completes it)
+// Define manifest options for PWA
 const manifestForPlugin: Partial<VitePWAOptions> = {
-  registerType: 'autoUpdate', // Prompt for update or auto update
-  injectRegister: 'auto', // or 'script' or null
+  registerType: 'autoUpdate',
+  injectRegister: 'auto',
   devOptions: {
-    enabled: true, // Enable PWA in development to prevent console errors
+    enabled: true,
     type: 'module',
   },
-  selfDestroying: false, // Don't clean up in development
+  selfDestroying: false,
   manifest: {
     name: 'The Genius - AI Sports Assistant',
     short_name: 'TheGenius',
     description: 'AI-Powered Fantasy Sports Advice',
-    theme_color: '#1e40af', // Example: blue-700 Tailwind
-    background_color: '#ffffff', // Light background for splash screen
+    theme_color: '#1e40af',
+    background_color: '#ffffff',
     display: 'standalone',
     scope: '/',
     start_url: '/',
@@ -36,7 +36,7 @@ const manifestForPlugin: Partial<VitePWAOptions> = {
         purpose: 'any'
       },
       {
-        src: 'apple-touch-icon.png', // Path in public folder
+        src: 'apple-touch-icon.png',
         sizes: '180x180',
         type: 'image/png',
         purpose: 'any'
@@ -51,11 +51,9 @@ const manifestForPlugin: Partial<VitePWAOptions> = {
   },
   workbox: {
     cleanupOutdatedCaches: true,
-    globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'], // Cache these app shell assets
+    globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
     runtimeCaching: [
       {
-        // Match any request that starts with https://fonts.googleapis.com/
-        // or https://fonts.gstatic.com/
         urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
         handler: 'CacheFirst',
         options: {
@@ -70,28 +68,19 @@ const manifestForPlugin: Partial<VitePWAOptions> = {
         },
       },
       {
-        // Example for API calls - adjust urlPattern as needed
-        // This app primarily uses WebSockets for real-time chat, which aren't cached this way.
-        // This rule would apply to any other HTTP API calls (e.g., fetching initial model name).
-        // It's set to NetworkFirst, so it tries network, then cache.
-        // It's a generic example; for POST requests or specific GETs, more tailored strategies might be needed.
-        urlPattern: ({ url, request }) => {
-          const isBackendApi = request.destination === '' && url.origin !== self.location.origin;
-          // Customize further if your backend URL is known and stable, e.g., by checking url.hostname
-          // const backendHostname = import.meta.env.VITE_BACKEND_HOSTNAME || "your-backend-host.com";
-          // return isBackendApi && url.hostname.includes(backendHostname);
-          return isBackendApi; // Catches any cross-origin fetch requests
+        urlPattern: ({ url }) => {
+          return url.hostname.includes('genius-backend') || url.hostname.includes('onrender.com');
         },
         handler: 'NetworkFirst',
         options: {
           cacheName: 'api-cache',
-          networkTimeoutSeconds: 10, // Timeout for network request
+          networkTimeoutSeconds: 10,
           expiration: {
             maxEntries: 20,
             maxAgeSeconds: 60 * 60 * 24, // 1 day
           },
           cacheableResponse: {
-            statuses: [0, 200], // Cache opaque and successful responses
+            statuses: [0, 200],
           },
         },
       },
@@ -102,35 +91,50 @@ const manifestForPlugin: Partial<VitePWAOptions> = {
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const isDevelopment = mode === 'development';
+  const isProduction = mode === 'production';
   
-  const plugins = [react(), compression(), VitePWA(manifestForPlugin)];
+  const plugins = [
+    react(),
+    compression({
+      algorithm: 'gzip',
+      ext: '.gz',
+    }),
+    VitePWA(manifestForPlugin)
+  ];
   
   return {
     plugins,
     define: {
-      // Reduce React console warnings in development
       __DEV__: isDevelopment,
       'process.env.NODE_ENV': JSON.stringify(mode)
     },
     server: {
-      proxy: {
-        // During development, forward API calls to your backend
+      proxy: isDevelopment ? {
         '/api': {
-          target: 'https://genius-backend-nhl3.onrender.com',
+          target: process.env.VITE_BACKEND_URL || 'https://genius-backend-nhl3.onrender.com',
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api/, ''),  // Remove /api prefix
+          rewrite: (path) => path.replace(/^\/api/, ''),
           secure: true
         }
-      }
+      } : undefined
     },
     build: {
       target: 'es2018',
-      outDir: 'dist'
+      outDir: 'dist',
+      assetsDir: 'assets',
+      sourcemap: !isProduction,
+      minify: isProduction ? 'esbuild' : false,
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            vendor: ['react', 'react-dom'],
+            ui: ['framer-motion', 'react-hot-toast']
+          }
+        }
+      }
     },
-    test: {
-      globals: true,
-      environment: 'jsdom',
-      setupFiles: ['./src/test-setup.ts'],
+    optimizeDeps: {
+      include: ['react', 'react-dom', 'framer-motion']
     }
   }
 })

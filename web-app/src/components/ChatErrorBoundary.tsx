@@ -24,21 +24,22 @@ class ChatErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     logger.error("Uncaught error in Chat component:", error, errorInfo);
-    // You could also log the error to an error reporting service here
   }
 
   public render() {
     if (this.state.hasError) {
+      const isDevelopment = import.meta.env.DEV;
+      
       return (
         <div className="flex flex-col items-center justify-center h-screen bg-red-50 p-4">
-          <div className="bg-white p-8 rounded-lg shadow-xl text-center">
+          <div className="bg-white p-8 rounded-lg shadow-xl text-center max-w-md">
             <h1 className="text-2xl font-bold text-red-600 mb-4">Oops! Something went wrong.</h1>
-            <p className="text-gray-700 mb-2">
-              We encountered an unexpected problem. Please try refreshing the page.
+            <p className="text-gray-700 mb-4">
+              We encountered an unexpected problem. Please try refreshing the page or contact support if the issue persists.
             </p>
-            {this.state.error && (
+            {isDevelopment && this.state.error && (
               <details className="mt-4 text-left bg-gray-100 p-3 rounded">
-                <summary className="text-sm text-gray-600 cursor-pointer">Error Details</summary>
+                <summary className="text-sm text-gray-600 cursor-pointer">Error Details (Development)</summary>
                 <pre className="mt-2 text-xs text-red-500 whitespace-pre-wrap">
                   {this.state.error.toString()}
                   {this.state.error.stack && `
