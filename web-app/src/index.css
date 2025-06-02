@@ -107,28 +107,23 @@ button:focus-visible {
 
 /* DaisyUI Chat Customizations */
 .chat-bubble {
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  max-width: 85%;
+  @apply shadow-sm max-w-[85%];
 }
 
 .chat-bubble-primary {
-  background-color: rgb(59 130 246);
-  color: rgb(255 255 255);
+  @apply bg-primary text-primary-content;
 }
 
 /* Ensure proper markdown styling in chat bubbles */
 .chat-bubble .prose {
-  color: inherit;
+  @apply text-inherit;
 }
 
 .chat-bubble .prose p {
-  margin-top: 0.25rem;
-  margin-bottom: 0.25rem;
+  @apply my-1;
 }
 
 /* Dark mode adjustments */
 .dark .chat-start .chat-bubble {
-  background-color: rgb(64 64 64);
-  color: rgb(245 245 245);
-  border-color: rgb(82 82 82);
+  @apply bg-neutral-700 text-neutral-100 border-neutral-600;
 }
