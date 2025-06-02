@@ -6,7 +6,6 @@ import SkeletonMessage from './SkeletonMessage';
 // AnimatePresence removed as it's unlikely to work well with react-window item recycling without significant effort
 import type { MessageType, AdviceRequest } from '../types';
 import { useConversationManager } from '../hooks/useConversationManager';
-// useSSEClient imported instead of useChatSocket
 import { useSSEClient } from '../hooks/useSSEClient';
 import { useScrollAnchor } from '../hooks/useScrollAnchor';
 // @ts-ignore: react-window has no type declarations

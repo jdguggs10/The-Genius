@@ -5,20 +5,20 @@ A production-ready React web application that provides AI-powered fantasy sports
 ## Features
 
 - 🤖 AI-powered fantasy sports advice
-- 💬 Real-time chat interface with Server-Sent Events (SSE)
+- 💬 Real-time chat interface with **Server-Sent Events (SSE) streaming**
 - 📱 Progressive Web App (PWA) support
 - 🎨 Modern, responsive UI with **Tailwind CSS v4** and DaisyUI
 - 🌙 Dark/Light theme support
 - ⚡ **Ultra-fast builds** with Tailwind's new Oxide engine (100×+ faster HMR)
 - 🔄 Automatic error recovery and retry logic
-- 📊 Real-time streaming responses
+- 📊 **Real-time streaming responses** via SSE
 
 ## Tech Stack
 
 - **Frontend**: React 19, TypeScript, Vite
 - **Styling**: **Tailwind CSS v4** (CSS-first configuration), DaisyUI
 - **State Management**: React Hooks
-- **Real-time**: Server-Sent Events (SSE)
+- **Real-time Communication**: **Server-Sent Events (SSE)** for streaming responses
 - **PWA**: Vite PWA Plugin with Workbox
 - **Build**: Vite with compression and optimization
 
@@ -126,7 +126,7 @@ The application follows a modern React architecture with:
 - **Custom hooks** for state management and side effects
 - **Error boundaries** for graceful error handling
 - **Responsive design** with mobile-first approach
-- **Real-time communication** via SSE for streaming responses
+- **Server-Sent Events (SSE) streaming** for real-time AI responses with robust parsing and buffering
 
 ## License
 
