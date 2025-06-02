@@ -15,6 +15,7 @@ import toast from 'react-hot-toast';
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'; // Using outline for theme toggle
 import { useTheme } from '../hooks/useTheme';
 import { logger } from '../utils/logger';
+import { getAdviceUrl, getModelUrl, logApiConfig } from '../utils/api';
 
 const PLACEHOLDER_AI_MESSAGE = "_PLACEHOLDER_AI_MESSAGE_";
 const ITEM_SIZE = 100; // Increased for DaisyUI chat components
@@ -57,9 +58,8 @@ export default function Chat() {
 
   const { theme, setTheme } = useTheme();
 
-  // SSE client setup
-  const apiBase = import.meta.env.VITE_BACKEND_URL || 'https://genius-backend-nhl3.onrender.com';
-  const adviceUrl = `${apiBase.replace(/\/$/, '')}/advice`;
+  // SSE client setup - now using centralized API config
+  const adviceUrl = getAdviceUrl();
   const { streamSSEResponse } = useSSEClient();
   
   // Use the conversation manager
@@ -83,6 +83,11 @@ export default function Chat() {
     handleScroll // This will be passed to FixedSizeList's onScroll
   } = useScrollAnchor(listRef, messages.length);
 
+  // Log API configuration on mount for debugging
+  useEffect(() => {
+    logApiConfig();
+  }, []);
+
   // Fetch default model from backend on mount
   useEffect(() => {
     const fetchDefaultModel = async () => {
@@ -93,7 +98,7 @@ export default function Chat() {
       }, 10000);
 
       try {
-        const response = await fetch(`${apiBase}/model`, {
+        const response = await fetch(getModelUrl(), {
           signal: controller.signal
         });
         const data = await response.json();
@@ -108,7 +113,7 @@ export default function Chat() {
       }
     };
     fetchDefaultModel();
-  }, [apiBase]);
+  }, []);
 
   // Updated scroll logic using useScrollAnchor
   useEffect(() => {

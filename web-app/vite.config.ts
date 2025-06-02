@@ -10,7 +10,7 @@ const manifestForPlugin: Partial<VitePWAOptions> = {
   registerType: 'autoUpdate',
   injectRegister: 'auto',
   devOptions: {
-    enabled: true,
+    enabled: false,
     type: 'module',
   },
   selfDestroying: false,
@@ -70,7 +70,7 @@ const manifestForPlugin: Partial<VitePWAOptions> = {
       },
       {
         urlPattern: ({ url }) => {
-          return url.hostname.includes('genius-backend') || url.hostname.includes('onrender.com');
+          return url.hostname.includes('genius-backend') || url.hostname.includes('onrender.com') || url.hostname === 'localhost';
         },
         handler: 'NetworkFirst',
         options: {
@@ -113,10 +113,10 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: isDevelopment ? {
         '/api': {
-          target: process.env.VITE_BACKEND_URL || 'https://genius-backend-nhl3.onrender.com',
+          target: 'http://localhost:8000',
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ''),
-          secure: true
+          secure: false
         }
       } : undefined
     },

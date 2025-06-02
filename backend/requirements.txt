@@ -7,7 +7,7 @@ uvicorn[standard]==0.34.2
 gunicorn==23.0.0
 openai==1.76.2
 python-dotenv==1.1.0
-redis>=5.0.0,<6.0.0
+redis>=4.2.0,<5.0.0
 fastapi-limiter==0.1.5
 psutil>=5.9.0,<6.0.0
 # Step 5: Confidence Scoring Dependencies

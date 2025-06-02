@@ -4,12 +4,12 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "NODE_ENV=development VITE_BACKEND_URL=http://localhost:8000 vite",
-    "dev:prod-backend": "NODE_ENV=development VITE_BACKEND_URL=https://genius-backend-nhl3.onrender.com vite",
-    "build": "NODE_ENV=production VITE_BACKEND_URL=https://genius-backend-nhl3.onrender.com tsc --project tsconfig.app.json && vite build",
-    "build:local": "NODE_ENV=production VITE_BACKEND_URL=http://localhost:8000 tsc --project tsconfig.app.json && vite build",
+    "dev": "vite",
+    "dev:prod-backend": "VITE_BACKEND_URL=https://genius-backend-nhl3.onrender.com vite",
+    "build": "tsc --project tsconfig.app.json && vite build",
+    "build:local": "VITE_BACKEND_URL=http://localhost:8000 tsc --project tsconfig.app.json && vite build",
     "preview": "vite preview",
-    "preview:local-backend": "NODE_ENV=development VITE_BACKEND_URL=http://localhost:8000 vite build && vite preview",
+    "preview:local-backend": "VITE_BACKEND_URL=http://localhost:8000 vite build && vite preview",
     "start": "vite preview --port 3000 --host",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix"

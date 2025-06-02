@@ -67,7 +67,7 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-61473718'], (function (workbox) { 'use strict';
+define(['./workbox-47da91e0'], (function (workbox) { 'use strict';
 
   self.skipWaiting();
   workbox.clientsClaim();
@@ -82,7 +82,7 @@ define(['./workbox-61473718'], (function (workbox) { 'use strict';
     "revision": "3ca0b8505b4bec776b69afdba2768812"
   }, {
     "url": "index.html",
-    "revision": "0.obseekauntg"
+    "revision": "0.14vsa5bs4c"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("index.html"), {
@@ -98,11 +98,9 @@ define(['./workbox-61473718'], (function (workbox) { 'use strict';
     })]
   }), 'GET');
   workbox.registerRoute(({
-    url,
-    request
+    url
   }) => {
-    const isBackendApi = request.destination === "" && url.origin !== self.location.origin;
-    return isBackendApi;
+    return url.hostname.includes("genius-backend") || url.hostname.includes("onrender.com");
   }, new workbox.NetworkFirst({
     "cacheName": "api-cache",
     "networkTimeoutSeconds": 10,
@@ -115,3 +113,4 @@ define(['./workbox-61473718'], (function (workbox) { 'use strict';
   }), 'GET');
 
 }));
+//# sourceMappingURL=sw.js.map

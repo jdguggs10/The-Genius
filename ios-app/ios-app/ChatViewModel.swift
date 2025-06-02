@@ -25,8 +25,10 @@ class ChatViewModel: ObservableObject {
     var conversationManager: ConversationManager?
     var currentConversationId: UUID?
     
-    // Use your backend URL - change this to match your deployment
-    private let backendURLString = "https://genius-backend-nhl3.onrender.com/advice" // Updated to Render URL
+    // Use ApiConfiguration for backend URL management
+    private var backendURLString: String {
+        return ApiConfiguration.getAdviceURL()
+    }
     
     // MARK: - Network Configuration
     private lazy var streamingSession: URLSession = {
@@ -82,6 +84,9 @@ class ChatViewModel: ObservableObject {
     
     // Send a message
     func sendMessage() {
+        // Log API configuration for debugging
+        ApiConfiguration.logConfiguration()
+        
         let trimmedInput = currentInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedInput.isEmpty || !draftAttachmentData.isEmpty else { return }
         
