@@ -69,16 +69,16 @@ VITE_BACKEND_URL=https://genius-backend-nhl3.onrender.com
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Build for production
-npm run build
+pnpm run build
 
 # Preview production build locally
-npm run preview
+pnpm run preview
 
 # Preview production build locally on port 3000
-npm start
+pnpm start
 ```
 
 ### Deployment Options
@@ -90,7 +90,7 @@ The app is configured for Render.com deployment with the included `render.yaml`:
 services:
 - type: web
   name: genius-frontend
-  buildCommand: npm install && npm run build
+  buildCommand: pnpm install --frozen-lockfile && pnpm run build
   staticPublishPath: dist
 ```
 
@@ -115,12 +115,12 @@ The built files in the `dist/` directory can be deployed to any static hosting s
 
 Your web app is now configured to automatically detect the correct backend URL based on the environment:
 
-#### Development Mode (`npm run dev`)
+#### Development Mode (`pnpm run dev`)
 - **Automatically uses**: Vite proxy to `http://localhost:8000`
 - **Requirement**: Make sure your backend is running on port 8000
-- **No configuration needed**: Just run `npm run dev` and it will work with your local backend
+- **No configuration needed**: Just run `pnpm run dev` and it will work with your local backend
 
-#### Production Build (`npm run build`)
+#### Production Build (`pnpm run build`)
 - **Automatically uses**: `https://genius-backend-nhl3.onrender.com`
 - **No configuration needed**: Deploy to Render and it will automatically connect to your production backend
 
@@ -130,13 +130,13 @@ If you need to override the automatic detection, you can use these commands:
 
 #### Testing Against Production Backend Locally
 ```bash
-npm run dev:prod-backend
+pnpm run dev:prod-backend
 ```
 This runs development mode but connects to your production backend on Render.
 
 #### Building for Local Backend
 ```bash
-npm run build:local
+pnpm run build:local
 ```
 This creates a production build that connects to your local backend.
 
@@ -153,9 +153,9 @@ VITE_BACKEND_URL=https://your-custom-backend.onrender.com
 
 With this setup, you should never need to manually switch configurations:
 
-1. **Local Development**: `npm run dev` (connects to localhost:8000)
-2. **Production Deployment**: `npm run build` (connects to Render backend)
-3. **Testing Production Backend**: `npm run dev:prod-backend` (if needed)
+1. **Local Development**: `pnpm run dev` (connects to localhost:8000)
+2. **Production Deployment**: `pnpm run build` (connects to Render backend)
+3. **Testing Production Backend**: `pnpm run dev:prod-backend` (if needed)
 
 The app automatically detects the environment and chooses the correct backend URL.
 
@@ -175,32 +175,32 @@ Check the browser console when the app loads - you'll see API configuration logs
 
 ```bash
 # Start development server with local backend
-npm run dev
+pnpm run dev
 
 # Start development server with production backend
-npm run dev:prod-backend
+pnpm run dev:prod-backend
 
 # Lint code
-npm run lint
+pnpm run lint
 
 # Fix linting issues
-npm run lint:fix
+pnpm run lint:fix
 ```
 
 ### Utility Scripts
 
 ```bash
 # Builds the project including a specific safelist for Tailwind CSS
-npm run build:safelist
+pnpm run build:safelist
 
 # Builds the project and previews it using a local backend configuration
-npm run preview:local-backend
+pnpm run preview:local-backend
 
 # Generates a JSON file of Tailwind CSS design tokens
-npm run tailwind:tokens
+pnpm run tailwind:tokens
 
 # Checks the Tailwind CSS output against a safelist without generating a full build
-npm run tailwind:safelist-check
+pnpm run tailwind:safelist-check
 ```
 
 ## Browser Support
