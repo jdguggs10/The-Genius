@@ -229,56 +229,57 @@ struct ContentView: View {
     // MARK: - Input Bar
     private var inputBar: some View {
          VStack(spacing: 0) {
-            if !viewModel.draftAttachmentData.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(viewModel.draftAttachmentData.indices, id: \.self) { index in
-                            ZStack(alignment: .topTrailing) {
-                                if let uiImage = UIImage(data: viewModel.draftAttachmentData[index]) {
-                                    Image(uiImage: uiImage).resizable().scaledToFill()
-                                        .frame(width: 60, height: 60).clipShape(RoundedRectangle(cornerRadius: 8))
-                                        .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.5), lineWidth: 1))
-                                } else {
-                                    Rectangle().fill(Color.gray.opacity(0.3)).frame(width: 60, height: 60).cornerRadius(8)
-                                        .overlay(Image(systemName: "exclamationmark.triangle").foregroundColor(.white))
-                                }
-                                Button(action: { viewModel.draftAttachmentData.remove(at: index) }) {
-                                    Image(systemName: "xmark.circle.fill").foregroundColor(.gray)
-                                        .background(Color.white.opacity(0.7)).clipShape(Circle())
-                                }.padding(4)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, horizontalSizeClass == .regular ? 20 : 12).padding(.top, 8)
-                }.frame(height: 70).transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .bottom)))
-                Divider().padding(.top, 4)
-            }
+            // if !viewModel.draftAttachmentData.isEmpty {
+            //     ScrollView(.horizontal, showsIndicators: false) {
+            //         HStack(spacing: 8) {
+            //             ForEach(viewModel.draftAttachmentData.indices, id: \.self) { index in
+            //                 ZStack(alignment: .topTrailing) {
+            //                     if let uiImage = UIImage(data: viewModel.draftAttachmentData[index]) {
+            //                         Image(uiImage: uiImage).resizable().scaledToFill()
+            //                             .frame(width: 60, height: 60).clipShape(RoundedRectangle(cornerRadius: 8))
+            //                             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.5), lineWidth: 1))
+            //                     } else {
+            //                         Rectangle().fill(Color.gray.opacity(0.3)).frame(width: 60, height: 60).cornerRadius(8)
+            //                             .overlay(Image(systemName: "exclamationmark.triangle").foregroundColor(.white))
+            //                     }
+            //                     Button(action: { viewModel.draftAttachmentData.remove(at: index) }) {
+            //                         Image(systemName: "xmark.circle.fill").foregroundColor(.gray)
+            //                             .background(Color.white.opacity(0.7)).clipShape(Circle())
+            //                     }.padding(4)
+            //                 }
+            //             }
+            //         }
+            //         .padding(.horizontal, horizontalSizeClass == .regular ? 20 : 12).padding(.top, 8)
+            //     }.frame(height: 70).transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .bottom)))
+            //     Divider().padding(.top, 4)
+            // }
             HStack(alignment: .bottom, spacing: horizontalSizeClass == .regular ? 16 : 10) {
-                Button(action: { isInputFocused = false; showingPhotoPicker = true }) {
-                    Image(systemName: "plus.circle.fill").font(.system(size: 24)).foregroundColor(.accentColor)
-                }.frame(minWidth: 44, minHeight: 44).padding(.bottom, 5)
+                // Button(action: { isInputFocused = false; showingPhotoPicker = true }) {
+                //     Image(systemName: "plus.circle.fill").font(.system(size: 24)).foregroundColor(.accentColor)
+                // }.frame(minWidth: 44, minHeight: 44).padding(.bottom, 5)
                 HStack(alignment: .bottom, spacing: 8) {
                     TextField("Ask anything", text: $viewModel.currentInput, axis: .vertical)
                         .textFieldStyle(.plain).padding(.horizontal, 12).padding(.vertical, 10)
                         .font(.system(size: 17)).lineLimit(1...5).focused($isInputFocused)
                         .onSubmit { if !viewModel.currentInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { viewModel.sendMessage() } }
                         .frame(minHeight: 44)
-                    if viewModel.isLoading {
-                        ProgressView().scaleEffect(0.9).frame(width: 30, height: 30).padding(.trailing, 6).padding(.bottom, 7)
-                    } else if !viewModel.currentInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !viewModel.draftAttachmentData.isEmpty {
-                        Button(action: { viewModel.sendMessage() }) {
-                            Image(systemName: "arrow.up.circle.fill").font(.system(size: 28)).foregroundColor(.accentColor)
-                        }.frame(minWidth: 44, minHeight: 44).padding(.trailing, 4).padding(.bottom, 3)
-                    }
+                    // if viewModel.isLoading {
+                    //     ProgressView().scaleEffect(0.9).frame(width: 30, height: 30).padding(.trailing, 6).padding(.bottom, 7)
+                    // } else if !viewModel.currentInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !viewModel.draftAttachmentData.isEmpty {
+                    //     Button(action: { viewModel.sendMessage() }) {
+                    //         Image(systemName: "arrow.up.circle.fill").font(.system(size: 28)).foregroundColor(.accentColor)
+                    //     }.frame(minWidth: 44, minHeight: 44).padding(.trailing, 4).padding(.bottom, 3)
+                    // }
                 }.background(RoundedRectangle(cornerRadius: 22).fill(Color(.systemGray6)))
-                Button(action: { /* TODO: Voice input */ }) {
-                    Image(systemName: "mic.fill").font(.system(size: 24)).foregroundColor(.gray)
-                }.frame(minWidth: 44, minHeight: 44).padding(.bottom, 5).disabled(true)
+                // Button(action: { /* TODO: Voice input */ }) {
+                //     Image(systemName: "mic.fill").font(.system(size: 24)).foregroundColor(.gray)
+                // }.frame(minWidth: 44, minHeight: 44).padding(.bottom, 5).disabled(true)
             }
             .padding(.horizontal, horizontalSizeClass == .regular ? 20 : 12).padding(.top, 8)
             .safeAreaPadding(.bottom)
             .background(Color(.systemBackground))
-        }.frame(maxWidth: .infinity).animation(.spring(), value: viewModel.draftAttachmentData.isEmpty)
+        // }.frame(maxWidth: .infinity).animation(.spring(), value: viewModel.draftAttachmentData.isEmpty)
+        }.frame(maxWidth: .infinity)
     }
     
     // MARK: - Toolbar Content
