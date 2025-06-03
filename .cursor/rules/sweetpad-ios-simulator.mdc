@@ -1,0 +1,6 @@
+---
+description: Run Xcode Simulator to Test iOS App Builds
+globs: 
+alwaysApply: false
+---
+When the AI Agent wants to test the iOS app build in xcode or the xcode simulator, run sweetpad

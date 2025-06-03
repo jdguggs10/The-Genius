@@ -102,7 +102,7 @@ struct SidebarView: View {
                             }
                         },
                         onDelete: {
-                            conversationManager.deleteConversation(conversation)
+                            conversationManager.deleteConversation(withId: conversation.id)
                             if selectedConversation?.id == conversation.id {
                                 selectedConversation = conversationManager.currentConversation
                             }

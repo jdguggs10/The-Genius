@@ -9,17 +9,16 @@ import SwiftUI
 
 @MainActor
 class ChatViewModel: ObservableObject {
-    @Published var messages: [Message] = []
-    @Published var currentInput: String = ""
-    @Published var isLoading: Bool = false
-    @Published var isSearching: Bool = false
-    @Published var streamingText: String = ""
-    @Published var statusMessage: String? = nil
+    @Published private(set) var messages: [Message] = []
+    @Published private(set) var isLoading: Bool = false
+    @Published private(set) var isSearching: Bool = false
+    @Published private(set) var streamingText: String = ""
+    @Published private(set) var statusMessage: String? = nil
     @Published var draftAttachmentData: [Data] = []
     
     // No longer need latestStructuredAdvice here, it will be in the Message struct
     // @Published var latestStructuredAdvice: StructuredAdviceResponse? = nil 
-    @Published var currentErrorMessage: String? = nil
+    @Published private(set) var currentErrorMessage: String? = nil
     
     // Reference to conversation manager
     var conversationManager: ConversationManager?
@@ -27,6 +26,23 @@ class ChatViewModel: ObservableObject {
     
     // Default model configuration - synced with backend
     private let defaultModel = "gpt-4.1-mini" // Matches backend OPENAI_DEFAULT_MODEL
+    
+    // MARK: - Message Windowing for Performance
+    private let maxVisibleMessages = 1000 // Maximum messages to keep in memory
+    private let messageBuffer = 50 // Buffer of additional messages to keep
+    private var allMessages: [Message] = [] // Complete conversation history
+    
+    /// Computed property that returns windowed messages for display
+    var displayMessages: [Message] {
+        // For conversations under the limit, return all messages
+        guard allMessages.count > maxVisibleMessages else {
+            return allMessages
+        }
+        
+        // For large conversations, return the most recent messages plus buffer
+        let startIndex = max(0, allMessages.count - maxVisibleMessages)
+        return Array(allMessages[startIndex...])
+    }
     
     // Use ApiConfiguration for backend URL management
     private var backendURLString: String {
@@ -91,28 +107,32 @@ class ChatViewModel: ObservableObject {
         if let conversationId = conversationId,
            let conversation = manager.conversations.first(where: { $0.id == conversationId }) {
             self.currentConversationId = conversationId
-            self.messages = conversation.messages
+            // Load all messages into internal storage
+            self.allMessages = conversation.messages
+            // Update the published messages with windowed display
+            self.messages = displayMessages
         } else if let firstConversation = manager.conversations.first {
             self.currentConversationId = firstConversation.id
-            self.messages = firstConversation.messages
+            self.allMessages = firstConversation.messages
+            self.messages = displayMessages
         } else {
             // Create a new conversation if none exist
             let newConversation = manager.createNewConversation()
             self.currentConversationId = newConversation.id
-            self.messages = [
-                Message(role: .assistant, content: "Welcome to Fantasy Genius! How can I help you today?")
-            ]
+            let welcomeMessage = Message(role: .assistant, content: "Welcome to Fantasy Genius! How can I help you today?")
+            self.allMessages = [welcomeMessage]
+            self.messages = displayMessages
         }
         
         currentErrorMessage = nil
     }
     
     // Send a message
-    func sendMessage() {
+    func sendMessage(_ messageText: String) {
         // Log API configuration for debugging
         ApiConfiguration.logConfiguration()
         
-        let trimmedInput = currentInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedInput = messageText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedInput.isEmpty || !draftAttachmentData.isEmpty else { return }
         
         let attachments = draftAttachmentData.map { data in
@@ -125,8 +145,11 @@ class ChatViewModel: ObservableObject {
             attachments: attachments
         )
         
-        messages.append(userMessage)
-        currentInput = ""
+        // Add to complete message history
+        allMessages.append(userMessage)
+        // Update displayed messages with windowing
+        messages = displayMessages
+        
         draftAttachmentData.removeAll()
         currentErrorMessage = nil // Clear previous errors
         
@@ -145,7 +168,8 @@ class ChatViewModel: ObservableObject {
             return
         }
         
-        conversation.messages = messages
+        // Save the complete message history, not just the windowed display
+        conversation.messages = allMessages
         conversation.updateLastMessageDate()
         
         // Auto-generate title from first user message if it's still "New Chat"
@@ -167,25 +191,30 @@ class ChatViewModel: ObservableObject {
     }
     
     private func performStreamingRequest() async {
-        isLoading = true
-        isSearching = false
+        setLoadingState(true)
         streamingText = ""
         statusMessage = nil
         currentErrorMessage = nil
         
         let assistantMessagePlaceholder = Message(role: .assistant, content: "")
-        messages.append(assistantMessagePlaceholder)
         
+        // Add to both allMessages and displayed messages with windowing
+        allMessages.append(assistantMessagePlaceholder)
+        messages = displayMessages
+        
+        // Find the placeholder in the displayed messages (not allMessages)
         guard let assistantMessageIndex = messages.lastIndex(where: { $0.id == assistantMessagePlaceholder.id }) else {
-            currentErrorMessage = "Internal error: Could not find placeholder message."
-            isLoading = false
+            setError("Internal error: Could not find placeholder message.")
             return
         }
 
         guard let url = URL(string: backendURLString) else {
+            // Update both the displayed message and allMessages
+            if let allMessageIndex = allMessages.lastIndex(where: { $0.id == assistantMessagePlaceholder.id }) {
+                allMessages[allMessageIndex].content = "Error: Invalid backend URL configured."
+            }
             messages[assistantMessageIndex].content = "Error: Invalid backend URL configured."
-            currentErrorMessage = "Error: Invalid backend URL configured."
-            isLoading = false
+            setError("Error: Invalid backend URL configured.")
             return
         }
         
@@ -242,8 +271,7 @@ class ChatViewModel: ObservableObject {
             request.httpBody = try JSONEncoder().encode(adviceRequest)
         } catch {
             messages[assistantMessageIndex].content = "Error: Could not encode request: \(error.localizedDescription)"
-            currentErrorMessage = "Error: Could not encode request: \(error.localizedDescription)"
-            isLoading = false
+            setError("Error: Could not encode request: \(error.localizedDescription)")
             return
         }
         
@@ -256,8 +284,7 @@ class ChatViewModel: ObservableObject {
                 if httpResponse.statusCode != 200 {
                     let errorMsg = "HTTP Error: \(httpResponse.statusCode)"
                     messages[assistantMessageIndex].content = errorMsg
-                    currentErrorMessage = errorMsg
-                    isLoading = false
+                    setError(errorMsg)
                     return
                 }
             }
@@ -325,13 +352,11 @@ class ChatViewModel: ObservableObject {
         } catch {
             let errorMsg = "Network error: \(error.localizedDescription)"
             messages[assistantMessageIndex].content = errorMsg
-            currentErrorMessage = errorMsg
+            setError(errorMsg)
         }
         
-        isLoading = false
-        isSearching = false
+        setLoadingState(false)
         streamingText = ""
-        statusMessage = nil
         saveConversation()
     }
     
@@ -437,70 +462,81 @@ class ChatViewModel: ObservableObject {
         // Handle different event types based on Responses API specification
         if eventType == "status_update" {
             if let statusData = await parseStatusUpdate(data) {
-                await MainActor.run {
-                    statusMessage = statusData.message
-                    if let status = statusData.status {
-                        isSearching = (status == "web_search_searching" || status == "web_search_started")
-                    }
+                statusMessage = statusData.message
+                if let status = statusData.status {
+                    isSearching = (status == "web_search_searching" || status == "web_search_started")
                 }
             }
         } else if eventType == "text_delta" {
             if let delta = await parseTextDelta(data) {
                 accumulatedText += delta
                 
-                // Ensure UI updates happen on main thread with proper SwiftUI change detection
-                await MainActor.run {
-                    // Measure UI update performance
-                    HangDetector.shared.measureMainThreadOperation(
-                        operation: {
-                            // Create a new message instance to ensure SwiftUI detects the change
-                            var updatedMessage = messages[messageIndex]
-                            updatedMessage.content = accumulatedText
-                            
-                            // Signal change before updating
-                            objectWillChange.send()
-                            messages[messageIndex] = updatedMessage
-                            
-                            statusMessage = nil
-                            isSearching = false
-                        },
-                        description: "UI update for streaming text"
-                    )
-                }
+                // Since we're already on @MainActor, no need for MainActor.run
+                // Measure UI update performance
+                HangDetector.shared.measureMainThreadOperation(
+                    operation: {
+                        // Update both allMessages and displayed messages
+                        let messageId = messages[messageIndex].id
+                        if let allMessageIndex = allMessages.lastIndex(where: { $0.id == messageId }) {
+                            allMessages[allMessageIndex].content = accumulatedText
+                        }
+                        
+                        // Create a new message instance to ensure SwiftUI detects the change
+                        var updatedMessage = messages[messageIndex]
+                        updatedMessage.content = accumulatedText
+                        
+                        // Signal change before updating
+                        objectWillChange.send()
+                        messages[messageIndex] = updatedMessage
+                        
+                        statusMessage = nil
+                        isSearching = false
+                    },
+                    description: "UI update for streaming text"
+                )
             }
         } else if eventType == "response_complete" {
             if let responseData = await parseResponseComplete(data, accumulatedText: accumulatedText) {
-                // Ensure UI updates happen on main thread with explicit update
-                await MainActor.run {
-                    // Measure UI update performance for completion events
-                    HangDetector.shared.measureMainThreadOperation(
-                        operation: {
-                            var updatedMessage = messages[messageIndex]
-                            updatedMessage.content = responseData.advice.mainAdvice
-                            updatedMessage.structuredAdvice = responseData.advice
-                            
-                            // Signal change before updating
-                            objectWillChange.send()
-                            messages[messageIndex] = updatedMessage
-                            
-                            statusMessage = nil
-                            isSearching = false
-                        },
-                        description: "UI update for response completion"
-                    )
-                }
+                // Since we're already on @MainActor, no need for MainActor.run
+                // Measure UI update performance for completion events
+                HangDetector.shared.measureMainThreadOperation(
+                    operation: {
+                        // Update both allMessages and displayed messages
+                        let messageId = messages[messageIndex].id
+                        if let allMessageIndex = allMessages.lastIndex(where: { $0.id == messageId }) {
+                            allMessages[allMessageIndex].content = responseData.advice.mainAdvice
+                            allMessages[allMessageIndex].structuredAdvice = responseData.advice
+                        }
+                        
+                        var updatedMessage = messages[messageIndex]
+                        updatedMessage.content = responseData.advice.mainAdvice
+                        updatedMessage.structuredAdvice = responseData.advice
+                        
+                        // Signal change before updating
+                        objectWillChange.send()
+                        messages[messageIndex] = updatedMessage
+                        
+                        statusMessage = nil
+                        isSearching = false
+                    },
+                    description: "UI update for response completion"
+                )
                 
                 // Return the response ID for conversation tracking
                 return responseData.responseId
             }
         } else if eventType == "error" {
             if let errorMessage = await parseError(data) {
-                await MainActor.run {
-                    var updatedMessage = messages[messageIndex]
-                    updatedMessage.content = "Error: \(errorMessage)"
-                    messages[messageIndex] = updatedMessage
-                    currentErrorMessage = "Error: \(errorMessage)"
+                // Update both allMessages and displayed messages
+                let messageId = messages[messageIndex].id
+                if let allMessageIndex = allMessages.lastIndex(where: { $0.id == messageId }) {
+                    allMessages[allMessageIndex].content = "Error: \(errorMessage)"
                 }
+                
+                var updatedMessage = messages[messageIndex]
+                updatedMessage.content = "Error: \(errorMessage)"
+                messages[messageIndex] = updatedMessage
+                currentErrorMessage = "Error: \(errorMessage)"
             }
         } else if eventType == "response_created" {
             // Handle response creation event to potentially extract response ID early
@@ -509,50 +545,47 @@ class ChatViewModel: ObservableObject {
             }
         } else if eventType == "response.web_search_call.searching" || eventType == "web_search_started" {
             // Handle web search events
-            await MainActor.run {
-                statusMessage = "🔍 Searching the web..."
-                isSearching = true
-            }
+            statusMessage = "🔍 Searching the web..."
+            isSearching = true
         } else if eventType == "response.web_search_call.completed" || eventType == "web_search_completed" {
             // Handle web search completion
-            await MainActor.run {
-                statusMessage = "✅ Web search completed"
-                isSearching = false
-            }
+            statusMessage = "✅ Web search completed"
+            isSearching = false
         } else if eventType == "response.in_progress" {
             // Handle response in progress
-            await MainActor.run {
-                statusMessage = "💭 Assistant is thinking..."
-                isSearching = false
-            }
+            statusMessage = "💭 Assistant is thinking..."
+            isSearching = false
         } else if eventType == "response.text.delta" {
             // Handle official Responses API text delta format
             if let delta = await parseTextDelta(data) {
                 accumulatedText += delta
                 
-                await MainActor.run {
-                    // Measure UI update performance for official delta events
-                    HangDetector.shared.measureMainThreadOperation(
-                        operation: {
-                            var updatedMessage = messages[messageIndex]
-                            updatedMessage.content = accumulatedText
-                            
-                            objectWillChange.send()
-                            messages[messageIndex] = updatedMessage
-                            
-                            statusMessage = nil
-                            isSearching = false
-                        },
-                        description: "UI update for official text delta"
-                    )
-                }
+                // Since we're already on @MainActor, no need for MainActor.run
+                // Measure UI update performance for official delta events
+                HangDetector.shared.measureMainThreadOperation(
+                    operation: {
+                        // Update both allMessages and displayed messages
+                        let messageId = messages[messageIndex].id
+                        if let allMessageIndex = allMessages.lastIndex(where: { $0.id == messageId }) {
+                            allMessages[allMessageIndex].content = accumulatedText
+                        }
+                        
+                        var updatedMessage = messages[messageIndex]
+                        updatedMessage.content = accumulatedText
+                        
+                        objectWillChange.send()
+                        messages[messageIndex] = updatedMessage
+                        
+                        statusMessage = nil
+                        isSearching = false
+                    },
+                    description: "UI update for official text delta"
+                )
             }
         } else if eventType == "response.completed" {
             // Handle official completion event
-            await MainActor.run {
-                statusMessage = nil
-                isSearching = false
-            }
+            statusMessage = nil
+            isSearching = false
         }
         // Note: Unhandled event types are silently ignored per Responses API best practices
         return nil
@@ -570,10 +603,10 @@ class ChatViewModel: ObservableObject {
         let newConversation = manager.createNewConversation()
         currentConversationId = newConversation.id
         
-        // Reset conversation state
-        messages = [
-            Message(role: .assistant, content: "Welcome to Fantasy Genius! How can I help you today?")
-        ]
+        // Reset conversation state with message windowing
+        let welcomeMessage = Message(role: .assistant, content: "Welcome to Fantasy Genius! How can I help you today?")
+        allMessages = [welcomeMessage]
+        messages = displayMessages
         
         // Clear error states
         currentErrorMessage = nil
@@ -597,5 +630,39 @@ class ChatViewModel: ObservableObject {
         
         // Clear error states
         currentErrorMessage = nil
+    }
+    
+    // MARK: - Public Interface Methods
+    
+    /// Clear current error message
+    func clearError() {
+        currentErrorMessage = nil
+    }
+    
+    /// Add a message to the conversation
+    func addMessage(_ message: Message) {
+        allMessages.append(message)
+        messages = displayMessages
+        updateCurrentConversation()
+    }
+    
+    /// Clear draft attachments
+    func clearDraftAttachments() {
+        draftAttachmentData.removeAll()
+    }
+    
+    /// Set loading state
+    private func setLoadingState(_ loading: Bool) {
+        isLoading = loading
+        if !loading {
+            isSearching = false
+            statusMessage = nil
+        }
+    }
+    
+    /// Set error state with message
+    private func setError(_ message: String) {
+        currentErrorMessage = message
+        setLoadingState(false)
     }
 }

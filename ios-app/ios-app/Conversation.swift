@@ -71,7 +71,7 @@ struct Conversation: Identifiable, Codable, Equatable {
 // Manager for handling multiple conversations
 @MainActor
 class ConversationManager: ObservableObject {
-    @Published var conversations: [Conversation] = []
+    @Published private(set) var conversations: [Conversation] = []
     @Published var currentConversationId: UUID?
     
     private let conversationsKey = "SavedConversations"
@@ -103,7 +103,7 @@ class ConversationManager: ObservableObject {
     
     func createNewConversation() -> Conversation {
         let newConversation = Conversation()
-        conversations.insert(newConversation, at: 0) // Add at beginning for recency
+        appendConversation(newConversation) // Use private method for proper encapsulation
         currentConversationId = newConversation.id
         Task { await saveConversationsAsync() }
         return newConversation
@@ -112,30 +112,19 @@ class ConversationManager: ObservableObject {
     func updateConversation(_ updatedConversation: Conversation) {
         if let index = conversations.firstIndex(where: { $0.id == updatedConversation.id }) {
             conversations[index] = updatedConversation
-            
-            // Move to front if it's the current conversation
-            if updatedConversation.id == currentConversationId {
-                conversations.move(fromOffsets: IndexSet(integer: index), toOffset: 0)
-            }
-            
             Task { await saveConversationsAsync() }
         }
     }
     
-    func deleteConversation(_ conversation: Conversation) {
-        conversations.removeAll { $0.id == conversation.id }
+    func deleteConversation(withId id: UUID) {
+        conversations.removeAll { $0.id == id }
         
-        // If we deleted the current conversation, select another one
-        if currentConversationId == conversation.id {
+        // Update current conversation if needed
+        if currentConversationId == id {
             currentConversationId = conversations.first?.id
         }
         
-        // Ensure we always have at least one conversation
-        if conversations.isEmpty {
-            _ = createNewConversation()
-        } else {
-            Task { await saveConversationsAsync() }
-        }
+        Task { await saveConversationsAsync() }
     }
     
     func switchToConversation(_ conversation: Conversation) {
@@ -180,14 +169,12 @@ class ConversationManager: ObservableObject {
             }
         }
         
-        // Update UI on main actor
-        await MainActor.run {
-            self.conversations = loadedConversations
-            
-            // Set current conversation to the first one if none is selected
-            if self.currentConversationId == nil {
-                self.currentConversationId = loadedConversations.first?.id
-            }
+        // Update UI state - no need for MainActor.run since class is already @MainActor
+        self.conversations = loadedConversations
+        
+        // Set current conversation to the first one if none is selected
+        if self.currentConversationId == nil {
+            self.currentConversationId = loadedConversations.first?.id
         }
     }
     
@@ -201,5 +188,10 @@ class ConversationManager: ObservableObject {
                 print("Error encoding conversations: \(error)")
             }
         }.value
+    }
+    
+    // Add method to append new conversation properly
+    private func appendConversation(_ conversation: Conversation) {
+        conversations.insert(conversation, at: 0) // Add at beginning for recency
     }
 } 
