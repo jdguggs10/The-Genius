@@ -119,14 +119,26 @@ Test these scenarios to verify improvements:
 ## 🚀 Getting Started
 
 1. **Prerequisites**: iOS 16.0+, Xcode 15.0+
-2. **Backend Setup**: Ensure the Fantasy AI Backend is running at `https://genius-backend-nhl3.onrender.com/advice`
+2. **Backend Setup**: Ensure the Fantasy AI Backend is running. For production, this is typically `https://genius-backend-nhl3.onrender.com/advice`. For local development, ensure your local backend is running (e.g., at `http://localhost:8000`) and configure the app to point to it as described in the 'Local Development' subsection below.
 3. **Build & Run**: Open `ios-app.xcodeproj` in Xcode and run on simulator or device
 
 ### Local Development
-For local testing, update `backendURLString` in `ChatViewModel.swift`:
+For local testing against a backend running on `http://localhost:8000`, you need to modify `ApiConfiguration.swift`:
+
+1. Open the file `ios-app/ios-app/ApiConfiguration.swift`.
+2. Locate the `getBackendBaseURL()` function.
+3. Inside the `#if DEBUG` block, comment out `return productionBackendURL` and uncomment `return localBackendURL`:
+
 ```swift
-private let backendURLString = "http://localhost:8000/advice"
+#if DEBUG
+// In debug mode, you can uncomment the next line to use local backend
+return localBackendURL // Ensure this line is uncommented
+// return productionBackendURL // Ensure this line is commented out
+#else
+return productionBackendURL
+#endif
 ```
+The app will then use `http://localhost:8000` for its API requests when built in the Debug configuration.
 
 ## 📂 Key Architecture Files
 
@@ -134,7 +146,8 @@ private let backendURLString = "http://localhost:8000/advice"
 |------|---------|
 | `ChatViewModel.swift` | Core MVVM logic, Responses API integration, SSE handling |
 | `NetworkModels.swift` | Request/response structures with `previous_response_id` support |
-| `Conversation.swift` | Conversation management with state tracking |
+| `ApiConfiguration.swift` | Manages backend API endpoint URLs and distinguishes between local development and production environments. |
+| `Conversation.swift` | Defines the `Conversation` data model and includes the `ConversationManager` class for creating, managing, persisting, and tracking multiple chat sessions and their state (e.g., `lastResponseId`). |
 | `ContentView.swift` | Main UI with enhanced conversation controls |
 | `MessageBubble.swift` | Message display with structured advice rendering |
 | `WebView.swift` | Generic SwiftUI wrapper for `WKWebView` |
@@ -202,6 +215,16 @@ if let lastResponseId = conversation.lastResponseId {
 - **Console Logging**: SSE events and response ID tracking
 - **Error Handling**: Comprehensive error display and recovery
 
+## 🔬 Debugging and Diagnostics
+
+The app includes a `HangDetector` utility to help identify and debug performance issues or UI hangs.
+
+- **Initialization**: The `HangDetector` is started when the app appears and stopped when it goes to the background, as configured in `ios_appApp.swift`.
+- **Usage**:
+    - It's used in `ChatViewModel.swift` to measure the duration of critical asynchronous operations like the main streaming network request (`performStreamingRequest()`).
+    - It also measures main thread operations related to UI updates when processing Server-Sent Events (SSE), specifically for text deltas and response completion.
+- **Purpose**: This helps in identifying long-running tasks that might block the main thread or delay responses, contributing to a more stable and responsive user experience. Logs from the `HangDetector` (if it outputs any, or if integrated with a logging framework) can be valuable for diagnosing slowdowns.
+
 ## 📈 Performance Metrics
 
 - **Token Reduction**: 60-80% fewer tokens using `previous_response_id`
@@ -219,7 +242,7 @@ if let lastResponseId = conversation.lastResponseId {
 - **State Management**: Uses `previous_response_id` for optimal context continuity  
 - **SSE Processing**: Robust line-by-line parsing with comprehensive event handling
 - **Error Recovery**: Graceful fallbacks and proper error propagation
-- **Model Usage**: Always `gpt-4.1-mini` following OpenAI best practices
+- **Model Usage**: Dynamically uses the model specified by the backend, falling back to `gpt-4.1-mini` if the backend configuration is unavailable. This aligns with OpenAI best practices for model selection and usage.
 - **Data Models**: Type-safe `Codable` structs matching backend API contracts
 
 The implementation follows OpenAI's official Responses API patterns and resolves all identified SSE issues for production-ready fantasy sports advice delivery.
