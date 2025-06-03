@@ -37,8 +37,10 @@ A production-ready React web application that provides AI-powered fantasy sports
 - **Animation**: Framer Motion
 - **Notifications**: React Hot Toast
 - **Markdown Rendering**: React Markdown
-- **Data Validation**: AJV (for schema validation, if used on frontend)
-- **Virtualization**: React Window (for efficient rendering of large lists, if applicable)
+- **Icons**: @heroicons/react
+- **Markdown Styling**: @tailwindcss/typography
+- **Data Validation**: AJV (for schema validation)
+- **Virtualization**: React Window (for efficient rendering of large lists)
 - **Real-time Communication**: **Server-Sent Events (SSE)** for streaming responses
 - **PWA**: Vite PWA Plugin with Workbox
 - **Build**: Vite with compression and optimization
@@ -53,7 +55,7 @@ This project has been upgraded to Tailwind CSS v4, featuring:
 - **Automatic content discovery** (no `content` array needed)
 - **Modern CSS primitives** with Lightning CSS
 
-See [TAILWIND_V4_MIGRATION.md](./TAILWIND_V4_MIGRATION.md) for complete migration details.
+See [webapp-tailwind v4-1 improvements.md](./webapp-tailwind v4-1 improvements.md) for complete migration details.
 
 ## Production Deployment
 
@@ -173,6 +175,8 @@ Check the browser console when the app loads - you'll see API configuration logs
 
 ## Development
 
+**Note**: This project requires Node.js version >=22.0.0 and <24.0.0. Please ensure you have a compatible version installed.
+
 ```bash
 # Start development server with local backend
 pnpm run dev
@@ -202,6 +206,8 @@ pnpm run tailwind:tokens
 # Checks the Tailwind CSS output against a safelist without generating a full build
 pnpm run tailwind:safelist-check
 ```
+
+For more details on Tailwind CSS safelisting and how to manage the safelist, please refer to the [SAFELIST_GUIDE.md](./SAFELIST_GUIDE.md).
 
 ## Browser Support
 
