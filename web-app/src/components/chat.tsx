@@ -1,8 +1,8 @@
 // web-app/src/components/Chat.tsx
 import { useState, useRef, useEffect } from 'react';
 import { PaperAirplaneIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
-import MessageDaisyUI from './messagedaisyui.tsx';
-import SkeletonMessage from './skeletonmessage.tsx';
+import MessageDaisyUI from './messagedaisyui';
+import SkeletonMessage from './skeletonmessage';
 // AnimatePresence removed as it's unlikely to work well with react-window item recycling without significant effort
 import type { MessageType, AdviceRequest } from '../types/index.ts';
 import { useConversationManager } from '../hooks/useConversationManager.ts';

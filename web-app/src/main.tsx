@@ -1,8 +1,8 @@
 import { StrictMode } from 'react'
-import App from './app.tsx';
+import App from './app';
 import { createRoot } from 'react-dom/client';
 import './index.css';
-import ChatErrorBoundary from './components/chaterrorboundary.tsx';
+import ChatErrorBoundary from './components/chaterrorboundary';
 import { Toaster } from 'react-hot-toast';
 
 createRoot(document.getElementById('root')!).render(
