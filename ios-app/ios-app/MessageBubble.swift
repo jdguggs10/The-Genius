@@ -12,21 +12,9 @@ struct MessageBubble: View {
     @State private var shareContent: [Any] = []
     
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack(alignment: .top, spacing: 0) {
             if message.role == .user {
-                Spacer()
-            }
-            
-            // Avatar
-            if message.role == .assistant {
-                Circle()
-                    .fill(Color.blue.opacity(0.1))
-                    .frame(width: 32, height: 32)
-                    .overlay(
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.blue)
-                    )
+                Spacer(minLength: 30) // Reserve space on left for user messages
             }
             
             VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
@@ -136,24 +124,14 @@ struct MessageBubble: View {
                 Text(timeString)
                     .font(.caption2)
                     .foregroundColor(.secondary)
-                    .padding(.horizontal, message.role == .user ? 0 : 8)
+                    .padding(.horizontal, 8)
             }
             
-            // User avatar
-            if message.role == .user {
-                Circle()
-                    .fill(Color.blue)
-                    .frame(width: 32, height: 32)
-                    .overlay(
-                        Text("You")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(.white)
-                    )
-            } else {
-                Spacer()
+            if message.role == .assistant {
+                Spacer(minLength: 30) // Reserve space on right for assistant messages
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .sheet(isPresented: $showingShareSheet) {
             if !shareContent.isEmpty {

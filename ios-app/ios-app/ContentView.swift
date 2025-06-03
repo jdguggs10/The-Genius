@@ -8,265 +8,13 @@ import SwiftUI
 import PhotosUI
 import UIKit
 
-// MARK: - Keyboard Pre-warming System
-class KeyboardPrewarmer: ObservableObject {
-    private var hiddenTextField: UITextField?
-    private var prewarmedWindow: UIWindow?
-    
-    static let shared = KeyboardPrewarmer()
-    
-    private init() {}
-    
-    func prewarmKeyboard() {
-        guard hiddenTextField == nil else { return }
-        
-        DispatchQueue.main.async { [weak self] in
-            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
-                self?.hiddenTextField = UITextField()
-                self?.hiddenTextField?.frame = CGRect(x: -100, y: -100, width: 1, height: 1)
-                self?.hiddenTextField?.alpha = 0
-                
-                // Create a temporary window for prewarming
-                let window = UIWindow(windowScene: windowScene)
-                window.windowLevel = UIWindow.Level.alert - 1
-                window.isHidden = false
-                window.alpha = 0
-                
-                if let textField = self?.hiddenTextField {
-                    window.addSubview(textField)
-                    textField.becomeFirstResponder()
-                    
-                    // Resign after a brief moment to keep the keyboard process loaded
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                        textField.resignFirstResponder()
-                        window.isHidden = true
-                        self?.prewarmedWindow = nil
-                    }
-                }
-                
-                self?.prewarmedWindow = window
-            }
-        }
-    }
-}
-
-// MARK: - UIKit Text Field Bridge for Instant Keyboard
-struct InstantKeyboardTextField: UIViewRepresentable {
-    @Binding var text: String
-    @Binding var isFocused: Bool
-    let placeholder: String
-    let onSubmit: () -> Void
-    let onEditingChanged: (Bool) -> Void
-    
-    init(
-        text: Binding<String>,
-        isFocused: Binding<Bool>,
-        placeholder: String = "Ask anything",
-        onSubmit: @escaping () -> Void = {},
-        onEditingChanged: @escaping (Bool) -> Void = { _ in }
-    ) {
-        self._text = text
-        self._isFocused = isFocused
-        self.placeholder = placeholder
-        self.onSubmit = onSubmit
-        self.onEditingChanged = onEditingChanged
-    }
-    
-    func makeUIView(context: Context) -> UITextField {
-        let textField = UITextField()
-        textField.delegate = context.coordinator
-        textField.placeholder = placeholder
-        textField.borderStyle = .none
-        textField.returnKeyType = .send
-        textField.font = UIFont.systemFont(ofSize: 17)
-        textField.autocorrectionType = .yes
-        textField.autocapitalizationType = .sentences
-        
-        // Set up appearance to match SwiftUI design
-        textField.backgroundColor = UIColor.clear
-        textField.tintColor = UIColor.systemBlue
-        
-        return textField
-    }
-    
-    func updateUIView(_ uiView: UITextField, context: Context) {
-        // Update text only if it's different to prevent cursor position issues
-        if uiView.text != text {
-            uiView.text = text
-        }
-        
-        // Handle focus changes with immediate response - but prevent recursive updates
-        if isFocused && !uiView.isFirstResponder {
-            DispatchQueue.main.async {
-                uiView.becomeFirstResponder()
-            }
-        } else if !isFocused && uiView.isFirstResponder {
-            DispatchQueue.main.async {
-                uiView.resignFirstResponder()
-            }
-        }
-    }
-    
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-    
-    class Coordinator: NSObject, UITextFieldDelegate {
-        let parent: InstantKeyboardTextField
-        private var isUpdatingFromUIKit = false // Prevent recursive updates
-        
-        init(_ parent: InstantKeyboardTextField) {
-            self.parent = parent
-        }
-        
-        func textField(_ textField: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
-            // Calculate the new text
-            let currentText = textField.text ?? ""
-            guard let stringRange = Range(range, in: currentText) else { return false }
-            let updatedText = currentText.replacingCharacters(in: stringRange, with: string)
-            
-            // Update the binding
-            isUpdatingFromUIKit = true
-            DispatchQueue.main.async { [weak self] in
-                self?.parent.text = updatedText
-                self?.isUpdatingFromUIKit = false
-            }
-            
-            return true
-        }
-        
-        func textFieldDidBeginEditing(_ textField: UITextField) {
-            if !isUpdatingFromUIKit {
-                DispatchQueue.main.async { [weak self] in
-                    self?.parent.isFocused = true
-                    self?.parent.onEditingChanged(true)
-                }
-            }
-        }
-        
-        func textFieldDidEndEditing(_ textField: UITextField) {
-            if !isUpdatingFromUIKit {
-                DispatchQueue.main.async { [weak self] in
-                    self?.parent.isFocused = false
-                    self?.parent.onEditingChanged(false)
-                }
-            }
-        }
-        
-        func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-            parent.onSubmit()
-            return true
-        }
-    }
-}
-
-// MARK: - Container View Controller for Pre-warming
-class InstantKeyboardContainer: UIViewController {
-    var textFieldWrapper: InstantKeyboardTextField?
-    var hostingController: UIHostingController<InstantKeyboardTextField>?
-    
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        
-        // Pre-warm keyboard in viewWillAppear for instant display
-        if let textField = findTextField(in: view) {
-            DispatchQueue.main.async {
-                textField.becomeFirstResponder()
-            }
-        }
-    }
-    
-    private func findTextField(in view: UIView) -> UITextField? {
-        if let textField = view as? UITextField {
-            return textField
-        }
-        
-        for subview in view.subviews {
-            if let found = findTextField(in: subview) {
-                return found
-            }
-        }
-        
-        return nil
-    }
-}
-
-// MARK: - Enhanced Instant Response Text Field
-struct EnhancedInstantTextField: View {
-    @Binding var text: String
-    @FocusState.Binding var isFocused: Bool
-    let placeholder: String
-    let onSubmit: () -> Void
-    @State private var useUIKitBridge = true // Toggle for testing both approaches
-    
-    var body: some View {
-        if useUIKitBridge {
-            // UIKit bridge approach for maximum responsiveness
-            InstantKeyboardTextField(
-                text: $text,
-                isFocused: Binding(
-                    get: { isFocused },
-                    set: { newValue in
-                        // Use proper binding assignment for FocusState.Binding
-                        isFocused = newValue
-                    }
-                ),
-                placeholder: placeholder,
-                onSubmit: onSubmit
-            )
-            .frame(minHeight: 44)
-        } else {
-            // SwiftUI approach with simplified focus handling
-            TextField(placeholder, text: $text, axis: .vertical)
-                .textFieldStyle(.plain)
-                .font(.system(size: 17))
-                .lineLimit(1...5)
-                .focused($isFocused)
-                .onSubmit(onSubmit)
-                .onAppear {
-                    // Simplified focus handling - only trigger if already focused
-                    if isFocused {
-                        // Single async dispatch to ensure keyboard appears
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            // Force refocus to ensure keyboard visibility
-                            let wasFocused = isFocused
-                            if wasFocused {
-                                isFocused = false
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-                                    isFocused = true
-                                }
-                            }
-                        }
-                    }
-                }
-                .frame(minHeight: 44)
-            /* MARK: - SwiftUI-Introspect Integration (Optional)
-             // To use SwiftUI-Introspect for even faster keyboard response:
-             // 1. Add SwiftUI-Introspect package to your project
-             // 2. Import Introspect at the top of this file
-             // 3. Replace the .onAppear block above with:
-             
-             .introspectTextField { uiTextField in
-                 DispatchQueue.main.async {
-                     if isFocused {
-                         uiTextField.becomeFirstResponder()
-                     }
-                 }
-             }
-             
-             // This provides direct access to UITextField and bypasses SwiftUI delays
-             */
-        }
-    }
-}
-
 struct ContentView: View {
     @EnvironmentObject var conversationManager: ConversationManager
     @StateObject private var viewModel = ChatViewModel()
     @State private var showingPhotoPicker = false
     @State private var selectedPhotos: [PhotosPickerItem] = []
     
-    // Local state for message input to eliminate keyboard lag
+    // Local state for message input
     @State private var messageInput: String = ""
 
     // State for controlling Settings presentation
@@ -279,11 +27,7 @@ struct ContentView: View {
     @FocusState private var isInputFocused: Bool
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var sidebarWidth: CGFloat = 280 // Default width
-    @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
-
-    // Keyboard pre-warming integration - Use shared instance directly, not @StateObject
-    private var keyboardPrewarmer = KeyboardPrewarmer.shared
-
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
         GeometryReader { geometry in
@@ -296,8 +40,10 @@ struct ContentView: View {
             }
             .onAppear {
                 commonOnAppearSetup(geometry: geometry)
-                // Pre-warm keyboard for instant response
-                keyboardPrewarmer.prewarmKeyboard()
+                // Focus text input on app launch for instant keyboard
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    isInputFocused = true
+                }
             }
             .onChange(of: geometry.size) { oldSize, newSize in
                 updateSidebarWidth(for: newSize)
@@ -386,7 +132,15 @@ struct ContentView: View {
     private func detailContentNavigationStack() -> some View {
         NavigationStack {
             if showSettingsInDetailView && horizontalSizeClass == .regular {
-                SettingsView(isPresented: $showSettingsInDetailView)
+                SettingsView(
+                    isPresented: $showSettingsInDetailView,
+                    onDismiss: {
+                        // Ensure sidebar stays visible when dismissing settings on iPad
+                        if horizontalSizeClass == .regular {
+                            columnVisibility = .all
+                        }
+                    }
+                )
             } else if let conversation = selectedConversation {
                 chatContentView(for: conversation)
             } else {
@@ -420,8 +174,8 @@ struct ContentView: View {
             }
             GeometryReader { listGeometry in
                 let horizontalInset = horizontalSizeClass == .regular
-                    ? max(32, listGeometry.safeAreaInsets.leading + 16)
-                    : 16
+                    ? max(20, listGeometry.safeAreaInsets.leading + 8)
+                    : 8
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 0) {
@@ -480,19 +234,94 @@ struct ContentView: View {
                                 }
                             }
                         }
-                        .onTapGesture { isInputFocused = false } // Dismiss keyboard
                     }
                 }
             }
             
-            // Optimized Input Bar - extracted for better performance
-            OptimizedInputBar(
-                messageInput: $messageInput,
-                isInputFocused: $isInputFocused,
-                viewModel: viewModel,
-                showingPhotoPicker: $showingPhotoPicker,
-                horizontalSizeClass: horizontalSizeClass
+            // Main input bar
+            let hasContent = !messageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !viewModel.draftAttachmentData.isEmpty
+            let sendButtonColor = hasContent ? Color.accentColor : Color.gray
+            
+            HStack(alignment: .center, spacing: horizontalSizeClass == .regular ? 8 : 6) {
+                // Photo picker button
+                Button(action: {
+                    isInputFocused = false
+                    showingPhotoPicker = true
+                }) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundColor(.accentColor)
+                }
+                .frame(width: 44, height: 44)
+                .buttonStyle(.plain)
+                .padding(.leading, 8)
+                
+                // Message input container
+                HStack(spacing: 8) {
+                    TextField("Ask Genius about...", text: $messageInput)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 17))
+                        .lineLimit(1)
+                        .focused($isInputFocused)
+                        .onSubmit {
+                            if hasContent {
+                                viewModel.sendMessage(messageInput)
+                                messageInput = ""
+                            }
+                        }
+                }
+                .padding(.horizontal, 12)
+                .frame(maxWidth: .infinity)
+                .onTapGesture {
+                    isInputFocused = true
+                }
+                
+                // Send button
+                Group {
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                    } else {
+                        Button(action: {
+                            if hasContent {
+                                viewModel.sendMessage(messageInput)
+                                messageInput = ""
+                            }
+                        }) {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundColor(sendButtonColor)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!hasContent)
+                    }
+                }
+                .frame(width: 44, height: 44)
+                .padding(.trailing, 8)
+            }
+            .frame(height: 66)
+            .background(Color.white)
+            .overlay(
+                UnevenRoundedRectangle(
+                    topLeadingRadius: 12,
+                    bottomLeadingRadius: 0,
+                    bottomTrailingRadius: 0,
+                    topTrailingRadius: 12
+                )
+                .stroke(Color.black, lineWidth: 1)
             )
+            .gesture(
+                DragGesture()
+                    .onEnded { value in
+                        if value.translation.y > 50 {
+                            isInputFocused = false
+                        }
+                    }
+            )
+            .padding(.horizontal, 0)
+            .padding(.top, 16)
+            .background(Color.white)
+            .frame(maxWidth: .infinity)
         }
         .navigationTitle(conversation.title)
         .navigationBarTitleDisplayMode(horizontalSizeClass == .regular ? .automatic : .inline)
@@ -561,6 +390,8 @@ struct ContentView: View {
         if newSizeClass == .regular {
             // Transitioning to Regular:
             // Sidebar is now part of NavigationSplitView, so `showingSidebarForCompact` is irrelevant for layout.
+            // Ensure sidebar is visible by default in regular layout
+            columnVisibility = .all
             // If settings were shown via sheet (compact), transition to detail view.
             if showingSettingsSheet {
                 showingSettingsSheet = false // Close sheet
@@ -596,6 +427,8 @@ struct ContentView: View {
             if horizontalSizeClass == .compact {
                 showingSettingsSheet = true
             } else { // Regular
+                // Ensure sidebar stays visible when showing settings
+                columnVisibility = .all
                 selectedConversation = nil // Deselect conversation to show settings in detail
                 showSettingsInDetailView = true
             }
@@ -702,8 +535,8 @@ struct ContentView: View {
     }
 }
 
-// MARK: - Optimized Input Bar Component
-struct OptimizedInputBar: View {
+// MARK: - Simplified Input Bar Component
+struct InputBar: View {
     @Binding var messageInput: String
     @FocusState.Binding var isInputFocused: Bool
     @ObservedObject var viewModel: ChatViewModel
@@ -726,112 +559,100 @@ struct OptimizedInputBar: View {
             }
             
             // Main input bar
-            HStack(alignment: .bottom, spacing: horizontalSizeClass == .regular ? 16 : 10) {
-                // Photo picker button
-                Button(action: {
-                    isInputFocused = false
-                    showingPhotoPicker = true
-                }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(.accentColor)
-                }
-                .frame(minWidth: 44, minHeight: 44)
-                .padding(.bottom, 5)
-                .buttonStyle(.plain) // Prevent button style interference
-                
-                // Enhanced Input text field with instant keyboard
-                EnhancedInstantTextField(
-                    text: $messageInput,
-                    isFocused: $isInputFocused,
-                    placeholder: "Ask anything",
-                    onSubmit: {
-                        if !messageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            viewModel.sendMessage(messageInput)
-                            messageInput = ""
+            VStack(spacing: 0) {
+                // Top half - Message input
+                HStack {
+                    TextField("Ask Genius about...", text: $messageInput)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 17))
+                        .lineLimit(1)
+                        .focused($isInputFocused)
+                        .onSubmit {
+                            if !messageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                viewModel.sendMessage(messageInput)
+                                messageInput = ""
+                            }
                         }
-                    }
-                )
+                    Spacer()
+                }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(
-                    RoundedRectangle(cornerRadius: 22)
-                        .fill(Color(.systemGray6))
-                )
+                .frame(height: 44)
+                .frame(maxWidth: .infinity)
                 .onTapGesture {
-                    // Trigger focus immediately for instant keyboard response
-                    if !isInputFocused {
-                        // Pre-warm keyboard before focusing for even faster response
-                        KeyboardPrewarmer.shared.prewarmKeyboard()
-                        
-                        // Use immediate focus assignment instead of async dispatch
-                        isInputFocused = true
-                    }
+                    isInputFocused = true
                 }
                 
-                // Send/Loading button
-                SendButtonSection(
-                    messageInput: messageInput,
-                    isLoading: viewModel.isLoading,
-                    hasAttachments: !viewModel.draftAttachmentData.isEmpty,
-                    onSend: {
-                        viewModel.sendMessage(messageInput)
-                        messageInput = ""
+                // Bottom half - Buttons
+                HStack(alignment: .center, spacing: horizontalSizeClass == .regular ? 12 : 8) {
+                    // Photo picker button
+                    Button(action: {
+                        isInputFocused = false
+                        showingPhotoPicker = true
+                    }) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.accentColor)
                     }
-                )
-                
-                // Voice input button (disabled)
-                Button(action: { /* TODO: Voice input */ }) {
-                    Image(systemName: "mic.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(.gray)
+                    .frame(width: 44, height: 44)
+                    .buttonStyle(.plain)
+                    
+                    Spacer()
+                    
+                    // Voice input button (disabled)
+                    Button(action: { /* TODO: Voice input */ }) {
+                        Image(systemName: "mic.fill")
+                            .font(.system(size: 16))
+                            .foregroundColor(.gray)
+                    }
+                    .frame(width: 28, height: 28)
+                    .disabled(true)
+                    .buttonStyle(.plain)
+                    
+                    // Send button
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                            .frame(width: 44, height: 44)
+                    } else {
+                        Button(action: {
+                            if !messageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !viewModel.draftAttachmentData.isEmpty {
+                                viewModel.sendMessage(messageInput)
+                                messageInput = ""
+                            }
+                        }) {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundColor(
+                                    (!messageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !viewModel.draftAttachmentData.isEmpty) 
+                                    ? .accentColor 
+                                    : .gray
+                                )
+                        }
+                        .frame(width: 44, height: 44)
+                        .buttonStyle(.plain)
+                        .disabled(messageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && viewModel.draftAttachmentData.isEmpty)
+                    }
                 }
-                .frame(minWidth: 44, minHeight: 44)
-                .padding(.bottom, 5)
-                .disabled(true)
-                .buttonStyle(.plain)
+                .padding(.horizontal, 12)
+                .frame(height: 44)
             }
-            .padding(.horizontal, horizontalSizeClass == .regular ? 20 : 12)
-            .padding(.top, 8)
-            .safeAreaPadding(.bottom)
-            .background(Color(.systemBackground))
+            .background(Color.white)
+            .overlay(
+                UnevenRoundedRectangle(
+                    topLeadingRadius: 12,
+                    bottomLeadingRadius: 0,
+                    bottomTrailingRadius: 0,
+                    topTrailingRadius: 12
+                )
+                .stroke(Color.black, lineWidth: 1)
+            )
+            .padding(.horizontal, 0) // Remove horizontal padding to extend full width
+            .padding(.top, 16) // Only add padding to the top
+            .background(Color.white) // White background
+            .frame(maxWidth: .infinity) // Extend full width
         }
         .frame(maxWidth: .infinity)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.draftAttachmentData.isEmpty)
-        .onAppear {
-            // Additional keyboard pre-warming when input bar appears
-            KeyboardPrewarmer.shared.prewarmKeyboard()
-        }
-    }
-}
-
-// MARK: - Send Button Section
-struct SendButtonSection: View {
-    let messageInput: String
-    let isLoading: Bool
-    let hasAttachments: Bool
-    let onSend: () -> Void
-    
-    var body: some View {
-        Group {
-            if isLoading {
-                ProgressView()
-                    .scaleEffect(0.9)
-                    .frame(width: 30, height: 30)
-                    .padding(.trailing, 6)
-                    .padding(.bottom, 7)
-            } else if !messageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || hasAttachments {
-                Button(action: onSend) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 28))
-                        .foregroundColor(.accentColor)
-                }
-                .frame(minWidth: 44, minHeight: 44)
-                .padding(.trailing, 4)
-                .padding(.bottom, 3)
-                .buttonStyle(.plain)
-            }
-        }
     }
 }
 
@@ -878,129 +699,10 @@ struct AttachmentPreviewSection: View {
                     }
                 }
             }
-            .padding(.horizontal, horizontalSizeClass == .regular ? 20 : 12)
+            .padding(.horizontal, horizontalSizeClass == .regular ? 16 : 8)
             .padding(.top, 8)
         }
         .frame(height: 70)
         .transition(.opacity.combined(with: .scale(scale: 0.8, anchor: .bottom)))
-    }
-}
-
-// MARK: - Debug/Testing View for Keyboard Performance
-struct KeyboardPerformanceTestView: View {
-    @State private var swiftUIText = ""
-    @State private var uikitBridgeText = ""
-    @State private var performanceMetrics: [String: Double] = [:]
-    @FocusState private var swiftUIFocused: Bool
-    @FocusState private var uikitFocused: Bool
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            Text("Keyboard Performance Test")
-                .font(.title)
-                .padding()
-            
-            Group {
-                // SwiftUI Approach
-                VStack(alignment: .leading) {
-                    Text("SwiftUI with optimized focus:")
-                        .font(.headline)
-                    
-                    TextField("Test SwiftUI approach", text: $swiftUIText)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($swiftUIFocused)
-                        .onAppear {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                if swiftUIFocused {
-                                    swiftUIFocused = false
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-                                        swiftUIFocused = true
-                                    }
-                                }
-                            }
-                        }
-                    
-                    Button("Focus SwiftUI") {
-                        let startTime = CFAbsoluteTimeGetCurrent()
-                        swiftUIFocused = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            let duration = CFAbsoluteTimeGetCurrent() - startTime
-                            performanceMetrics["SwiftUI"] = duration
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                }
-                
-                // UIKit Bridge Approach
-                VStack(alignment: .leading) {
-                    Text("UIKit Bridge approach:")
-                        .font(.headline)
-                    
-                    InstantKeyboardTextField(
-                        text: $uikitBridgeText,
-                        isFocused: Binding(
-                            get: { uikitFocused },
-                            set: { newValue in uikitFocused = newValue }
-                        ),
-                        placeholder: "Test UIKit bridge"
-                    )
-                        .padding(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color.gray, lineWidth: 1)
-                        )
-                    
-                    Button("Focus UIKit Bridge") {
-                        let startTime = CFAbsoluteTimeGetCurrent()
-                        uikitFocused = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            let duration = CFAbsoluteTimeGetCurrent() - startTime
-                            performanceMetrics["UIKit Bridge"] = duration
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
-            .padding()
-            
-            // Performance Results
-            if !performanceMetrics.isEmpty {
-                VStack(alignment: .leading) {
-                    Text("Performance Results:")
-                        .font(.headline)
-                    
-                    ForEach(performanceMetrics.sorted(by: <), id: \.key) { key, value in
-                        HStack {
-                            Text(key)
-                            Spacer()
-                            Text("\(String(format: "%.3f", value))s")
-                                .foregroundColor(value < 0.1 ? .green : value < 0.3 ? .orange : .red)
-                        }
-                    }
-                }
-                .padding()
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
-            }
-            
-            Button("Clear Results") {
-                performanceMetrics.removeAll()
-            }
-            .buttonStyle(.borderedProminent)
-            
-            Spacer()
-        }
-        .padding()
-        .onAppear {
-            // Pre-warm keyboard for testing
-            KeyboardPrewarmer.shared.prewarmKeyboard()
-        }
-    }
-}
-
-// MARK: - Preview for Testing
-struct KeyboardPerformanceTestView_Previews: PreviewProvider {
-    static var previews: some View {
-        KeyboardPerformanceTestView()
     }
 }

@@ -8,12 +8,19 @@ import SwiftUI
 
 struct SettingsView: View {
     @Binding var isPresented: Bool // Added for controlling presentation in detail view
+    let onDismiss: (() -> Void)? // Callback for custom dismiss behavior
     @Environment(\.dismiss) private var dismiss
     @State private var showingLoginView = false // State to present LoginView
     @State private var showingESPNLoginWebView = false // State to present ESPNLoginWebView
     @State private var isNotificationsEnabled = true
     @State private var isDarkModeEnabled = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    
+    // Default initializer for compatibility
+    init(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil) {
+        self._isPresented = isPresented
+        self.onDismiss = onDismiss
+    }
     
     var body: some View {
         NavigationStack {
@@ -72,6 +79,7 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
+                        onDismiss?() // Call the dismiss callback first
                         isPresented = false // Explicitly set to false for detail view dismissal
                         dismiss()
                     }
@@ -151,8 +159,8 @@ struct SettingsView: View {
                 .onTapGesture { // Modified onTapGesture
                     showingESPNLoginWebView = true
                 }
-            integrationRow(title: "Yahoo Fantasy", subtitle: "Not Connected", icon: "y.circle.fill", iconColor: .purple, isConnected: false)
-            integrationRow(title: "Sleeper", subtitle: "Not Connected", icon: "moon.zzz.fill", iconColor: .indigo, isConnected: false)
+            // integrationRow(title: "Yahoo Fantasy", subtitle: "Not Connected", icon: "y.circle.fill", iconColor: .purple, isConnected: false)
+            // integrationRow(title: "Sleeper", subtitle: "Not Connected", icon: "moon.zzz.fill", iconColor: .indigo, isConnected: false)
             
             HStack {
                 Label("Add Integration", systemImage: "plus.circle.fill").foregroundColor(.accentColor)
@@ -160,7 +168,9 @@ struct SettingsView: View {
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
             .contentShape(Rectangle())
-            .onTapGesture { /* Add integration action */ }
+            .onTapGesture { 
+                showingESPNLoginWebView = true
+            }
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
         }
         .font(horizontalSizeClass == .regular ? .headline : .body)

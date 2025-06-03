@@ -9,6 +9,12 @@ import UIKit
 
 @main
 struct ios_appApp: App {
+    
+    init() {
+        // App initialization - no keyboard prewarming needed
+        setupAppLifecycleObservers()
+    }
+    
     var body: some Scene {
         WindowGroup {
             RootViewControllerWrapper()
@@ -18,12 +24,6 @@ struct ios_appApp: App {
                     Task { @MainActor in
                         HangDetector.shared.startMonitoring()
                     }
-                    
-                    // Pre-warm keyboard at app launch for instant response
-                    Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 second delay to let app settle
-                        KeyboardPrewarmer.shared.prewarmKeyboard()
-                    }
                 }
                 .onDisappear {
                     // Stop monitoring when app goes to background
@@ -31,6 +31,34 @@ struct ios_appApp: App {
                         HangDetector.shared.stopMonitoring()
                     }
                 }
+        }
+    }
+    
+    // MARK: - App Lifecycle Management
+    private func setupAppLifecycleObservers() {
+        // Basic app lifecycle observation without keyboard prewarming
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            // App became active - can add any needed setup here
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.willEnterForegroundNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            // App will enter foreground - can add any needed setup here
+        }
+        
+        NotificationCenter.default.addObserver(
+            forName: UIApplication.didFinishLaunchingNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            // App finished launching - can add any needed setup here
         }
     }
 }
@@ -45,24 +73,6 @@ struct RootViewControllerWrapper: UIViewControllerRepresentable {
         class NoAccessoryHostingController<Content: View>: UIHostingController<Content> {
             override var inputAccessoryView: UIView? { UIView() }
             override var canBecomeFirstResponder: Bool { true }
-            
-            override func viewDidLoad() {
-                super.viewDidLoad()
-                
-                // Additional keyboard pre-warming at the root level
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    KeyboardPrewarmer.shared.prewarmKeyboard()
-                }
-            }
-            
-            override func viewWillAppear(_ animated: Bool) {
-                super.viewWillAppear(animated)
-                
-                // Pre-warm keyboard when root view appears for instant text input
-                DispatchQueue.main.async {
-                    KeyboardPrewarmer.shared.prewarmKeyboard()
-                }
-            }
         }
         
         return NoAccessoryHostingController(rootView: contentView)
