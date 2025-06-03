@@ -2,11 +2,17 @@ services:
 - type: web
   runtime: static
   name: genius-frontend
-  buildCommand: npm ci && npm run build
+  buildCommand: pnpm install --frozen-lockfile && pnpm config set auto-install-peers true && pnpm run build
   staticPublishPath: dist
   envVars:
     - key: NODE_VERSION
       value: "22"
+    - key: PNPM_VERSION
+      value: "9"
+    - key: NODE_ENV
+      value: production
+    - key: VITE_BACKEND_URL
+      value: https://genius-backend-nhl3.onrender.com
   routes:
     - type: rewrite
       source: /api/*
