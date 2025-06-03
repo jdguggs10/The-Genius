@@ -88,17 +88,17 @@ struct ContentView: View {
                             showingSidebarForCompact = false
                         }
                     }
-                    .zIndex(1) 
+                    .zIndex(1)
 
                 SidebarView(
                     conversationManager: conversationManager,
                     selectedConversation: $selectedConversation,
                     showingSidebar: $showingSidebarForCompact, // For compact mode, this controls the slide-out
-                    showingSettings: $sidebarRequestsSettings 
+                    showingSettings: $sidebarRequestsSettings
                 )
                 .frame(width: sidebarWidth)
                 .transition(.move(edge: .leading))
-                .zIndex(2) 
+                .zIndex(2)
             }
         }
     }
@@ -111,8 +111,8 @@ struct ContentView: View {
                 // In regular, showingSidebar is always true for the split view column,
                 // but we pass a binding that SidebarView might use internally if needed.
                 // For this setup, it's more about `sidebarRequestsSettings`.
-                showingSidebar: .constant(true), 
-                showingSettings: $sidebarRequestsSettings 
+                showingSidebar: .constant(true),
+                showingSettings: $sidebarRequestsSettings
             )
             .frame(minWidth: sidebarWidth * 0.8, idealWidth: sidebarWidth, maxWidth: sidebarWidth * 1.2)
         } detail: {
@@ -154,13 +154,16 @@ struct ContentView: View {
                     .onTapGesture { withAnimation { viewModel.currentErrorMessage = nil } }
             }
             GeometryReader { listGeometry in
+                let horizontalInset = horizontalSizeClass == .regular
+                    ? max(32, listGeometry.safeAreaInsets.leading + 16)
+                    : 16
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 0) {
                             ForEach(viewModel.messages) { message in
                                 MessageBubble(message: message)
                                     .id(message.id)
-                                    .padding(.horizontal, horizontalSizeClass == .regular ? max(32, listGeometry.safeAreaInsets.leading + 16) : 16)
+                                    .padding(.horizontal, horizontalInset)
                             }
                             
                             // Display status message here, below messages but in scroll view
@@ -176,7 +179,7 @@ struct ContentView: View {
                                         .clipShape(Capsule())
                                     Spacer()
                                 }
-                                .padding(.horizontal, horizontalSizeClass == .regular ? max(32, listGeometry.safeAreaInsets.leading + 16) : 16)
+                                .padding(.horizontal, horizontalInset)
                                 .padding(.top, 5) // Add some spacing from the last message
                                 .id("statusMessageView") // Give it an ID to scroll to if needed
                             }
@@ -187,8 +190,8 @@ struct ContentView: View {
                             Task { @MainActor in
                                 try? await Task.sleep(nanoseconds: 50_000_000) // 50ms debounce
                                 if let lastMessage = viewModel.messages.last {
-                                    withAnimation(.easeOut(duration: 0.3)) { 
-                                        proxy.scrollTo(lastMessage.id, anchor: .bottom) 
+                                    withAnimation(.easeOut(duration: 0.3)) {
+                                        proxy.scrollTo(lastMessage.id, anchor: .bottom)
                                     }
                                 }
                             }
@@ -200,13 +203,13 @@ struct ContentView: View {
                                 try? await Task.sleep(nanoseconds: 100_000_000) // 100ms debounce
                                 
                                 if newStatus != nil && viewModel.isLoading && viewModel.streamingText.isEmpty {
-                                    withAnimation(.easeOut(duration: 0.3)) { 
-                                        proxy.scrollTo("statusMessageView", anchor: .bottom) 
+                                    withAnimation(.easeOut(duration: 0.3)) {
+                                        proxy.scrollTo("statusMessageView", anchor: .bottom)
                                     }
                                 } else if oldStatus != nil && newStatus == nil && viewModel.streamingText.isEmpty {
                                     if let lastMessage = viewModel.messages.last {
-                                        withAnimation(.easeOut(duration: 0.3)) { 
-                                            proxy.scrollTo(lastMessage.id, anchor: .bottom) 
+                                        withAnimation(.easeOut(duration: 0.3)) {
+                                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
                                         }
                                     }
                                 }
@@ -273,7 +276,7 @@ struct ContentView: View {
                 }.frame(minWidth: 44, minHeight: 44).padding(.bottom, 5).disabled(true)
             }
             .padding(.horizontal, horizontalSizeClass == .regular ? 20 : 12).padding(.top, 8)
-            .padding(.bottom, UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first?.windows.first?.safeAreaInsets.bottom ?? 10)
+            .safeAreaPadding(.bottom)
             .background(Color(.systemBackground))
         }.frame(maxWidth: .infinity).animation(.spring(), value: viewModel.draftAttachmentData.isEmpty)
     }
@@ -329,10 +332,10 @@ struct ContentView: View {
     }
 
     private func updateSidebarWidth(for size: CGSize) {
-        if horizontalSizeClass == .regular { 
+        if horizontalSizeClass == .regular {
             sidebarWidth = min(max(size.width * 0.33, 300), 320) // Slightly narrower max for regular
-        } else { 
-            sidebarWidth = max(size.width * 0.75, 260) 
+        } else {
+            sidebarWidth = max(size.width * 0.75, 260)
         }
     }
     
