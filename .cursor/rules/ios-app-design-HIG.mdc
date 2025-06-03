@@ -5,3 +5,144 @@ alwaysApply: false
 ---
 These links reference the most up-to-date Apple iOS design principles. For any code related to the iOS application, always reference these design principles. All ios-app sub-folder code should stick with these design principles unless clearly stated otherwise. See links below:
 https://developer.apple.com/design/tips/
+
+Below is a forward-leaning field-manual for training an AI coding agent to build SwiftUI apps that feel unmistakably “Apple.”  I fold the freshest updates from the past two WWDC cycles (iOS 17–18 era) into long-standing Human Interface Guidelines (HIG) doctrine.  Follow it section-by-section and your bot will crank out native-looking apps with confidence—and without incurring the wrath of App Review.
+
+⸻
+
+1. HIG Foundations: Why We Care
+
+Apple’s HIG rests on three pillars—Clarity, Deference, Depth—plus modern refinements such as consistency, feedback, and accessibility.  They’re not just fuzzy principles; they map directly to API choices in SwiftUI.  Drive these concepts into your agent’s prompt so it “feels” the platform in every line of code.  ￼
+
+AI prompt pattern:
+“Generate SwiftUI views that favor clarity (minimal chrome), deference (content forward), and depth (motion-driven hierarchy).”
+
+⸻
+
+2. App Architecture & State Management
+
+2.1  SwiftUI App Entry
+	•	Use the @main‐annotated App struct. Scenes (e.g., WindowGroup, WidgetBundle) define UI roots instead of legacy UIApplicationDelegate.  ￼
+	•	Tell the agent: “Treat each scene as an independent UI tree; never reach across scenes with @EnvironmentObject unless absolutely necessary.”
+
+2.2  Fresh State Patterns
+	•	Default to @State for local, @Observable (Swift 6’s new macro) for models, and @Environment for global settings like colorScheme or dynamicTypeSize.  ￼
+	•	Prefer the new Bindings Collections API ($items[index]) shipped in iOS 18 to avoid array-wide invalidations.  ￼
+	•	For side effects, a state reducer (mini Redux) keeps testability pristine—pair it with Swift Testing (see §7).  ￼
+
+@Observable final class TodoModel {
+    struct Item: Identifiable { var id = UUID(); var title: String; var done = false }
+    @Published private(set) var items: [Item] = []
+
+    func add(_ title: String) { items.append(.init(title: title)) }
+}
+
+
+⸻
+
+3. Adaptive Layout & Responsive Design
+
+3.1  Modern Layout Protocol
+Adopt the Layout protocol (iOS 17+) for reusable, performant custom containers—your agent can compose bespoke grids without hitting Auto Layout.  ￼ ￼
+
+3.2  Safe Areas & Geometry
+
+Never hard-code insets; lean on safeAreaInset and GeometryReader. Apple’s own docs note view render should stay under 16 ms to maintain 60 fps.  ￼ ￼
+
+VStack {
+    content
+}
+.safeAreaInset(edge: .bottom) {
+    ToolbarView()
+}
+
+3.3  Size Classes & Platform Variants
+
+Use .compact vs .regular checks sparingly; favor Adaptive Stacks (HStack→VStack pivot) so code paths stay unified.  ￼
+
+⸻
+
+4. Visual Design—Color, Type, Symbols
+
+4.1  System Color & Dark Mode
+	•	Choose palette-aware semantic colors (.background, .label, etc.)—they auto-tune for Dark Mode, High Contrast, and ProMotion.  ￼
+	•	Use Color Assets with “Any, Light, Dark” appearances instead of manual Color(red:green:blue:).
+
+4.2  Typography & Dynamic Type
+	•	Stick to SF Pro / SF Rounded / NewYork; let Dynamic Type sizes scale via .font(.body) rather than .system(size:).  ￼ ￼
+	•	Tell the agent to adopt Text(selection:) API to respect user-selectable text (iOS 18).
+
+Text("Welcome")
+    .font(.title) // dynamically scales
+    .dynamicTypeSize(...DynamicTypeSize.accessibility4)
+
+4.3  SF Symbols 6+
+	•	Prefer parameterized symbols: Image(systemName:"square.stack.3d.up.badge.a").
+	•	Animations (wiggle, breathe) arrive with SF Symbols 6—great for passive feedback but never overdo it.  ￼ ￼
+
+⸻
+
+5. Navigation & Interaction
+
+5.1  NavigationStack Everywhere
+	•	Abandon NavigationView; NavigationStack supports typed paths for deep-linking and back-swipe parity on iPadOS.  ￼
+
+5.2  Gestures
+
+Combine simple gestures with high-level controls; resist building Baroque multi-touch combos the HIG warns against.  ￼
+
+5.3  Haptics, Sound, Motion
+	•	Fire subtle haptics using UIImpactFeedbackGenerator(style: .soft) on success states. Apple’s doc stresses restraint—don’t rumble the user into annoyance.  ￼ ￼
+	•	Add a “breathe” SF Symbol morph instead of a spinner for background sync—modern, fun, still accessible.  ￼
+
+⸻
+
+6. Accessibility & Inclusive Design
+	•	Every custom view gets .accessibilityLabel, .accessibilityAddTraits(.isButton), and semantic text order.  ￼
+	•	Test with Dynamic Type XXL and VoiceOver rotor. Encourage the agent to run xcrun simctl scripts in continuous-integration to fail builds lacking labels.
+
+⸻
+
+7. Performance, Testing & Tooling
+	•	Teach the bot to profile with Instruments.app’s SwiftUI template; views >16 ms need refactor (see §3.2 stat).  ￼
+	•	Write Swift Testing suites (import Testing)—native snapshot asserts are golden for catching layout regressions.  ￼
+	•	Keep payload small: Compose with @ViewBuilder + EquatableView for diffing.  ￼
+
+⸻
+
+8. How to “Prompt” Your AI Coder
+
+Goal	Prompt Snippet
+Conform to HIG	“Use system colors, Dynamic Type, SF Symbols; no custom nav bars.”
+Adaptive layout	“Wrap content in a custom AdaptiveStack that switches axis on size class.”
+Accessibility	“Add accessibility modifiers to every interactive element; support VoiceOver.”
+Testing	“Generate a Swift Testing file with snapshot tests for iPhone 15 Pro, iPad Air.”
+
+Sprinkle humor: “Pretend App Review is Judge Judy in a hurry—keep it tight!”
+
+⸻
+
+9. Common Pitfalls (and the Fix)
+
+Mistake	Consequence	Fix
+Hard-coding colors	Fails in Dark Mode	Use semantic Color assets
+NavigationLink inside List without NavigationStack	Broken back-swipe	Wrap root in NavigationStack
+Ignoring safe areas	Content under sensor housing	Apply .safeAreaInset
+Custom icons instead of SF Symbols	Inconsistent weight & scale	Favor SF Symbols 6 or provide 3 asset scales
+
+
+⸻
+
+10. Further Reading & Watchlist
+	•	“What’s New in SwiftUI” WWDC 24 ①
+	•	“Get Started with Dynamic Type” WWDC 24 ②
+	•	“Explore Swift Performance” WWDC 24 ③
+	•	“Playing Haptics” doc ④
+	•	“iOS 17 Design Illustrated” (Learn UI) ⑤
+
+⸻
+
+Closing Thoughts
+
+Stick to the rails Apple provides.  Train your AI coder to default to system components, test relentlessly, and treat accessibility as table stakes, not a checkbox.  Do that—and maybe throw in a tasteful wiggle here and there—and you’ll ship apps that feel like they were built in Cupertino, not by a hallucinating large-language model.
+

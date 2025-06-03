@@ -8,7 +8,7 @@ import SwiftUI
 import PhotosUI
 
 struct ContentView: View {
-    @StateObject private var conversationManager = ConversationManager()
+    @EnvironmentObject var conversationManager: ConversationManager
     @StateObject private var viewModel = ChatViewModel()
     @State private var showingPhotoPicker = false
     @State private var selectedPhotos: [PhotosPickerItem] = []
@@ -61,6 +61,12 @@ struct ContentView: View {
             }
             .onChange(of: selectedPhotos) { oldPhotos, newPhotos in
                 handlePhotoSelection(newPhotos: newPhotos)
+            }
+            .onChange(of: conversationManager.conversations) { oldConversations, newConversations in
+                // Handle when conversations are loaded asynchronously
+                if oldConversations.isEmpty && !newConversations.isEmpty {
+                    setupInitialConversationSelection()
+                }
             }
         }
     }
@@ -175,21 +181,32 @@ struct ContentView: View {
                         }
                         .padding(.vertical, 10)
                         .onChange(of: viewModel.messages.count) { _, newCount in
-                            if let lastMessage = viewModel.messages.last {
-                                withAnimation { proxy.scrollTo(lastMessage.id, anchor: .bottom) }
+                            // Debounce scroll to avoid conflicts during rapid updates
+                            Task { @MainActor in
+                                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms debounce
+                                if let lastMessage = viewModel.messages.last {
+                                    withAnimation(.easeOut(duration: 0.3)) { 
+                                        proxy.scrollTo(lastMessage.id, anchor: .bottom) 
+                                    }
+                                }
                             }
                         }
-                        // Scroll to status message if it appears and is the newest thing
+                        // Consolidated status message handling to prevent scroll conflicts
                         .onChange(of: viewModel.statusMessage) { oldStatus, newStatus in
-                            if newStatus != nil && viewModel.isLoading {
-                                // Check if streamingText is empty, meaning status is the primary update
-                                if viewModel.streamingText.isEmpty {
-                                    withAnimation { proxy.scrollTo("statusMessageView", anchor: .bottom) }
-                                }
-                            } else if oldStatus != nil && newStatus == nil {
-                                // Status cleared, scroll to last actual message if content isn't also streaming
-                                if viewModel.streamingText.isEmpty, let lastMessage = viewModel.messages.last {
-                                    withAnimation{ proxy.scrollTo(lastMessage.id, anchor: .bottom) }
+                            // Only scroll for status changes if not also scrolling for message updates
+                            Task { @MainActor in
+                                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms debounce
+                                
+                                if newStatus != nil && viewModel.isLoading && viewModel.streamingText.isEmpty {
+                                    withAnimation(.easeOut(duration: 0.3)) { 
+                                        proxy.scrollTo("statusMessageView", anchor: .bottom) 
+                                    }
+                                } else if oldStatus != nil && newStatus == nil && viewModel.streamingText.isEmpty {
+                                    if let lastMessage = viewModel.messages.last {
+                                        withAnimation(.easeOut(duration: 0.3)) { 
+                                            proxy.scrollTo(lastMessage.id, anchor: .bottom) 
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -302,19 +319,9 @@ struct ContentView: View {
     // MARK: - Helper Functions
     private func commonOnAppearSetup(geometry: GeometryProxy) {
         setupViewModelInitialLoad()
-        if horizontalSizeClass == .regular {
-            // For regular, sidebar is part of NavigationSplitView.
-            // If no conversation is selected, and not showing settings, select first or create new.
-            if selectedConversation == nil && !showSettingsInDetailView {
-                if conversationManager.conversations.isEmpty {
-                    selectedConversation = conversationManager.createNewConversation()
-                } else {
-                    selectedConversation = conversationManager.conversations.first
-                }
-            }
-        } else {
-            // For compact, sidebar is manually toggled.
-            // showingSidebarForCompact = false // Let previous logic handle
+        // Check if conversations are already loaded (in case this is called after async loading completes)
+        if !conversationManager.conversations.isEmpty {
+            setupInitialConversationSelection()
         }
         updateSidebarWidth(for: geometry.size)
     }
@@ -375,10 +382,12 @@ struct ContentView: View {
     
     private func setupViewModelInitialLoad() {
         viewModel.setConversationManager(conversationManager)
-        // Initial load logic:
-        // If not specifically showing settings in detail view,
-        // and no conversation is selected, try to select the first one.
-        // If no conversations exist, create one.
+        // Since conversations are loading asynchronously, we need to be more careful here
+        // The async loading will trigger view updates when conversations are loaded
+    }
+    
+    private func setupInitialConversationSelection() {
+        // This function handles conversation selection once conversations are loaded
         if !showSettingsInDetailView && selectedConversation == nil {
             if conversationManager.conversations.isEmpty {
                 selectedConversation = conversationManager.createNewConversation()
@@ -394,13 +403,77 @@ struct ContentView: View {
 
     private func handlePhotoSelection(newPhotos: [PhotosPickerItem]) {
         Task {
-            viewModel.draftAttachmentData.removeAll()
-            for item in newPhotos {
-                if let data = try? await item.loadTransferable(type: Data.self) {
-                    viewModel.draftAttachmentData.append(data)
+            // Measure photo processing performance
+            await HangDetector.shared.measureAsyncOperation(
+                operation: {
+                    viewModel.draftAttachmentData.removeAll()
+                    
+                    // Process photos with memory management
+                    for item in newPhotos {
+                        autoreleasepool {
+                            do {
+                                if let data = try await item.loadTransferable(type: Data.self) {
+                                    // Limit image size to prevent memory issues
+                                    if let processedData = await processImageData(data) {
+                                        await MainActor.run {
+                                            viewModel.draftAttachmentData.append(processedData)
+                                        }
+                                    }
+                                }
+                            } catch {
+                                print("Failed to load photo: \(error)")
+                            }
+                        }
+                    }
+                    
+                    await MainActor.run {
+                        selectedPhotos.removeAll()
+                    }
+                },
+                description: "Photo processing"
+            )
+        }
+    }
+    
+    // Process and resize images to prevent memory hangs
+    private func processImageData(_ data: Data) async -> Data? {
+        return await withTaskGroup(of: Data?.self) { group in
+            group.addTask {
+                autoreleasepool {
+                    guard let image = UIImage(data: data) else { return nil }
+                    
+                    // Resize large images to reasonable size (max 1024px)
+                    let maxDimension: CGFloat = 1024
+                    let scale = min(maxDimension / image.size.width, maxDimension / image.size.height, 1.0)
+                    
+                    if scale < 1.0 {
+                        let newSize = CGSize(
+                            width: image.size.width * scale,
+                            height: image.size.height * scale
+                        )
+                        
+                        UIGraphicsBeginImageContextWithOptions(newSize, false, 0.0)
+                        defer { UIGraphicsEndImageContext() }
+                        
+                        image.draw(in: CGRect(origin: .zero, size: newSize))
+                        
+                        if let resizedImage = UIGraphicsGetImageFromCurrentImageContext(),
+                           let compressedData = resizedImage.jpegData(compressionQuality: 0.8) {
+                            return compressedData
+                        }
+                    }
+                    
+                    // Return original data if no resizing needed or if resizing failed
+                    return data
                 }
             }
-            selectedPhotos.removeAll()
+            
+            for await result in group {
+                if let processedData = result {
+                    return processedData
+                }
+            }
+            return nil
         }
     }
 }

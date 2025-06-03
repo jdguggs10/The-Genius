@@ -85,13 +85,6 @@ class ChatViewModel: ObservableObject {
         self.conversationManager = manager
     }
     
-    // Force UI update method to ensure SwiftUI detects changes
-    private func forceUIUpdate() {
-        DispatchQueue.main.async { [weak self] in
-            self?.objectWillChange.send()
-        }
-    }
-    
     func loadConversation(for conversationId: UUID?) {
         guard let manager = conversationManager else { return }
         
@@ -164,6 +157,16 @@ class ChatViewModel: ObservableObject {
     }
     
     private func fetchStreamingStructuredAdvice() async {
+        // Measure the entire operation for hang detection
+        await HangDetector.shared.measureAsyncOperation(
+            operation: {
+                await performStreamingRequest()
+            },
+            description: "Streaming advice request"
+        )
+    }
+    
+    private func performStreamingRequest() async {
         isLoading = true
         isSearching = false
         streamingText = ""
@@ -332,130 +335,177 @@ class ChatViewModel: ObservableObject {
         saveConversation()
     }
     
+    // MARK: - Async JSON Parsing Functions
+    
+    /// Parse status update JSON data asynchronously
+    private func parseStatusUpdate(_ data: String) async -> (message: String, status: String?)? {
+        guard let jsonData = data.data(using: .utf8) else { return nil }
+        
+        do {
+            guard let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                  let message = parsed["message"] as? String else { return nil }
+            
+            let status = parsed["status"] as? String
+            return (message: message, status: status)
+        } catch {
+            return nil
+        }
+    }
+    
+    /// Parse text delta JSON data asynchronously
+    private func parseTextDelta(_ data: String) async -> String? {
+        guard let jsonData = data.data(using: .utf8) else { return nil }
+        
+        do {
+            guard let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                  let delta = parsed["delta"] as? String else { return nil }
+            
+            return delta
+        } catch {
+            return nil
+        }
+    }
+    
+    /// Parse response complete JSON data asynchronously
+    private func parseResponseComplete(_ data: String, accumulatedText: String) async -> (advice: StructuredAdviceResponse, responseId: String?)? {
+        guard let jsonData = data.data(using: .utf8) else { return nil }
+        
+        do {
+            guard let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                  let finalJson = parsed["final_json"] as? [String: Any] else { return nil }
+            
+            let mainAdvice = finalJson["main_advice"] as? String ?? accumulatedText
+            let reasoning = finalJson["reasoning"] as? String
+            let confidence = finalJson["confidence_score"] as? Double
+            let modelId = finalJson["model_identifier"] as? String
+            let responseId = finalJson["response_id"] as? String
+            
+            // Parse alternatives array
+            var alternatives: [AdviceAlternativePayload] = []
+            if let alternativesArray = finalJson["alternatives"] as? [[String: Any]] {
+                alternatives = alternativesArray.compactMap { altDict -> AdviceAlternativePayload? in
+                    guard let player = altDict["player"] as? String else { return nil }
+                    let reason = altDict["reason"] as? String
+                    return AdviceAlternativePayload(player: player, reason: reason)
+                }
+            }
+            
+            let structuredAdvice = StructuredAdviceResponse(
+                mainAdvice: mainAdvice,
+                reasoning: reasoning,
+                confidenceScore: confidence,
+                alternatives: alternatives,
+                modelIdentifier: modelId,
+                responseId: responseId
+            )
+            
+            return (advice: structuredAdvice, responseId: responseId)
+        } catch {
+            return nil
+        }
+    }
+    
+    /// Parse error JSON data asynchronously
+    private func parseError(_ data: String) async -> String? {
+        guard let jsonData = data.data(using: .utf8) else { return nil }
+        
+        do {
+            guard let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                  let errorMessage = parsed["message"] as? String else { return nil }
+            
+            return errorMessage
+        } catch {
+            return nil
+        }
+    }
+    
+    /// Parse response created JSON data asynchronously
+    private func parseResponseCreated(_ data: String) async -> String? {
+        guard let jsonData = data.data(using: .utf8) else { return nil }
+        
+        do {
+            guard let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
+                  let responseId = parsed["response_id"] as? String else { return nil }
+            
+            return responseId
+        } catch {
+            return nil
+        }
+    }
+
     private func processSSEEvent(eventType: String, data: String, messageIndex: Int, accumulatedText: inout String) async -> String? {
         // Handle different event types based on Responses API specification
         if eventType == "status_update" {
-            do {
-                if let jsonData = data.data(using: .utf8),
-                   let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                   let message = parsed["message"] as? String {
-                    await MainActor.run {
-                        statusMessage = message
-                        if let status = parsed["status"] as? String {
-                            isSearching = (status == "web_search_searching" || status == "web_search_started")
-                        }
+            if let statusData = await parseStatusUpdate(data) {
+                await MainActor.run {
+                    statusMessage = statusData.message
+                    if let status = statusData.status {
+                        isSearching = (status == "web_search_searching" || status == "web_search_started")
                     }
                 }
-            } catch {
-                // Failed to parse status update - silently continue
             }
         } else if eventType == "text_delta" {
-            do {
-                if let jsonData = data.data(using: .utf8),
-                   let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                   let delta = parsed["delta"] as? String {
-                    accumulatedText += delta
-                    
-                    // Ensure UI updates happen on main thread with proper SwiftUI change detection
-                    await MainActor.run {
-                        // Create a new message instance to ensure SwiftUI detects the change
-                        var updatedMessage = messages[messageIndex]
-                        updatedMessage.content = accumulatedText
-                        
-                        // Signal change before updating
-                        objectWillChange.send()
-                        messages[messageIndex] = updatedMessage
-                        
-                        statusMessage = nil
-                        isSearching = false
-                        
-                        // Force UI update to ensure real-time display
-                        forceUIUpdate()
-                    }
+            if let delta = await parseTextDelta(data) {
+                accumulatedText += delta
+                
+                // Ensure UI updates happen on main thread with proper SwiftUI change detection
+                await MainActor.run {
+                    // Measure UI update performance
+                    HangDetector.shared.measureMainThreadOperation(
+                        operation: {
+                            // Create a new message instance to ensure SwiftUI detects the change
+                            var updatedMessage = messages[messageIndex]
+                            updatedMessage.content = accumulatedText
+                            
+                            // Signal change before updating
+                            objectWillChange.send()
+                            messages[messageIndex] = updatedMessage
+                            
+                            statusMessage = nil
+                            isSearching = false
+                        },
+                        description: "UI update for streaming text"
+                    )
                 }
-            } catch {
-                // Failed to parse text delta - silently continue
             }
         } else if eventType == "response_complete" {
-            do {
-                if let jsonData = data.data(using: .utf8),
-                   let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                   let finalJson = parsed["final_json"] as? [String: Any] {
-                    
-                    let mainAdvice = finalJson["main_advice"] as? String ?? accumulatedText
-                    let reasoning = finalJson["reasoning"] as? String
-                    let confidence = finalJson["confidence_score"] as? Double
-                    let modelId = finalJson["model_identifier"] as? String
-                    let responseId = finalJson["response_id"] as? String
-                    
-                    // Parse alternatives array
-                    var alternatives: [AdviceAlternativePayload] = []
-                    if let alternativesArray = finalJson["alternatives"] as? [[String: Any]] {
-                        alternatives = alternativesArray.compactMap { altDict -> AdviceAlternativePayload? in
-                            guard let player = altDict["player"] as? String else { return nil }
-                            let reason = altDict["reason"] as? String
-                            return AdviceAlternativePayload(player: player, reason: reason)
-                        }
-                    }
-                    
-                    // Use global NetworkModels.StructuredAdviceResponse with camelCase properties
-                    let structuredAdvice = StructuredAdviceResponse(
-                        mainAdvice: mainAdvice,
-                        reasoning: reasoning,
-                        confidenceScore: confidence,
-                        alternatives: alternatives,
-                        modelIdentifier: modelId,
-                        responseId: responseId
+            if let responseData = await parseResponseComplete(data, accumulatedText: accumulatedText) {
+                // Ensure UI updates happen on main thread with explicit update
+                await MainActor.run {
+                    // Measure UI update performance for completion events
+                    HangDetector.shared.measureMainThreadOperation(
+                        operation: {
+                            var updatedMessage = messages[messageIndex]
+                            updatedMessage.content = responseData.advice.mainAdvice
+                            updatedMessage.structuredAdvice = responseData.advice
+                            
+                            // Signal change before updating
+                            objectWillChange.send()
+                            messages[messageIndex] = updatedMessage
+                            
+                            statusMessage = nil
+                            isSearching = false
+                        },
+                        description: "UI update for response completion"
                     )
-                    
-                    // Ensure UI updates happen on main thread with explicit update
-                    await MainActor.run {
-                        var updatedMessage = messages[messageIndex]
-                        updatedMessage.content = mainAdvice
-                        updatedMessage.structuredAdvice = structuredAdvice
-                        
-                        // Signal change before updating
-                        objectWillChange.send()
-                        messages[messageIndex] = updatedMessage
-                        
-                        statusMessage = nil
-                        isSearching = false
-                        
-                        // Force UI update to ensure real-time display
-                        forceUIUpdate()
-                    }
-                    
-                    // Return the response ID for conversation tracking
-                    return responseId
                 }
-            } catch {
-                // Failed to parse response complete - silently continue
+                
+                // Return the response ID for conversation tracking
+                return responseData.responseId
             }
         } else if eventType == "error" {
-            do {
-                if let jsonData = data.data(using: .utf8),
-                   let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                   let errorMessage = parsed["message"] as? String {
-                    await MainActor.run {
-                        var updatedMessage = messages[messageIndex]
-                        updatedMessage.content = "Error: \(errorMessage)"
-                        messages[messageIndex] = updatedMessage
-                        currentErrorMessage = "Error: \(errorMessage)"
-                    }
+            if let errorMessage = await parseError(data) {
+                await MainActor.run {
+                    var updatedMessage = messages[messageIndex]
+                    updatedMessage.content = "Error: \(errorMessage)"
+                    messages[messageIndex] = updatedMessage
+                    currentErrorMessage = "Error: \(errorMessage)"
                 }
-            } catch {
-                // Failed to parse error - silently continue
             }
         } else if eventType == "response_created" {
             // Handle response creation event to potentially extract response ID early
-            do {
-                if let jsonData = data.data(using: .utf8),
-                   let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                   let responseId = parsed["response_id"] as? String {
-                    return responseId
-                }
-            } catch {
-                // Failed to parse response created - silently continue
+            if let responseId = await parseResponseCreated(data) {
+                return responseId
             }
         } else if eventType == "response.web_search_call.searching" || eventType == "web_search_started" {
             // Handle web search events
@@ -475,28 +525,27 @@ class ChatViewModel: ObservableObject {
                 statusMessage = "💭 Assistant is thinking..."
                 isSearching = false
             }
-        } else if eventType == "response.output_text.delta" {
+        } else if eventType == "response.text.delta" {
             // Handle official Responses API text delta format
-            do {
-                if let jsonData = data.data(using: .utf8),
-                   let parsed = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any],
-                   let delta = parsed["delta"] as? String {
-                    accumulatedText += delta
-                    
-                    await MainActor.run {
-                        var updatedMessage = messages[messageIndex]
-                        updatedMessage.content = accumulatedText
-                        
-                        objectWillChange.send()
-                        messages[messageIndex] = updatedMessage
-                        
-                        statusMessage = nil
-                        isSearching = false
-                        forceUIUpdate()
-                    }
+            if let delta = await parseTextDelta(data) {
+                accumulatedText += delta
+                
+                await MainActor.run {
+                    // Measure UI update performance for official delta events
+                    HangDetector.shared.measureMainThreadOperation(
+                        operation: {
+                            var updatedMessage = messages[messageIndex]
+                            updatedMessage.content = accumulatedText
+                            
+                            objectWillChange.send()
+                            messages[messageIndex] = updatedMessage
+                            
+                            statusMessage = nil
+                            isSearching = false
+                        },
+                        description: "UI update for official text delta"
+                    )
                 }
-            } catch {
-                // Failed to parse official text delta - silently continue
             }
         } else if eventType == "response.completed" {
             // Handle official completion event

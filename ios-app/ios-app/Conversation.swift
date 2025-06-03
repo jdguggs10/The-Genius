@@ -77,11 +77,14 @@ class ConversationManager: ObservableObject {
     private let conversationsKey = "SavedConversations"
     
     init() {
-        loadConversations()
-        
-        // Create a default conversation if none exist
-        if conversations.isEmpty {
-            _ = createNewConversation()
+        // Load conversations asynchronously to avoid blocking app startup
+        Task {
+            await loadConversationsAsync()
+            
+            // Create a default conversation if none exist
+            if conversations.isEmpty {
+                _ = createNewConversation()
+            }
         }
     }
     
@@ -102,7 +105,7 @@ class ConversationManager: ObservableObject {
         let newConversation = Conversation()
         conversations.insert(newConversation, at: 0) // Add at beginning for recency
         currentConversationId = newConversation.id
-        saveConversations()
+        Task { await saveConversationsAsync() }
         return newConversation
     }
     
@@ -115,7 +118,7 @@ class ConversationManager: ObservableObject {
                 conversations.move(fromOffsets: IndexSet(integer: index), toOffset: 0)
             }
             
-            saveConversations()
+            Task { await saveConversationsAsync() }
         }
     }
     
@@ -130,9 +133,9 @@ class ConversationManager: ObservableObject {
         // Ensure we always have at least one conversation
         if conversations.isEmpty {
             _ = createNewConversation()
+        } else {
+            Task { await saveConversationsAsync() }
         }
-        
-        saveConversations()
     }
     
     func switchToConversation(_ conversation: Conversation) {
@@ -143,7 +146,7 @@ class ConversationManager: ObservableObject {
             conversations.move(fromOffsets: IndexSet(integer: index), toOffset: 0)
         }
         
-        saveConversations()
+        Task { await saveConversationsAsync() }
     }
     
     private func saveConversations() {
@@ -162,5 +165,41 @@ class ConversationManager: ObservableObject {
                 currentConversationId = conversations.first?.id
             }
         }
+    }
+    
+    private func loadConversationsAsync() async {
+        // Perform UserDefaults reading on background queue to avoid blocking startup
+        let loadedConversations = await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                var result: [Conversation] = []
+                if let data = UserDefaults.standard.data(forKey: self.conversationsKey),
+                   let decoded = try? JSONDecoder().decode([Conversation].self, from: data) {
+                    result = decoded
+                }
+                continuation.resume(returning: result)
+            }
+        }
+        
+        // Update UI on main actor
+        await MainActor.run {
+            self.conversations = loadedConversations
+            
+            // Set current conversation to the first one if none is selected
+            if self.currentConversationId == nil {
+                self.currentConversationId = loadedConversations.first?.id
+            }
+        }
+    }
+    
+    private func saveConversationsAsync() async {
+        let conversationsToSave = self.conversations 
+        await Task.detached(priority: .background) {
+            do {
+                let encoded = try JSONEncoder().encode(conversationsToSave)
+                UserDefaults.standard.set(encoded, forKey: self.conversationsKey)
+            } catch {
+                print("Error encoding conversations: \(error)")
+            }
+        }.value
     }
 } 

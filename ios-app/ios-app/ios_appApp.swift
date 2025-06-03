@@ -12,6 +12,18 @@ struct ios_appApp: App {
         WindowGroup {
             RootViewControllerWrapper()
                 .ignoresSafeArea()
+                .onAppear {
+                    // Start hang detection monitoring
+                    Task { @MainActor in
+                        HangDetector.shared.startMonitoring()
+                    }
+                }
+                .onDisappear {
+                    // Stop monitoring when app goes to background
+                    Task { @MainActor in
+                        HangDetector.shared.stopMonitoring()
+                    }
+                }
         }
     }
 }

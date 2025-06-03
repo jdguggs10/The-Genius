@@ -3,5 +3,746 @@ description:
 globs: *.swift
 alwaysApply: false
 ---
-This rule links to Apple's Swift programming language documention. All Swift code in the ios-app subfolder should reference this documentation. Always use this as a resource for building the iOS application.
+This rule links and provide detail on Apple's Swift programming language documention. All Swift code in the ios-app subfolder should reference this documentation. Always use this as a resource for building the iOS application.
 https://developer.apple.com/documentation/swift
+
+# SwiftUI Best Practices Guide for AI Coding Agents (2024-2025)
+
+## Table of Contents
+1. [Introduction & Modern SwiftUI Fundamentals](#introduction)
+2. [Architecture Patterns & State Management](#architecture)
+3. [Performance Optimization](#performance)
+4. [UI/UX & Apple Human Interface Guidelines](#ui-ux)
+5. [Accessibility](#accessibility)
+6. [Testing Strategies](#testing)
+7. [Code Organization & Modularization](#modularization)
+8. [Best Practices Summary](#summary)
+
+## 1. Introduction & Modern SwiftUI Fundamentals {#introduction}
+
+### What is SwiftUI?
+SwiftUI is Apple's modern declarative UI framework introduced in 2019. As of 2024-2025, it has matured significantly and is the recommended approach for building iOS applications.
+
+### Key Principles
+- **Declarative Syntax**: Describe what the UI should look like, not how to build it
+- **Automatic State Management**: UI automatically updates when data changes
+- **Cross-Platform**: Single codebase for iOS, macOS, watchOS, and tvOS
+- **Built-in Accessibility**: Automatic VoiceOver support for standard components
+
+### Basic SwiftUI View Structure
+```swift
+import SwiftUI
+
+struct ContentView: View {
+    var body: some View {
+        VStack {
+            Text("Hello, SwiftUI!")
+                .font(.largeTitle)
+                .foregroundStyle(.primary)
+            
+            Button("Tap Me") {
+                // Action here
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding()
+    }
+}
+```
+
+## 2. Architecture Patterns & State Management {#architecture}
+
+### Modern Architecture Approaches (2024-2025)
+
+#### 1. MV Pattern (Model-View)
+The MV pattern has gained popularity as a simpler alternative to MVVM for SwiftUI:
+
+```swift
+// Model
+@Observable
+class TaskStore {
+    var tasks: [Task] = []
+    
+    func addTask(_ task: Task) {
+        tasks.append(task)
+    }
+}
+
+// View
+struct TaskListView: View {
+    @State private var taskStore = TaskStore()
+    
+    var body: some View {
+        List(taskStore.tasks) { task in
+            TaskRow(task: task)
+        }
+    }
+}
+```
+
+#### 2. MVVM (Model-View-ViewModel)
+Still widely used but with modern SwiftUI adaptations:
+
+```swift
+// ViewModel
+@Observable
+class TaskViewModel {
+    private var repository: TaskRepository
+    var tasks: [Task] = []
+    var isLoading = false
+    
+    init(repository: TaskRepository = TaskRepository()) {
+        self.repository = repository
+    }
+    
+    func fetchTasks() async {
+        isLoading = true
+        tasks = await repository.fetchTasks()
+        isLoading = false
+    }
+}
+
+// View
+struct TaskListView: View {
+    @StateObject private var viewModel = TaskViewModel()
+    
+    var body: some View {
+        List(viewModel.tasks) { task in
+            TaskRow(task: task)
+        }
+        .task {
+            await viewModel.fetchTasks()
+        }
+        .overlay {
+            if viewModel.isLoading {
+                ProgressView()
+            }
+        }
+    }
+}
+```
+
+#### 3. The Composable Architecture (TCA)
+For complex applications requiring unidirectional data flow:
+
+```swift
+struct TaskFeature: Reducer {
+    struct State: Equatable {
+        var tasks: [Task] = []
+        var isLoading = false
+    }
+    
+    enum Action {
+        case fetchTasks
+        case tasksResponse(Result<[Task], Error>)
+    }
+    
+    func reduce(into state: inout State, action: Action) -> Effect<Action> {
+        switch action {
+        case .fetchTasks:
+            state.isLoading = true
+            return .run { send in
+                let result = await TaskAPI.fetchTasks()
+                await send(.tasksResponse(result))
+            }
+            
+        case let .tasksResponse(.success(tasks)):
+            state.tasks = tasks
+            state.isLoading = false
+            return .none
+            
+        case .tasksResponse(.failure):
+            state.isLoading = false
+            return .none
+        }
+    }
+}
+```
+
+### State Management Best Practices
+
+#### Property Wrappers Usage
+```swift
+struct StateManagementView: View {
+    // Local view state
+    @State private var isPresented = false
+    
+    // Observable object owned by this view
+    @StateObject private var dataStore = DataStore()
+    
+    // Observable object passed from parent
+    @ObservedObject var sharedData: SharedDataModel
+    
+    // Environment values
+    @Environment(\.colorScheme) var colorScheme
+    
+    // Shared app-wide state
+    @EnvironmentObject var appState: AppState
+    
+    var body: some View {
+        // View implementation
+    }
+}
+```
+
+#### Key Rules:
+1. Use `@State` for simple, local view state
+2. Use `@StateObject` when creating observable objects
+3. Use `@ObservedObject` when receiving observable objects from parent
+4. Use `@EnvironmentObject` for app-wide shared state
+5. Prefer `@Observable` macro (iOS 17+) over `ObservableObject` when possible
+
+## 3. Performance Optimization {#performance}
+
+### Lazy Loading
+```swift
+struct OptimizedListView: View {
+    let items: [Item]
+    
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(items) { item in
+                    ItemRow(item: item)
+                        .frame(height: 80)
+                }
+            }
+        }
+    }
+}
+```
+
+### Image Loading Optimization
+```swift
+struct LazyImageView: View {
+    let url: URL
+    
+    var body: some View {
+        AsyncImage(url: url) { phase in
+            switch phase {
+            case .empty:
+                ProgressView()
+                    .frame(width: 100, height: 100)
+            case .success(let image):
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 100, height: 100)
+                    .clipped()
+            case .failure:
+                Image(systemName: "photo")
+                    .foregroundColor(.gray)
+            @unknown default:
+                EmptyView()
+            }
+        }
+    }
+}
+```
+
+### View Update Optimization
+```swift
+struct OptimizedView: View {
+    @StateObject private var viewModel = ViewModel()
+    
+    var body: some View {
+        VStack {
+            // Isolate frequently updating views
+            TimeDisplayView()
+                .id(UUID()) // Forces recreation if needed
+            
+            // Use computed properties for complex logic
+            ExpensiveComputationView(data: processedData)
+        }
+    }
+    
+    // Cache expensive computations
+    private var processedData: ProcessedData {
+        viewModel.expensiveComputation()
+    }
+}
+```
+
+### Performance Tips:
+1. Use `List` over `LazyVStack` for better performance with large datasets
+2. Implement proper `Identifiable` and `Hashable` protocols
+3. Avoid using `.id()` modifier on List items
+4. Use `LazyVGrid` and `LazyHGrid` for grid layouts
+5. Minimize view hierarchy depth
+6. Use `@ViewBuilder` for conditional content
+
+## 4. UI/UX & Apple Human Interface Guidelines {#ui-ux}
+
+### Core Design Principles
+
+#### 1. Clarity
+```swift
+struct ClarityExample: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Welcome")
+                .font(.largeTitle)
+                .fontWeight(.bold)
+            
+            Text("Get started by selecting an option below")
+                .font(.body)
+                .foregroundStyle(.secondary)
+            
+            // Clear, actionable buttons
+            Button("Create New Project") {
+                // Action
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+        }
+        .padding()
+    }
+}
+```
+
+#### 2. Deference
+```swift
+struct DeferenceExample: View {
+    @State private var content = "Your content here"
+    
+    var body: some View {
+        ScrollView {
+            Text(content)
+                .padding()
+        }
+        .background(Color(.systemBackground))
+        .safeAreaInset(edge: .bottom) {
+            // Subtle UI that doesn't compete with content
+            HStack {
+                Button("Edit", action: {})
+                Spacer()
+                Button("Share", action: {})
+            }
+            .padding()
+            .background(.ultraThinMaterial)
+        }
+    }
+}
+```
+
+#### 3. Depth
+```swift
+struct DepthExample: View {
+    var body: some View {
+        ZStack {
+            // Background layer
+            Color(.systemBackground)
+            
+            // Content layer with shadow
+            VStack {
+                Text("Main Content")
+                    .padding()
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(12)
+                    .shadow(radius: 5)
+            }
+            .padding()
+        }
+    }
+}
+```
+
+### Modern UI Components (iOS 18)
+
+#### Adaptive Tab View
+```swift
+struct AdaptiveTabView: View {
+    @State private var selection = 0
+    
+    var body: some View {
+        TabView(selection: $selection) {
+            HomeView()
+                .tabItem {
+                    Label("Home", systemImage: "house")
+                }
+                .tag(0)
+            
+            SearchView()
+                .tabItem {
+                    Label("Search", systemImage: "magnifyingglass")
+                }
+                .tag(1)
+        }
+        .tabViewStyle(.sidebarAdaptable) // New in iOS 18
+    }
+}
+```
+
+#### Sheet Presentation
+```swift
+struct SheetExample: View {
+    @State private var showSheet = false
+    
+    var body: some View {
+        Button("Show Details") {
+            showSheet = true
+        }
+        .sheet(isPresented: $showSheet) {
+            DetailView()
+                .presentationSizing(.form) // New sizing options
+                .presentationBackground(.regularMaterial)
+        }
+    }
+}
+```
+
+## 5. Accessibility {#accessibility}
+
+### VoiceOver Support
+```swift
+struct AccessibleView: View {
+    @State private var isFavorite = false
+    
+    var body: some View {
+        VStack {
+            // Text with proper labeling
+            Text("Product Details")
+                .font(.title)
+                .accessibilityAddTraits(.isHeader)
+            
+            // Image with description
+            Image("product-image")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .accessibilityLabel("Red running shoes")
+                .accessibilityHint("Double tap to view full screen")
+            
+            // Interactive element
+            Button(action: { isFavorite.toggle() }) {
+                Image(systemName: isFavorite ? "heart.fill" : "heart")
+                    .foregroundColor(isFavorite ? .red : .gray)
+            }
+            .accessibilityLabel(isFavorite ? "Remove from favorites" : "Add to favorites")
+            .accessibilityAddTraits(.isButton)
+        }
+    }
+}
+```
+
+### Dynamic Type Support
+```swift
+struct DynamicTypeView: View {
+    @Environment(\.sizeCategory) var sizeCategory
+    
+    var body: some View {
+        VStack {
+            if sizeCategory.isAccessibilityCategory {
+                // Vertical layout for large text
+                VStack(alignment: .leading) {
+                    Label("Settings", systemImage: "gear")
+                    Label("Profile", systemImage: "person")
+                }
+            } else {
+                // Horizontal layout for standard text
+                HStack {
+                    Label("Settings", systemImage: "gear")
+                    Spacer()
+                    Label("Profile", systemImage: "person")
+                }
+            }
+        }
+        .padding()
+    }
+}
+```
+
+### Accessibility Best Practices:
+1. Always provide accessibility labels for images and icons
+2. Group related elements using `.accessibilityElement(children: .combine)`
+3. Use `.accessibilityAddTraits()` to provide context
+4. Test with VoiceOver enabled
+5. Support Dynamic Type
+6. Ensure sufficient color contrast (4.5:1 minimum)
+
+## 6. Testing Strategies {#testing}
+
+### Unit Testing ViewModels
+```swift
+import XCTest
+@testable import MyApp
+
+final class TaskViewModelTests: XCTestCase {
+    var sut: TaskViewModel!
+    var mockRepository: MockTaskRepository!
+    
+    override func setUp() {
+        super.setUp()
+        mockRepository = MockTaskRepository()
+        sut = TaskViewModel(repository: mockRepository)
+    }
+    
+    func testFetchTasksSuccess() async {
+        // Given
+        let expectedTasks = [Task(id: 1, title: "Test Task")]
+        mockRepository.tasksToReturn = expectedTasks
+        
+        // When
+        await sut.fetchTasks()
+        
+        // Then
+        XCTAssertEqual(sut.tasks, expectedTasks)
+        XCTAssertFalse(sut.isLoading)
+    }
+}
+```
+
+### UI Testing
+```swift
+import XCTest
+
+final class TaskAppUITests: XCTestCase {
+    let app = XCUIApplication()
+    
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+        app.launch()
+    }
+    
+    func testAddNewTask() throws {
+        // Find and tap add button
+        app.buttons["Add Task"].tap()
+        
+        // Enter task details
+        let textField = app.textFields["Task Title"]
+        textField.tap()
+        textField.typeText("New Task")
+        
+        // Save
+        app.buttons["Save"].tap()
+        
+        // Verify task appears in list
+        XCTAssertTrue(app.staticTexts["New Task"].exists)
+    }
+}
+```
+
+### SwiftUI Preview Testing
+```swift
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        Group {
+            ContentView()
+                .previewDisplayName("Light Mode")
+            
+            ContentView()
+                .preferredColorScheme(.dark)
+                .previewDisplayName("Dark Mode")
+            
+            ContentView()
+                .environment(\.sizeCategory, .accessibilityExtraExtraLarge)
+                .previewDisplayName("Large Text")
+            
+            ContentView()
+                .environment(\.locale, .init(identifier: "es"))
+                .previewDisplayName("Spanish")
+        }
+    }
+}
+```
+
+## 7. Code Organization & Modularization {#modularization}
+
+### Swift Package Structure
+```
+MyApp/
+├── MyApp/                    # Main app target
+├── Packages/
+│   ├── Core/                # Core utilities
+│   │   ├── Sources/
+│   │   └── Tests/
+│   ├── NetworkKit/          # Networking module
+│   │   ├── Sources/
+│   │   └── Tests/
+│   ├── UIComponents/        # Reusable UI components
+│   │   ├── Sources/
+│   │   └── Tests/
+│   └── Features/            # Feature modules
+│       ├── Authentication/
+│       ├── Home/
+│       └── Settings/
+```
+
+### Creating a Swift Package Module
+```swift
+// Package.swift
+import PackageDescription
+
+let package = Package(
+    name: "UIComponents",
+    platforms: [.iOS(.v16)],
+    products: [
+        .library(
+            name: "UIComponents",
+            targets: ["UIComponents"]),
+    ],
+    targets: [
+        .target(
+            name: "UIComponents",
+            dependencies: []),
+        .testTarget(
+            name: "UIComponentsTests",
+            dependencies: ["UIComponents"]),
+    ]
+)
+```
+
+### Modular View Example
+```swift
+// In UIComponents module
+public struct CustomButton: View {
+    public let title: String
+    public let action: () -> Void
+    
+    public init(title: String, action: @escaping () -> Void) {
+        self.title = title
+        self.action = action
+    }
+    
+    public var body: some View {
+        Button(action: action) {
+            Text(title)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.accentColor)
+                .cornerRadius(12)
+        }
+    }
+}
+```
+
+### Dependency Injection
+```swift
+// Protocol for dependency
+protocol DataServiceProtocol {
+    func fetchData() async throws -> [DataModel]
+}
+
+// Implementation
+class DataService: DataServiceProtocol {
+    func fetchData() async throws -> [DataModel] {
+        // Implementation
+    }
+}
+
+// Dependency container
+class DependencyContainer {
+    static let shared = DependencyContainer()
+    
+    lazy var dataService: DataServiceProtocol = DataService()
+}
+
+// Usage in View
+struct ContentView: View {
+    @StateObject private var viewModel: ViewModel
+    
+    init(dataService: DataServiceProtocol = DependencyContainer.shared.dataService) {
+        _viewModel = StateObject(wrappedValue: ViewModel(dataService: dataService))
+    }
+}
+```
+
+## 8. Best Practices Summary {#summary}
+
+### Code Style Guidelines
+1. **Naming Conventions**
+   - Use descriptive names: `UserProfileView` not `View1`
+   - Use proper Swift naming conventions (lowerCamelCase for properties, UpperCamelCase for types)
+2. **View Composition**
+   ```swift
+   struct ContentView: View {
+       var body: some View {
+           VStack {
+               HeaderView()
+               ContentSection()
+               FooterView()
+           }
+       }
+   }
+   ```
+
+3. **Error Handling**
+   ```swift
+   enum DataError: LocalizedError {
+       case networkError
+       case decodingError
+       
+       var errorDescription: String? {
+           switch self {
+           case .networkError:
+               return "Network connection failed"
+           case .decodingError:
+               return "Failed to process data"
+           }
+       }
+   }
+   ```
+
+### Modern SwiftUI Features (iOS 17+)
+1. **Observable Macro**
+   ```swift
+   @Observable
+   class UserSettings {
+       var theme: Theme = .light
+       var notifications = true
+   }
+   ```
+
+2. **SwiftData Integration**
+   ```swift
+   @Model
+   class Task {
+       var title: String
+       var isCompleted: Bool
+       var createdAt: Date
+       
+       init(title: String) {
+           self.title = title
+           self.isCompleted = false
+           self.createdAt = Date()
+       }
+   }
+   ```
+
+3. **Animation Improvements**
+   ```swift
+   struct AnimatedView: View {
+       @State private var isExpanded = false
+       
+       var body: some View {
+           VStack {
+               Text("Tap to animate")
+                   .scaleEffect(isExpanded ? 1.5 : 1.0)
+                   .onTapGesture {
+                       withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
+                           isExpanded.toggle()
+                       }
+                   }
+           }
+       }
+   }
+   ```
+
+### Key Takeaways
+1. **Embrace SwiftUI's declarative nature** - Don't fight the framework
+2. **Keep views simple and focused** - Extract complex logic to ViewModels or helper functions
+3. **Prioritize accessibility** - It's not optional
+4. **Test early and often** - Unit test business logic, UI test critical flows
+5. **Follow platform conventions** - Use standard components when possible
+6. **Optimize for performance** - Use lazy loading and minimize view updates
+7. **Modularize thoughtfully** - Start simple, modularize as complexity grows
+
+### Staying Updated
+- Follow Apple's WWDC sessions annually
+- Check Apple's Human Interface Guidelines regularly
+- Monitor Swift Evolution proposals
+- Join SwiftUI communities and forums
+- Experiment with beta releases
+
+This guide represents the current best practices as of 2024-2025. SwiftUI continues to evolve rapidly, so always verify approaches with the latest documentation and adapt as needed.
