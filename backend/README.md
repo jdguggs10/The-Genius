@@ -2,13 +2,13 @@
 
 > **The Brain Behind The Genius** - FastAPI server that powers your fantasy sports AI assistant with structured, streaming JSON responses.
 
-This is the backend API server that handles the core logic for "The Genius" application. It receives requests from client applications (web and iOS), interacts with the OpenAI API (defaulting to `o4-mini`) to generate fantasy sports advice, and returns this advice in a structured JSON format, with options for both streaming and non-streaming responses.
+This is the backend API server that handles the core logic for "The Genius" application. It receives requests from client applications (web and iOS), interacts with the OpenAI API (see model configuration details below, defaulting to `gpt-4.1-mini` if not otherwise specified) to generate fantasy sports advice, and returns this advice in a structured JSON format, with options for both streaming and non-streaming responses.
 
 ## 🧠 What This Does
 
 This backend server:
 - **Receives Questions**: Gets fantasy sports questions from your web app or mobile app via a JSON payload.
-- **Talks to AI**: Sends questions to OpenAI's API (defaulting to `o4-mini`), requesting structured JSON output.
+- **Talks to AI**: Sends questions to OpenAI's API (defaulting to `gpt-4.1-mini` if not otherwise specified, see model configuration details below), requesting structured JSON output.
 - **Streams Structured Answers**: Provides an endpoint (`/advice`) that streams fantasy sports advice. The advice is formatted as a single JSON object (`StructuredAdvice` model) delivered in chunks, enabling progressive display on the client-side.
 - **Offers Non-Streaming Option**: Includes an endpoint (`/advice-non-streaming`) for clients that prefer to receive the complete structured JSON response in a single payload.
 - **Manages Configuration**: Utilizes environment variables for sensitive information like API keys and configurable parameters like system prompts.
@@ -17,8 +17,8 @@ This backend server:
 ## 🔧 Technology Stack (What's Under the Hood)
 
 - **FastAPI**: A modern, high-performance Python web framework used for building the API.
-- **OpenAI API (GPT models)**: Primarily utilizes `o4-mini` by default for generating intelligent advice. Configured to leverage OpenAI's structured JSON response capabilities.
-    - **IMPORTANT NOTE**: The default AI model is `o4-mini`. This model is specified for cost and performance reasons. Do not change this to a different model (e.g., GPT-4 Turbo) without explicit instruction and consideration of implications.
+- **OpenAI API (GPT models)**: Defaults to `gpt-4.1-mini` (see model configuration details below) for generating intelligent advice, with `gpt-4.1` as another internal default. These can be overridden by the `OPENAI_DEFAULT_MODEL` environment variable or a model specified in an API request. Configured to leverage OpenAI's structured JSON response capabilities.
+    - **IMPORTANT NOTE**: The primary default AI model if not otherwise specified is `gpt-4.1-mini`. This choice, along with the internal default of `gpt-4.1`, considers cost and performance. Do not change these defaults or the hierarchy without explicit instruction and consideration of implications.
 - **Pydantic**: Used for data validation, settings management, and defining the JSON schemas that are passed to OpenAI to ensure structured responses.
 - **Uvicorn**: An ASGI (Asynchronous Server Gateway Interface) web server, used for running the FastAPI application in production.
 - **Docker**: Enables containerization of the application for consistent deployment environments.
@@ -46,8 +46,10 @@ backend/
 │   ├── test_openai_client.py      # Tests for OpenAI integration logic
 │   └── ...                        # Other test files
 ├── .env.example                   # Example environment variables file
+├── poetry.lock                    # Poetry lock file for deterministic dependency resolution.
+├── pyproject.toml                 # Poetry configuration file for project metadata and dependencies.
 ├── requirements.txt               # Core Python dependencies for the application
-├── requirements-dev.txt           # Additional dependencies for development and testing
+├── requirements-test.txt          # Additional Python dependencies for development and testing.
 ├── Dockerfile                     # Defines the Docker image for containerized deployment
 ├── render.yaml                    # Configuration file for deployment on Render.com
 └── README.md                      # This documentation file
@@ -81,7 +83,7 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 # For development, also install testing dependencies:
-pip install -r requirements-dev.txt
+pip install -r requirements-test.txt
 ```
 
 ### Step 3: Configure Environment Variables
@@ -98,8 +100,8 @@ OPENAI_API_KEY=sk-your_actual_openai_key_here
 # This is combined with JSON schema instructions in openai_client.py
 SYSTEM_PROMPT="You are a helpful fantasy sports assistant with deep knowledge of player performance, matchups, and strategy. You MUST respond in JSON format adhering to the provided schema."
 
-# Optional: Override the default OpenAI model (defaults to o4-mini if not set)
-# OPENAI_DEFAULT_MODEL="o4-mini"
+# Optional: Override the default OpenAI model (defaults to gpt-4.1-mini if not set, see "Configuration Deep Dive" for details)
+# OPENAI_DEFAULT_MODEL="gpt-4.1-mini"
 ```
 
 ### Step 4: Run the Development Server
@@ -119,7 +121,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
         "conversation": [
           {"role": "user", "content": "Should I start Patrick Mahomes or Josh Allen this week?"}
         ],
-        "model": "o4-mini"
+        "model": "gpt-4.1-mini" // Example, can be overridden
       }'
     ```
 4.  **Non-Streaming Advice Endpoint**:
@@ -130,9 +132,13 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
         "conversation": [
           {"role": "user", "content": "Who are the top 3 waiver wire pickups for WR this week?"}
         ],
-        "model": "o4-mini"
+        "model": "gpt-4.1-mini" // Example, can be overridden
       }'
     ```
+
+---
+**Note on Terminal Chat Client:**
+There is also a separate quick start guide for running a simple terminal-based chat client that interacts directly with `app/services/openai_client.py`. This can be useful for direct LLM testing. See [`QUICKSTART.md`](./QUICKSTART.md) for details.
 
 ## API Endpoints
 
@@ -154,19 +160,19 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
       {"role": "assistant", "content": "Previous AI response (if any)"},
       {"role": "user", "content": "Follow-up question"}
     ],
-    "model": "o4-mini", // Optional: Defaults to OPENAI_DEFAULT_MODEL or o4-mini
+    "model": "gpt-4.1-mini", // Optional: Defaults to OPENAI_DEFAULT_MODEL or application default (gpt-4.1-mini). See "AI Reviewer Notes" for precedence.
     "enable_web_search": false // Optional: Feature flag, currently not fully utilized with structured JSON mode
   }
   ```
-- **Response Stream (`application/x-ndjson` leading to `StructuredAdvice`)**:
-  Chunks of a JSON object. Concatenated example:
+- **Response Stream (`text/event-stream` producing Server-Sent Events leading to `StructuredAdvice`)**:
+  Server-Sent Events where each event's `data` payload is a chunk of a JSON object. Clients should accumulate the `data` from these events to reconstruct the complete `StructuredAdvice` object. Concatenated example:
   ```json
   {
     "main_advice": "Start Josh Allen.",
     "reasoning": "Allen has a better matchup and higher recent performance.",
     "confidence_score": 0.8,
     "alternatives": [{"player": "Patrick Mahomes", "reason": "Solid floor but tougher matchup."}],
-    "model_identifier": "o4-mini"
+    "model_identifier": "gpt-4.1-mini" // This reflects the model used for the specific request
   }
   ```
 
@@ -208,16 +214,26 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   ```
 
 ### 6. `GET /model`
-- **Description**: Returns the default AI model name currently configured for the backend.
+- **Description**: Returns the internal default AI model name (`OPENAI_DEFAULT_MODEL_INTERNAL`) configured in `app/services/openai_client.py`. This is one of the fallbacks in the model determination hierarchy.
 - **Response Body (`application/json`)**:
   ```json
   {
-    "model": "o4-mini" 
+    "model": "gpt-4.1"
   }
   ```
-  *(Note: The actual model name is determined by the `OPENAI_DEFAULT_MODEL_INTERNAL` variable in the backend.)*
+  *(Note: The actual model name is determined by the `OPENAI_DEFAULT_MODEL_INTERNAL` variable in `app/services/openai_client.py`.)*
 
-### 7. `POST /feedback`
+### 7. `GET /api/v1/settings/default-model`
+- **Description**: Retrieves the effective default OpenAI model configured for new requests, considering environment variables.
+- **Response Body (`application/json`)**:
+  ```json
+  {
+    "model": "gpt-4.1-mini" // Or "gpt-4.1", or the value from OPENAI_DEFAULT_MODEL env var if set
+  }
+  ```
+- *(Note: The model returned is determined by the `OPENAI_DEFAULT_MODEL` environment variable if set, otherwise it reflects the application's configured default.)*
+
+### 8. `POST /feedback`
 - **Description**: Submit outcome feedback for a specific AI response. This is used to evaluate and improve the confidence calibration of the AI.
 - **Request Body (`OutcomeFeedback`)**:
   ```json
@@ -239,7 +255,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
     - **Error (404 Not Found)**: If `response_id` is not found.
     - **Error (500 Internal Server Error)**: For other processing errors.
 
-### 8. `GET /confidence/stats`
+### 9. `GET /confidence/stats`
 - **Description**: Get aggregated confidence scoring statistics, including Brier score analysis, over a specified period.
 - **Request Parameters (Query)**:
     - `days_back: int` (optional, default: 7): The number of days to look back for statistics.
@@ -262,7 +278,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   ```
   *(Note: The actual structure of `calibration_data` and other fields might vary based on `response_logger.get_confidence_stats` implementation.)*
 
-### 9. `GET /confidence/recent`
+### 10. `GET /confidence/recent`
 - **Description**: Retrieve recent confidence scoring logs for monitoring and debugging purposes.
 - **Request Parameters (Query)**:
     - `limit: int` (optional, default: 20): The maximum number of recent logs to return.
@@ -275,7 +291,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
         "response_text": "Advice given...",
         "confidence_score": 0.85,
         "user_query": "User question...",
-        "model_used": "o4-mini",
+        "model_used": "gpt-4.1-mini", // Example, reflects model used for that response
         "web_search_used": false,
         "outcome": true,
         "timestamp": "YYYY-MM-DDTHH:MM:SSZ",
@@ -289,7 +305,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   }
   ```
 
-### 10. `GET /confidence/brier-score`
+### 11. `GET /confidence/brier-score`
 - **Description**: Calculate the Brier score, a measure of confidence calibration, over a specified period.
 - **Request Parameters (Query)**:
     - `days_back: int` (optional, default: 7): The number of days to include in the Brier score calculation.
@@ -308,7 +324,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   ```
   *(Note: The actual structure is defined by `confidence_scoring_service.calculate_brier_score`.)*
 
-### 11. `GET /confidence/calibration`
+### 12. `GET /confidence/calibration`
 - **Description**: Get a detailed analysis of confidence calibration, typically by confidence bands or bins.
 - **Request Parameters (Query)**:
     - `days_back: int` (optional, default: 30): The number of days to include in the calibration analysis.
@@ -330,7 +346,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   ```
   *(Note: The actual structure is defined by `confidence_phrase_tuner.analyze_calibration_drift`.)*
 
-### 12. `POST /confidence/auto-tune`
+### 13. `POST /confidence/auto-tune`
 - **Description**: Run an automatic process to tune confidence phrases based on recent calibration performance.
 - **Request Parameters (Query)**:
     - `days_back: int` (optional, default: 7): The number of days of data to analyze for auto-tuning.
@@ -351,7 +367,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
   ```
   *(Note: The actual structure is defined by `confidence_phrase_tuner.auto_tune_phrases`.)*
 
-### 13. `GET /confidence/phrase-status`
+### 14. `GET /confidence/phrase-status`
 - **Description**: Get the current status of the confidence phrase tuning system, including current phrase mappings and calibration metrics.
 - **Response Body (`application/json`)**:
   ```json
@@ -377,7 +393,6 @@ For AI agents reviewing this backend module, the following points are crucial:
     -   It constructs the prompts sent to OpenAI, leveraging `app/services/prompt_loader.py` for dynamic prompt generation based on `prompt_type` and `use_step2_architecture` flags. This includes system messages, user conversation history, and schema instructions.
     -   It dynamically includes the JSON schema (derived from `app.models.StructuredAdvice`) in the request to OpenAI to enforce structured JSON output. This is typically handled by `prompt_loader.build_conversation_messages`.
     -   It implements the logic for both streaming (using `AsyncOpenAI`) and non-streaming (using `OpenAI`) responses.
-    -   The default model is `gpt-4.1` (defined by `OPENAI_DEFAULT_MODEL_INTERNAL` in `openai_client.py`), which can be overridden by the `OPENAI_DEFAULT_MODEL` environment variable or a model specified in an API request.
 -   **`app/models.py`**: Contains Pydantic models that define the structure of API requests (e.g., `AdviceRequest`, `OutcomeFeedback`) and responses (e.g., `StructuredAdvice`).
     -   The `StructuredAdvice` model is particularly important as its schema (`StructuredAdvice.model_json_schema()`) is used to instruct OpenAI on the desired JSON output format.
 -   **`app/services/prompt_loader.py`**: Manages the loading and construction of prompts sent to the AI, including system prompts and the integration of JSON schemas.
@@ -386,7 +401,12 @@ For AI agents reviewing this backend module, the following points are crucial:
 -   **`app/services/web_search_discipline.py`**: Implements the logic to decide whether a web search should be performed for a given query based on various factors.
 -   **`app/services/schema_validator.py`**: Ensures that AI responses, especially streaming ones, conform to the expected `StructuredAdvice` schema, with fallback mechanisms.
 -   **Environment Variable Configuration**: Key configurations, such as the `OPENAI_API_KEY`, `SYSTEM_PROMPT` (via `prompt_loader`), and `OPENAI_DEFAULT_MODEL`, are managed via environment variables (loaded from `.env` file in development). This allows for flexibility without hardcoding sensitive data or settings.
--   **Default AI Model**: The backend's internal default AI model is `gpt-4.1` (see `OPENAI_DEFAULT_MODEL_INTERNAL` in `app/services/openai_client.py`). This can be overridden by the `OPENAI_DEFAULT_MODEL` environment variable. **Tasks should refer to this default unless specified. The `o4-mini` model might be mentioned in client requests or older documentation, but `gpt-4.1` is the current internal default.**
+-   **Default AI Model Determination**: The choice of AI model is determined by the following precedence:
+    1.  The `model` field in an API request body (e.g., in `AdviceRequest`) takes highest precedence.
+    2.  If not specified in the request, the `OPENAI_DEFAULT_MODEL` environment variable is used if set. This variable allows overriding all internal defaults.
+    3.  If the environment variable is not set and no model is in the request, the `app/main.py` uses its own `OPENAI_DEFAULT_MODEL` variable (which defaults to `gpt-4.1-mini`) for the `/advice` and `/advice-non-streaming` endpoints.
+    4.  The `app/services/openai_client.py` defines an internal default `OPENAI_DEFAULT_MODEL_INTERNAL` (which defaults to `gpt-4.1`) that is used by its functions if no model is explicitly passed down from `app/main.py`.
+    Ensure tasks refer to this hierarchy. The term `o4-mini` should be treated as a potential value that could be passed in requests or set as an environment variable, rather than an active default.
 -   **Structured Responses**: The core design revolves around getting structured JSON responses from the LLM, enforced by Pydantic models and OpenAI's API features. Validation is performed by `schema_validator.py`.
 -   **Date Anchoring**: User messages are automatically prepended with the current date (see `add_date_anchoring_to_conversation` in `app/main.py`) to provide temporal context to the AI.
 
@@ -398,7 +418,7 @@ For AI agents reviewing this backend module, the following points are crucial:
 | ---------------------- | -------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `OPENAI_API_KEY`       | ✅ Yes    | N/A                                       | Your OpenAI API key.                                                                                                                      |
 | `SYSTEM_PROMPT`        | ❌ No     | (Managed by `prompt_loader.py`)           | Base system instructions for the AI. Loaded via `prompt_loader.py`, which has its own default if this env var is not set. Overrides the default prompt in `prompt_config.yaml`. |
-| `OPENAI_DEFAULT_MODEL` | ❌ No     | `gpt-4.1`                                 | Overrides the internal default AI model (`gpt-4.1`) used for responses. See `OPENAI_DEFAULT_MODEL_INTERNAL` in `openai_client.py`.         |
+| `OPENAI_DEFAULT_MODEL` | ❌ No     | None (Has fallbacks)                      | Overrides all internal AI model defaults. If set, this model will be used unless a specific model is provided in an API request. If not set, `app/main.py` defaults to `gpt-4.1-mini` for request handling if no model is in the request, and `app/services/openai_client.py` has an internal default of `gpt-4.1`. |
 | `PORT`                 | ❌ No     | `8000`                                    | Port for Uvicorn to run the server on.                                                                                                    |
 | `LOG_LEVEL`            | ❌ No     | `INFO`                                    | Logging level for the application (e.g., `DEBUG`, `INFO`, `WARNING`).                                                                     |
 
