@@ -1,21 +1,21 @@
 // web-app/src/components/Chat.tsx
 import { useState, useRef, useEffect } from 'react';
 import { PaperAirplaneIcon, MagnifyingGlassIcon } from '@heroicons/react/24/solid';
-import MessageDaisyUI from './MessageDaisyUI.tsx';
-import SkeletonMessage from './SkeletonMessage.tsx';
+import MessageDaisyUI from './messagedaisyui.tsx';
+import SkeletonMessage from './skeletonmessage.tsx';
 // AnimatePresence removed as it's unlikely to work well with react-window item recycling without significant effort
-import type { MessageType, AdviceRequest } from '../types';
-import { useConversationManager } from '../hooks/useConversationManager';
-import { useSSEClient } from '../hooks/useSSEClient';
-import { useScrollAnchor } from '../hooks/useScrollAnchor';
+import type { MessageType, AdviceRequest } from '../types/index.ts';
+import { useConversationManager } from '../hooks/useConversationManager.ts';
+import { useSSEClient } from '../hooks/useSSEClient.ts';
+import { useScrollAnchor } from '../hooks/useScrollAnchor.ts';
 // @ts-ignore: react-window has no type declarations
 import { FixedSizeList } from 'react-window';
 // @ts-ignore: react-hot-toast has no type declarations
 import toast from 'react-hot-toast';
 import { SunIcon, MoonIcon } from '@heroicons/react/24/outline'; // Using outline for theme toggle
-import { useTheme } from '../hooks/useTheme';
-import { logger } from '../utils/logger';
-import { getAdviceUrl, logApiConfig, getDefaultModelSettingUrl } from '../utils/api';
+import { useTheme } from '../hooks/useTheme.ts';
+import { logger } from '../utils/logger.ts';
+import { getAdviceUrl, logApiConfig, getDefaultModelSettingUrl } from '../utils/api.ts';
 
 const PLACEHOLDER_AI_MESSAGE = "_PLACEHOLDER_AI_MESSAGE_";
 const ITEM_SIZE = 100; // Increased for DaisyUI chat components
