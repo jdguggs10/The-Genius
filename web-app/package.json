@@ -3,6 +3,9 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0 <24.0.0"
+  },
   "scripts": {
     "dev": "vite",
     "dev:prod-backend": "VITE_BACKEND_URL=https://genius-backend-nhl3.onrender.com vite",
