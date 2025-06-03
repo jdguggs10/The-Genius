@@ -59,11 +59,22 @@ class HangDetector: ObservableObject {
             guard let self = self else { return }
             
             // Define a timeout slightly longer than the hangThreshold for the semaphore
-            // For example, hangThreshold * 2, or a fixed value like 250ms if hangThreshold is 100ms.
-            // Let's use hangThreshold * 2.5 to be safe and give enough buffer.
             let semaphoreTimeoutMilliseconds = Int((self.hangThreshold * 2.5) * 1000)
             
-            while self.isMonitoring {
+            while true {
+                // Check monitoring state synchronously using a semaphore
+                let stateSemaphore = DispatchSemaphore(value: 0)
+                var shouldContinue = false
+                
+                DispatchQueue.main.async {
+                    shouldContinue = self.isMonitoring
+                    stateSemaphore.signal()
+                }
+                
+                stateSemaphore.wait()
+                
+                guard shouldContinue else { break }
+                
                 let semaphore = DispatchSemaphore(value: 0)
                 let startTime = CFAbsoluteTimeGetCurrent()
                 
@@ -78,7 +89,6 @@ class HangDetector: ObservableObject {
                 if waitResult == .timedOut {
                     // Main thread did not respond within the timeout, indicating a severe hang or deadlock
                     Task { @MainActor in
-                        // Use a specific handler or enhance handleHangDetected
                         self.handleSevereHangDetected(duration: duration)
                     }
                 } else if duration > self.hangThreshold {

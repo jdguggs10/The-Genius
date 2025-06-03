@@ -60,7 +60,9 @@ struct ContentView: View {
                 SettingsView(isPresented: $showingSettingsSheet)
             }
             .onChange(of: selectedPhotos) { oldPhotos, newPhotos in
-                handlePhotoSelection(newPhotos: newPhotos)
+                Task {
+                    await handlePhotoSelection(newPhotos: newPhotos)
+                }
             }
             .onChange(of: conversationManager.conversations) { oldConversations, newConversations in
                 // Handle when conversations are loaded asynchronously
@@ -401,37 +403,38 @@ struct ContentView: View {
         }
     }
 
-    private func handlePhotoSelection(newPhotos: [PhotosPickerItem]) {
-        Task {
-            // Measure photo processing performance
-            await HangDetector.shared.measureAsyncOperation(
-                operation: {
-                    viewModel.draftAttachmentData.removeAll()
-                    
-                    // Process photos with memory management
-                    for item in newPhotos {
-                        autoreleasepool {
-                            do {
-                                if let data = try await item.loadTransferable(type: Data.self) {
-                                    // Limit image size to prevent memory issues
-                                    if let processedData = await processImageData(data) {
-                                        await MainActor.run {
-                                            viewModel.draftAttachmentData.append(processedData)
-                                        }
-                                    }
-                                }
-                            } catch {
-                                print("Failed to load photo: \(error)")
-                            }
+    private func handlePhotoSelection(newPhotos: [PhotosPickerItem]) async {
+        // Measure photo processing performance
+        let startTime = CFAbsoluteTimeGetCurrent()
+        await self.processPhotosAsync(newPhotos: newPhotos)
+        let duration = CFAbsoluteTimeGetCurrent() - startTime
+        
+        if duration > 0.1 { // 100ms threshold
+            print("Photo processing took \(String(format: "%.3f", duration))s - exceeds threshold")
+        }
+    }
+    
+    // Extract the async photo processing logic into a separate method
+    private func processPhotosAsync(newPhotos: [PhotosPickerItem]) async {
+        viewModel.draftAttachmentData.removeAll()
+
+        for item in newPhotos {
+            do {
+                if let data = try await item.loadTransferable(type: Data.self) {
+                    // Limit image size to prevent memory issues
+                    if let processedData = await processImageData(data) {
+                        await MainActor.run {
+                            viewModel.draftAttachmentData.append(processedData)
                         }
                     }
-                    
-                    await MainActor.run {
-                        selectedPhotos.removeAll()
-                    }
-                },
-                description: "Photo processing"
-            )
+                }
+            } catch {
+                print("Failed to load photo: \(error)")
+            }
+        }
+
+        await MainActor.run {
+            selectedPhotos.removeAll()
         }
     }
     
