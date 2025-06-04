@@ -1,10 +1,10 @@
 # PyBaseball MCP Server
 
-This server, `pybaseball_mcp_server_v2.py`, provides Major League Baseball (MLB) statistics through the Model Context Protocol (MCP). It allows AI assistants and other tools to access real-time and historical baseball data using the powerful `pybaseball` library. If MCP libraries are unavailable, it can fall back to a FastAPI-based REST API.
+This server, `pybaseball_mcp_server_v2.py`, provides Major League Baseball (MLB) statistics through the Model Context Protocol (MCP). It allows AI assistants and other tools to access real-time and historical baseball data using the powerful `pybaseball` library. It runs as a FastAPI + fastapi-mcp service, with endpoints automatically exposed as MCP tools.
 
 ## Features
 
-The server exposes the following tools via MCP:
+The server exposes the following tools via MCP and REST API:
 
 - **`player_stats`**: Get season statistics (batting or pitching) for a specific MLB player by name and year.
 - **`player_recent_performance`**: Retrieve recent game performance for an MLB player over a specified number of days, utilizing Statcast data.
@@ -15,6 +15,58 @@ The server exposes the following tools via MCP:
 - **`clear_stats_cache`**: Clear the `pybaseball` library's local cache to force fresh data retrieval.
 - **`get_cache_info`**: Get information about the `pybaseball` cache status and location.
 - **`health_check`**: A simple endpoint to confirm the server is operational.
+
+## API Endpoints
+
+All tools are exposed as REST API endpoints at:
+
+```
+POST https://genius-pybaseball.onrender.com/tools/{tool_name}
+```
+
+Where `{tool_name}` is the function name without any leading `get_` prefix. For example, `mlb_standings` instead of `get_mlb_standings`.
+
+### Core MLB Data Endpoints
+
+| Endpoint (tool_name) | Parameters | What it returns | Underlying pybaseball call |
+|----------------------|------------|-----------------|----------------------------|
+| `mlb_standings` | `{"year": 2025}` (year optional ⇒ current season) | Division and league standings for the season | `standings()` |
+| `schedule_and_record` | `{"season": 2024, "team": "NYY"}` | Team-by-team game results & upcoming schedule | `schedule_and_record()` |
+| `statcast` | `{"start_dt": "2025-04-01", "end_dt": "2025-04-07"}` | All Statcast pitches in the date window | `statcast()` |
+| `statcast_pitcher` | `{"player_id": 518886, "start_dt": "2025-05-01", "end_dt": "2025-05-31"}` | Pitch-level Statcast for one pitcher | `statcast_pitcher()` |
+| `statcast_batter` | `{"player_id": 664058, "start_dt": "2025-05-01", "end_dt": "2025-05-31"}` | Batter-level Statcast | `statcast_batter()` |
+| `pitching_stats` | `{"start_season": 2024, "end_season": 2024}` | Season-level FanGraphs pitching metrics | `pitching_stats()` |
+| `batting_stats` | `{"start_season": 2024, "end_season": 2024}` | Season-level FanGraphs batting metrics | `batting_stats()` |
+| `playerid_lookup` | `{"last_name": "Ohtani", "first_name": "Shohei"}` | MLBAM, FanGraphs, B-Ref IDs, etc. | `playerid_lookup()` |
+| `team_ids` | `{}` | Master lookup of MLB team IDs & abbreviations | `team_ids()` |
+
+### API Usage Examples
+
+#### List Available Tools
+```bash
+curl -s https://genius-pybaseball.onrender.com/mcp | jq '.all_tools[].name'
+```
+
+#### Get Current Standings
+```bash
+curl -X POST https://genius-pybaseball.onrender.com/tools/mlb_standings \
+     -H "Content-Type: application/json" \
+     -d '{}'
+```
+
+#### Get Pitcher Statcast Data
+```bash
+curl -X POST https://genius-pybaseball.onrender.com/tools/statcast_pitcher \
+     -H "Content-Type: application/json" \
+     -d '{"player_id": 477132, "start_dt":"2025-05-01", "end_dt":"2025-05-31"}'
+```
+
+### Troubleshooting
+
+If a call returns 404, check that:
+1. You dropped any `get_` prefix.
+2. You're posting to `/tools/{name}`, not `/tools/get_{name}`.
+3. The JSON body keys match the parameter names in pybaseball.
 
 ## Caching
 
