@@ -9,6 +9,7 @@ import SwiftUI
 
 struct AssistantBubble: View {
     let message: ChatMessage
+    @EnvironmentObject private var viewModel: ChatViewModel
     @State private var showingDetailsOverlay = false
     @State private var showCopyConfirmation = false
     
@@ -36,7 +37,9 @@ struct AssistantBubble: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(alignment: .bottom, spacing: 8) {
                 VStack(alignment: .leading, spacing: 4) {
-                    if !message.content.isEmpty {
+                    if viewModel.streamingMessageId == message.id {
+                        streamingTextBubble()
+                    } else if !message.content.isEmpty {
                         textBubble()
                     }
                     
@@ -73,6 +76,17 @@ struct AssistantBubble: View {
                 .foregroundColor(textColor)
                 .lineSpacing(3)
                 .textSelection(.enabled)
+        }
+        .background(Color.clear)
+        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 1, y: 1)
+    }
+
+    private func streamingTextBubble() -> some View {
+        BubbleShell(corners: [.topRight, .bottomRight, .topLeft]) {
+            TypewriterText(text: viewModel.streamingText)
+                .font(.system(size: 16))
+                .foregroundColor(textColor)
+                .lineSpacing(3)
         }
         .background(Color.clear)
         .shadow(color: Color.black.opacity(0.05), radius: 2, x: 1, y: 1)

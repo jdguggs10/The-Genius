@@ -17,6 +17,7 @@ import SwiftUI
             content: "This is a user message that's somewhat longer to test wrapping and bubble sizing.",
             attachments: []
         ))
+        .environmentObject(ChatViewModel())
         
         // Assistant message with structured advice
         let adviceJSON = """
@@ -49,6 +50,7 @@ import SwiftUI
             attachments: [],
             structuredAdvice: advice
         ))
+        .environmentObject(ChatViewModel())
         
         // User message with image
         if let image = UIImage(named: "Image"), let imageData = image.jpegData(compressionQuality: 0.8) {
@@ -59,6 +61,7 @@ import SwiftUI
                 content: "Check out this image",
                 attachments: [ChatMessage.Attachment(type: .image, data: imageData)]
             ))
+            .environmentObject(ChatViewModel())
         }
     }
     .padding()

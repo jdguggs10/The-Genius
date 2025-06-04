@@ -221,6 +221,7 @@ struct ContentView: View {
                     LazyVStack(spacing: 0) {
                         ForEach(viewModel.messages) { message in
                             MessageBubble(message: message)
+                                .environmentObject(viewModel)
                                 .id(message.id)
                                 .padding(.horizontal, horizontalInset)
                         }
