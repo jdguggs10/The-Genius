@@ -20,6 +20,9 @@ from app.services.schema_validator import schema_validator
 # Import the PyBaseball service
 from app.services.pybaseball_service import PyBaseballService
 
+# Instantiate the PyBaseball service
+pybaseball_service = PyBaseballService()
+
 # Load environment variables from .env file
 load_dotenv()
 
