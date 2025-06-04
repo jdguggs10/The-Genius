@@ -477,7 +477,8 @@ class ChatViewModel: ObservableObject {
             let reasoning = finalJson["reasoning"] as? String
             let confidence = finalJson["confidence_score"] as? Double
             let modelId = finalJson["model_identifier"] as? String
-            let responseId = finalJson["response_id"] as? String
+            // response_id is returned at the top level of the payload
+            let responseId = parsed["response_id"] as? String
             
             // Parse alternatives array
             var alternatives: [Alternative] = []
