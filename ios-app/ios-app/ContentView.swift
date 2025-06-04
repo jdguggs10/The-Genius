@@ -291,7 +291,6 @@ struct ContentView: View {
         return HStack(alignment: .center, spacing: horizontalSizeClass == .regular ? 8 : 6) {
             photoPickerButton
             messageInputContainer(hasContent: hasContent)
-            sendButton(hasContent: hasContent, sendButtonColor: sendButtonColor)
             // Baseball button
             Button(action: {
                 // TODO: Handle baseball button action
@@ -301,8 +300,9 @@ struct ContentView: View {
                     .foregroundColor(appPrimaryFontColor)
             }
             .frame(width: 44, height: 44)
-            .padding(.trailing, 8)
             .buttonStyle(.plain)
+            sendButton(hasContent: hasContent, sendButtonColor: sendButtonColor)
+            .padding(.trailing, 8)
         }
         .frame(height: 66)
         .background(Color.white)

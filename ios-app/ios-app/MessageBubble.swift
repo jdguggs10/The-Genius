@@ -17,17 +17,13 @@ struct MessageBubble: View {
     
     private var isUserMessage: Bool { message.role == .user }
     private var bubbleColor: Color {
-        // For assistant messages that are purely informational (like errors or simple status), use a more subdued or clear background.
-        if message.role == .assistant && message.structuredAdvice == nil && message.content.count < 100 { // Example condition
-            return Color.clear // Or a very light appBackgroundColor shade
-        }
-        return isUserMessage ? appPrimaryFontColor : Color(.systemGray4) // SystemGray4 is a bit more visible than Gray5
+        Color.clear
     }
     private var textColor: Color {
-        if message.role == .assistant && message.structuredAdvice == nil && message.content.count < 100 {
+        if message.role == .assistant && extractedAdvice == nil && message.content.count < 100 {
             return appPrimaryFontColor.opacity(0.8)
         }
-        return isUserMessage ? Color.white : appPrimaryFontColor
+        return appPrimaryFontColor
     }
     private var alignment: Alignment {
         isUserMessage ? .trailing : .leading
@@ -46,6 +42,12 @@ struct MessageBubble: View {
             .filter { $0.type == .image }
             .compactMap { $0.data }
     }
+    
+    // Attempts to retrieve advice from either the parsed field or by decoding JSON in `message.content`
+    private var extractedAdvice: StructuredAdviceResponse? {
+        if let advice = message.structuredAdvice { return advice }
+        return Self.decodeAdvice(from: message.content)
+    }
 
     var body: some View {
         VStack(alignment: horizontalAlignment, spacing: 2) { // Changed HStack to VStack for timestamp placement
@@ -55,7 +57,7 @@ struct MessageBubble: View {
         .padding(.horizontal, 10) // Universal horizontal padding for the whole bubble container
         .frame(maxWidth: .infinity, alignment: alignment)
         .sheet(isPresented: $showingDetailsOverlay) {
-            if let advice = message.structuredAdvice {
+            if let advice = extractedAdvice {
                 DetailsCardView(
                     advice: advice,
                     onDismiss: { showingDetailsOverlay = false },
@@ -68,7 +70,7 @@ struct MessageBubble: View {
     
     @ViewBuilder
     private var messageContentWrapper: some View {
-        let hasBubble = !(message.role == .assistant && message.structuredAdvice == nil && message.content.count < 100)
+        let hasBubble = true   // Ensure assistant messages always get a visible bubble
         let imageData = imageDataAttachments
         
         HStack(alignment: .bottom, spacing: isUserMessage ? 0 : 8) {
@@ -87,6 +89,7 @@ struct MessageBubble: View {
                     aiMessageControls
                 }
             }
+            .textSelection(.enabled)
             .padding(horizontalPaddingFromEdge, hasBubble ? 40 : 0) // Indent bubble from screen edge
         }
         .overlay(copyConfirmationOverlay, alignment: .top) // Position overlay relative to the whole bubble content
@@ -94,22 +97,19 @@ struct MessageBubble: View {
 
     private func textBubble(hasBubble: Bool) -> some View {
         // Always show only the high‑level advice inside the bubble.
-        let displayText = message.structuredAdvice?.mainAdvice ?? message.content
+        let displayText = extractedAdvice?.mainAdvice
+            ?? Self.extractMainAdvice(from: message.content)
+            ?? message.content
         
         return Text(displayText)
             .font(.system(size: 16))
             .foregroundColor(textColor)
             .lineSpacing(3)
+            .textSelection(.enabled)
             .padding(hasBubble ? EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12) : EdgeInsets())
-            .background(hasBubble ? bubbleColor : Color.clear)
+            .background(Color.clear)
             .clipShape(RoundedCorner(radius: 16, corners: determineCorners(hasBubble: hasBubble)))
             .shadow(color: hasBubble ? Color.black.opacity(0.05) : Color.clear, radius: 2, x: 1, y: 1)
-            .contentShape(Rectangle())
-            .contextMenu {
-                if isUserMessage && hasBubble {
-                    copyButton
-                }
-            }
     }
     
     private func imageAttachmentsView(imageData: [Data], hasBubble: Bool) -> some View {
@@ -137,9 +137,9 @@ struct MessageBubble: View {
     @ViewBuilder
     private var aiMessageControls: some View {
         HStack(alignment: .center, spacing: 10) {
+            // Copy main advice
             Button {
-                // Copy the main advice text if structured advice exists, otherwise copy the content
-                let textToCopy = message.structuredAdvice?.mainAdvice ?? message.content
+                let textToCopy = extractedAdvice?.mainAdvice ?? Self.extractMainAdvice(from: message.content) ?? message.content
                 UIPasteboard.general.string = textToCopy
                 triggerCopyConfirmation()
             } label: {
@@ -148,15 +148,15 @@ struct MessageBubble: View {
                     .foregroundColor(appPrimaryFontColor.opacity(0.7))
             }
             .buttonStyle(.plain)
-
-            ShareLink(item: message.structuredAdvice?.mainAdvice ?? message.content) {
+            
+            // Share main advice
+            ShareLink(item: extractedAdvice?.mainAdvice ?? Self.extractMainAdvice(from: message.content) ?? message.content) {
                 Image(systemName: "square.and.arrow.up")
                     .font(.caption)
                     .foregroundColor(appPrimaryFontColor.opacity(0.7))
             }
-
             // Make the “Thought for …s” label open the details pane
-            if message.structuredAdvice != nil, let thoughtTime = thoughtTime {
+            if extractedAdvice != nil, let thoughtTime = thoughtTime {
                 Button {
                     showingDetailsOverlay = true
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -173,16 +173,6 @@ struct MessageBubble: View {
         .padding(.top, 4)
     }
     
-    private var copyButton: some View {
-        Button {
-            // Use the same logic for user messages
-            let textToCopy = message.structuredAdvice?.mainAdvice ?? message.content
-            UIPasteboard.general.string = textToCopy
-            triggerCopyConfirmation()
-        } label: {
-            Label("Copy Text", systemImage: "doc.on.doc.fill")
-        }
-    }
     
     private func triggerCopyConfirmation() {
         withAnimation(.easeInOut(duration: 0.2)) {
@@ -215,13 +205,28 @@ struct MessageBubble: View {
         guard message.role == .assistant else { return nil }
         let baseTime = 1.2
         let contentLength = Double(message.content.count)
-        let hasStructuredAdvice = message.structuredAdvice != nil
+        let hasStructuredAdvice = extractedAdvice != nil
         var time = baseTime + (contentLength / 100.0) * 0.8
         if hasStructuredAdvice { time += 1.5 }
         let randomFactor = Double.random(in: 0.8...1.3)
         time *= randomFactor
         time = max(1.0, min(12.0, time))
         return String(format: "%.1f", time)
+    }
+    
+    // Helper to decode advice JSON that may have been returned as a raw string
+    private static func decodeAdvice(from content: String) -> StructuredAdviceResponse? {
+        guard content.contains("\"main_advice\""),
+              let data = content.data(using: .utf8) else { return nil }
+        return try? JSONDecoder().decode(StructuredAdviceResponse.self, from: data)
+    }
+    
+    /// Extracts the "main_advice" string from a raw JSON payload without requiring full decoding.
+    private static func extractMainAdvice(from content: String) -> String? {
+        guard let data = content.data(using: .utf8),
+              let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let main = object["main_advice"] as? String else { return nil }
+        return main
     }
 }
 

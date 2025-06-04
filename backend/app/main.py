@@ -10,7 +10,7 @@ from typing import Optional
 from datetime import datetime
 
 from app.models import AdviceRequest, StructuredAdvice, OutcomeFeedback, ModelResponse # Import StructuredAdvice and new Step 5 models
-from app.services.openai_client import get_streaming_response, OPENAI_DEFAULT_MODEL_INTERNAL, SYSTEM_DEFAULT_INSTRUCTIONS, get_response as get_openai_non_streaming_response
+from app.services.openai_client import get_streaming_response, OPENAI_DEFAULT_MODEL_INTERNAL, SYSTEM_DEFAULT_INSTRUCTIONS, get_response as get_openai_non_streaming_response, test_openai_connectivity
 from app.services.web_search_discipline import web_search_discipline, SearchDecision
 from app.services.response_logger import response_logger # Step 5: Import response logger
 from app.services.confidence_scoring import confidence_scoring_service # Step 5: Import confidence service
@@ -603,6 +603,16 @@ async def search_players(search_term: str):
     except Exception as e:
         logger.error(f"Error searching players: {e}")
         raise HTTPException(status_code=500, detail=f"Error searching players: {str(e)}")
+
+# Add this endpoint near the health endpoint
+@app.get("/api/test-openai", response_model=dict)
+async def test_openai_api(model: str = None):
+    """
+    Tests the OpenAI API connectivity with a simple request
+    """
+    test_model = model or OPENAI_DEFAULT_MODEL_INTERNAL
+    result = await test_openai_connectivity(model=test_model)
+    return result
 
 # To run this app (for development):
 # uvicorn app.main:app --reload
