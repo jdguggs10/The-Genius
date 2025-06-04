@@ -29,15 +29,6 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 Section {
-                    profileSection
-                } header: {
-                    Text("Profile")
-                        .font(horizontalSizeClass == .regular ? .title2 : .headline) // Adaptive header font
-                        .fontWeight(.semibold) // Bolder headers
-                        .foregroundColor(.primary)
-                }
-                
-                Section {
                     accountSection
                 } header: {
                     Text("Account")
@@ -119,38 +110,6 @@ struct SettingsView: View {
         // This is often handled by how it's presented (e.g. .sheet or .popover)
         // .frame(maxWidth: horizontalSizeClass == .regular ? 600 : .infinity) // Example constraint
         .background(appBackgroundColor)
-    }
-    
-    // MARK: - Profile Section
-    private var profileSection: some View {
-        HStack(spacing: horizontalSizeClass == .regular ? 20 : 16) { // More spacing on iPad
-            Image("Image")
-                .resizable()
-                .scaledToFit()
-                .frame(width: horizontalSizeClass == .regular ? 80 : 66, height: horizontalSizeClass == .regular ? 80 : 66)
-                .clipShape(Circle())
-            
-            VStack(alignment: .leading, spacing: horizontalSizeClass == .regular ? 6 : 4) {
-                Text("John Doe")
-                    .font(horizontalSizeClass == .regular ? .title : .headline) // Larger name on iPad
-                    .fontWeight(.medium)
-                    .foregroundColor(.primary)
-                
-                Text("john.doe@example.com")
-                    .font(horizontalSizeClass == .regular ? .headline : .subheadline) // Larger email on iPad
-                    .foregroundColor(.secondary)
-                
-                Button("Login / Sign Up") { // Changed button text
-                    showingLoginView = true   // Present LoginView
-                }
-                .font(horizontalSizeClass == .regular ? .body : .caption) // Larger button text on iPad
-                .foregroundColor(appPrimaryFontColor) // Keep accent color for actions
-                .padding(.top, horizontalSizeClass == .regular ? 4 : 2)
-                .frame(minHeight: 44) // Ensure touch target
-            }
-            Spacer()
-        }
-        .padding(.vertical, horizontalSizeClass == .regular ? 12 : 8) // More vertical padding on iPad
     }
     
     // MARK: - Account Section
