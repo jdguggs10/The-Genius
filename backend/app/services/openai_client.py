@@ -195,6 +195,7 @@ async def get_streaming_response(
             "input": api_input,
             "stream": True,
             "max_output_tokens": max_tokens,
+            "temperature": 0,  # Set temperature to 0 for deterministic responses
         }
         
         # Add tools if there are any
@@ -216,7 +217,7 @@ async def get_streaming_response(
         response_id_captured = None
         
         # ------------------------------------------------------------------
-        # State for new-style function-call events (March 2025 API update)
+        # State for new-style function-call events (March 2025 API update)
         # ------------------------------------------------------------------
         func_call_name: Optional[str] = None          # Captures the tool name
         func_call_args_buffer: str = ""               # Accumulates argument chunks
@@ -260,7 +261,7 @@ async def get_streaming_response(
                 yield f"event: status_update\ndata: {json.dumps({'status': 'web_search_completed', 'message': 'Web search completed.'})}\n\n"
 
             # --------------------------------------------------------------
-            # NEW‑STYLE FUNCTION CALL EVENTS  (Responses API ≥ 2025‑03)
+            # NEW‑STYLE FUNCTION CALL EVENTS  (Responses API ≥ 2025‑03)
             # --------------------------------------------------------------
             elif evt_type in ("response.function_call.name", "response.function_call_name"):
                 # Capture the name of the function/tool being invoked
@@ -579,7 +580,8 @@ def get_response(
             input=full_prompt,
             stream=False,
             max_output_tokens=max_tokens,
-            tools=tools if tools else None
+            tools=tools if tools else None,
+            temperature=0  # Set temperature to 0 for deterministic responses
         )
         
         # Extract content from response

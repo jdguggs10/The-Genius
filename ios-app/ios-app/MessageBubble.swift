@@ -93,7 +93,10 @@ struct MessageBubble: View {
     }
 
     private func textBubble(hasBubble: Bool) -> some View {
-        Text(message.content)
+        // Always show only the high‑level advice inside the bubble.
+        let displayText = message.structuredAdvice?.mainAdvice ?? message.content
+        
+        return Text(displayText)
             .font(.system(size: 16))
             .foregroundColor(textColor)
             .lineSpacing(3)
@@ -135,7 +138,9 @@ struct MessageBubble: View {
     private var aiMessageControls: some View {
         HStack(alignment: .center, spacing: 10) {
             Button {
-                UIPasteboard.general.string = message.content
+                // Copy the main advice text if structured advice exists, otherwise copy the content
+                let textToCopy = message.structuredAdvice?.mainAdvice ?? message.content
+                UIPasteboard.general.string = textToCopy
                 triggerCopyConfirmation()
             } label: {
                 Image(systemName: "doc.on.doc.fill")
@@ -144,28 +149,24 @@ struct MessageBubble: View {
             }
             .buttonStyle(.plain)
 
-            ShareLink(item: message.content) {
+            ShareLink(item: message.structuredAdvice?.mainAdvice ?? message.content) {
                 Image(systemName: "square.and.arrow.up")
                     .font(.caption)
                     .foregroundColor(appPrimaryFontColor.opacity(0.7))
             }
 
-            if message.structuredAdvice != nil {
+            // Make the “Thought for …s” label open the details pane
+            if message.structuredAdvice != nil, let thoughtTime = thoughtTime {
                 Button {
                     showingDetailsOverlay = true
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 } label: {
-                    Text("Show Details")
-                        .font(.caption)
-                        .foregroundColor(appPrimaryFontColor.opacity(0.7))
+                    Text(" Thought for \(thoughtTime)s")
+                        .font(.caption2)
+                        .italic()
+                        .foregroundColor(appPrimaryFontColor.opacity(0.6))
                 }
                 .buttonStyle(.plain)
-            }
-            if let thoughtTime = thoughtTime {
-                 Text("• Thought for \(thoughtTime)s")
-                    .font(.caption2)
-                    .italic()
-                    .foregroundColor(appPrimaryFontColor.opacity(0.6))
             }
             Spacer()
         }
@@ -174,7 +175,9 @@ struct MessageBubble: View {
     
     private var copyButton: some View {
         Button {
-            UIPasteboard.general.string = message.content
+            // Use the same logic for user messages
+            let textToCopy = message.structuredAdvice?.mainAdvice ?? message.content
+            UIPasteboard.general.string = textToCopy
             triggerCopyConfirmation()
         } label: {
             Label("Copy Text", systemImage: "doc.on.doc.fill")
@@ -267,10 +270,55 @@ struct DetailsCardView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                if let confidence = advice.confidenceScore {
-                    detailSection(title: "Confidence Score", icon: "checkmark.seal.fill", value: String(format: "%.0f%%", confidence * 100), tint: appPrimaryFontColor) // Green for confidence
+                // Main advice
+                detailSection(title: "Advice", icon: "text.bubble.fill", textBlock: advice.mainAdvice, tint: appPrimaryFontColor)
+                
+                // Reasoning (if available)
+                if let reasoning = advice.reasoning {
+                    detailSection(title: "Reasoning", icon: "brain.fill", textBlock: reasoning, tint: appPrimaryFontColor.opacity(0.8))
                 }
-                // TODO: Add additional advice details (rationale, warnings, next steps) when the data model supports them.
+                
+                // Confidence score (if available)
+                if let confidence = advice.confidenceScore {
+                    detailSection(title: "Confidence Score", icon: "checkmark.seal.fill", value: String(format: "%.0f%%", confidence * 100), tint: appPrimaryFontColor)
+                }
+                
+                // Alternatives (if available)
+                if let alternatives = advice.alternatives, !alternatives.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.triangle.branch")
+                                .font(.headline)
+                                .foregroundColor(appPrimaryFontColor.opacity(0.7))
+                            Text("Alternatives")
+                                .font(.headline)
+                                .foregroundColor(appPrimaryFontColor)
+                        }
+                        
+                        ForEach(alternatives, id: \.player) { alternative in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(alternative.player)
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundColor(appPrimaryFontColor)
+                                if let reason = alternative.reason {
+                                    Text(reason)
+                                        .font(.caption)
+                                        .foregroundColor(appPrimaryFontColor.opacity(0.8))
+                                }
+                            }
+                            .padding(.vertical, 6)
+                            .padding(.horizontal, 10)
+                            .background(appPrimaryFontColor.opacity(0.05))
+                            .cornerRadius(8)
+                            .padding(.leading, 28)
+                        }
+                    }
+                }
+                
+                // Model identifier (if available)
+                if let modelId = advice.modelIdentifier {
+                    detailSection(title: "Model", icon: "cpu", value: modelId, tint: appPrimaryFontColor.opacity(0.6))
+                }
             }
             .padding()
         }

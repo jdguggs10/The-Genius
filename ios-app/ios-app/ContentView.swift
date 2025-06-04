@@ -292,6 +292,17 @@ struct ContentView: View {
             photoPickerButton
             messageInputContainer(hasContent: hasContent)
             sendButton(hasContent: hasContent, sendButtonColor: sendButtonColor)
+            // Baseball button
+            Button(action: {
+                // TODO: Handle baseball button action
+            }) {
+                Image(systemName: "baseball.fill")
+                    .font(.system(size: 28))
+                    .foregroundColor(appPrimaryFontColor)
+            }
+            .frame(width: 44, height: 44)
+            .padding(.trailing, 8)
+            .buttonStyle(.plain)
         }
         .frame(height: 66)
         .background(Color.white)
