@@ -36,8 +36,14 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 import uvicorn
 
+# Detect if running on Render.com
+is_on_render = os.environ.get("RENDER") == "true"
+
+# If we're on Render, force web mode regardless of MCP_STDIO_MODE
+use_stdio_mode = os.environ.get("MCP_STDIO_MODE") == "1" and not is_on_render
+
 # Set up logging - ensure it goes to stderr in MCP mode
-if os.environ.get("MCP_STDIO_MODE") == "1":
+if use_stdio_mode:
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -251,7 +257,7 @@ async def handle_call_tool(name: str, arguments: dict[str, Any]) -> Sequence[typ
 
 async def main():
     """Main entry point for the MCP server."""
-    if os.environ.get("MCP_STDIO_MODE") == "1":
+    if use_stdio_mode:
         logger.info("Starting PyBaseball MCP Server in stdio mode...")
         try:
             async with stdio_server() as (read_stream, write_stream):
@@ -271,6 +277,8 @@ async def main():
                 raise
     else:
         # FastAPI Web Mode
+        if is_on_render:
+            logger.info("Detected Render.com environment, forcing web mode...")
         logger.info("Starting PyBaseball Server in FastAPI web mode...")
         port = int(os.environ.get("PORT", 8000))
         logger.info(f"Server will listen on port {port}")
@@ -348,7 +356,7 @@ async def list_tools():
     return {"tools": [tool.name for tool in tools]}
 
 if __name__ == "__main__":
-    if os.environ.get("MCP_STDIO_MODE") == "1":
+    if use_stdio_mode:
         asyncio.run(main())
     else:
         # Start in FastAPI web mode
