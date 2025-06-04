@@ -142,36 +142,32 @@ async def get_streaming_response(
             {
                 "type": "function",
                 "name": "get_mlb_player_stats",
-                "function": {
-                    "description": "Get season statistics for a specific MLB player",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "player_name": {
-                                "type": "string",
-                                "description": "Full name of the player (e.g., 'Shohei Ohtani')"
-                            },
-                            "year": {
-                                "type": "integer",
-                                "description": "Season year (optional, defaults to current year)"
-                            }
+                "description": "Get season statistics for a specific MLB player",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "player_name": {
+                            "type": "string",
+                            "description": "Full name of the player (e.g., 'Shohei Ohtani')"
                         },
-                        "required": ["player_name"]
-                    }
+                        "year": {
+                            "type": "integer",
+                            "description": "Season year (optional, defaults to current year)"
+                        }
+                    },
+                    "required": ["player_name"]
                 }
             },
             {
                 "type": "function",
                 "name": "get_mlb_standings",
-                "function": {
-                    "description": "Get current MLB standings by division",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "year": {
-                                "type": "integer",
-                                "description": "Season year (optional)"
-                            }
+                "description": "Get current MLB standings by division",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "year": {
+                            "type": "integer",
+                            "description": "Season year (optional)"
                         }
                     }
                 }
@@ -179,18 +175,16 @@ async def get_streaming_response(
             {
                 "type": "function",
                 "name": "search_mlb_players",
-                "function": {
-                    "description": "Search for MLB players by partial name",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "search_term": {
-                                "type": "string",
-                                "description": "Partial name to search for"
-                            }
-                        },
-                        "required": ["search_term"]
-                    }
+                "description": "Search for MLB players by partial name",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "search_term": {
+                            "type": "string",
+                            "description": "Partial name to search for"
+                        }
+                    },
+                    "required": ["search_term"]
                 }
             }
         ])
@@ -459,36 +453,32 @@ def get_response(
             {
                 "type": "function",
                 "name": "get_mlb_player_stats",
-                "function": {
-                    "description": "Get season statistics for a specific MLB player",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "player_name": {
-                                "type": "string",
-                                "description": "Full name of the player (e.g., 'Shohei Ohtani')"
-                            },
-                            "year": {
-                                "type": "integer",
-                                "description": "Season year (optional, defaults to current year)"
-                            }
+                "description": "Get season statistics for a specific MLB player",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "player_name": {
+                            "type": "string",
+                            "description": "Full name of the player (e.g., 'Shohei Ohtani')"
                         },
-                        "required": ["player_name"]
-                    }
+                        "year": {
+                            "type": "integer",
+                            "description": "Season year (optional, defaults to current year)"
+                        }
+                    },
+                    "required": ["player_name"]
                 }
             },
             {
                 "type": "function",
                 "name": "get_mlb_standings",
-                "function": {
-                    "description": "Get current MLB standings by division",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "year": {
-                                "type": "integer",
-                                "description": "Season year (optional)"
-                            }
+                "description": "Get current MLB standings by division",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "year": {
+                            "type": "integer",
+                            "description": "Season year (optional)"
                         }
                     }
                 }
@@ -496,18 +486,16 @@ def get_response(
             {
                 "type": "function",
                 "name": "search_mlb_players",
-                "function": {
-                    "description": "Search for MLB players by partial name",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "search_term": {
-                                "type": "string",
-                                "description": "Partial name to search for"
-                            }
-                        },
-                        "required": ["search_term"]
-                    }
+                "description": "Search for MLB players by partial name",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "search_term": {
+                            "type": "string",
+                            "description": "Partial name to search for"
+                        }
+                    },
+                    "required": ["search_term"]
                 }
             }
         ])
