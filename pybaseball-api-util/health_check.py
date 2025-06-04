@@ -18,7 +18,7 @@ def check_server_health(url=None, max_retries=5, retry_delay=5):
     # For Render deployment
     if os.environ.get("RENDER") == "true":
         # Use the service URL provided by Render in environment variables
-        render_url = os.environ.get("RENDER_EXTERNAL_URL")
+        render_url = os.environ.get("https://genius-pybaseball.onrender.com")
         if render_url:
             url = f"{render_url}/health"
     
