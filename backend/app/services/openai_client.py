@@ -130,7 +130,10 @@ async def get_streaming_response(
 
         # Add web search if enabled
         if enable_web_search:
-            tools.append({"type": "web_search"})
+            tools.append({
+                "type": "web_search",
+                "name": "web_search"
+            })
 
         # Add PyBaseball tools
         tools.extend([
@@ -445,7 +448,10 @@ def get_response(
 
         # Add web search if enabled
         if enable_web_search:
-            tools.append({"type": "web_search"})
+            tools.append({
+                "type": "web_search",
+                "name": "web_search"
+            })
 
         # Add PyBaseball tools
         tools.extend([
