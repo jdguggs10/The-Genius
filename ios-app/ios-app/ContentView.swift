@@ -55,7 +55,7 @@ struct ContentView: View {
                  updateLayoutForSizeClassChange(newSizeClass: newSize, geometry: geometry)
             }
             .onChange(of: selectedConversation) { oldValue, newValue in
-                handleSelectedConversationChange(newValue)
+                handleSelectedConversationChange(oldValue, newValue)
             }
             .onChange(of: sidebarRequestsSettings) { oldValue, newValue in
                 handleSidebarRequestsSettingsChange(newValue)
@@ -79,6 +79,15 @@ struct ContentView: View {
                 if oldConversations.isEmpty && !newConversations.isEmpty {
                     setupInitialConversationSelection()
                 }
+            }
+            // Add lifecycle event handlers
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+                // App is going to background - cancel any streaming requests
+                viewModel.cancelStreamingRequest()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+                // App entered background - ensure streaming is cancelled
+                viewModel.cancelStreamingRequest()
             }
         }
     }
@@ -153,9 +162,11 @@ struct ContentView: View {
                     .foregroundColor(.primary)
                     .navigationTitle("Fantasy Genius")
                     .toolbar(content: navigationToolbarContent)
-                    .toolbarBackground(.visible, for: .navigationBar)
-                    .toolbarBackground(appBackgroundColor, for: .navigationBar)
-                    .toolbarHeight(44 + 4) // Standard 44 + 4 points extra
+                    .safeAreaInset(edge: .top) {
+                        // This creates extra space below the navigation bar
+                        Color.clear
+                            .frame(height: 4)
+                    }
             }
         }
         .background(appBackgroundColor)
@@ -172,9 +183,11 @@ struct ContentView: View {
         .navigationTitle(conversation.title)
         .navigationBarTitleDisplayMode(horizontalSizeClass == .regular ? .automatic : .inline)
         .toolbar(content: navigationToolbarContent)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarBackground(appBackgroundColor, for: .navigationBar)
-        .toolbarHeight(44 + 4) // Standard 44 + 4 points extra
+        .safeAreaInset(edge: .top) {
+            // This creates extra space below the navigation bar
+            Color.clear
+                .frame(height: 4)
+        }
     }
     
     // MARK: - Error Message View
@@ -390,8 +403,10 @@ struct ContentView: View {
         appearance.configureWithOpaqueBackground()
         appearance.backgroundColor = UIColor(red: 253/255, green: 245/255, blue: 230/255, alpha: 1.0) // Match appBackgroundColor
         appearance.shadowColor = .clear
+        
+        // Custom height setup
         UINavigationBar.appearance().standardAppearance = appearance
-        UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance 
         UINavigationBar.appearance().compactAppearance = appearance
     }
 
@@ -427,14 +442,19 @@ struct ContentView: View {
         updateSidebarWidth(for: geometry.size)
     }
     
-    private func handleSelectedConversationChange(_ newConversation: Conversation?) {
-        if newConversation != nil {
+    private func handleSelectedConversationChange(_ oldValue: Conversation?, _ newValue: Conversation?) {
+        // Cancel any streaming request from previous conversation
+        if oldValue != nil && oldValue?.id != newValue?.id {
+            viewModel.cancelStreamingRequest()
+        }
+        
+        if newValue != nil {
             showSettingsInDetailView = false // Selecting a conversation hides settings
-            if let conversation = newConversation {
+            if let conversation = newValue {
                 viewModel.loadConversation(for: conversation.id)
             }
         }
-        if horizontalSizeClass == .compact && newConversation != nil {
+        if horizontalSizeClass == .compact && newValue != nil {
             withAnimation { showingSidebarForCompact = false }
         }
     }
@@ -477,9 +497,25 @@ struct ContentView: View {
     private func handlePhotoSelection(newPhotos: [PhotosPickerItem]) async {
         // Measure photo processing performance
         let startTime = CFAbsoluteTimeGetCurrent()
-        await self.processPhotosAsync(newPhotos: newPhotos)
-        let duration = CFAbsoluteTimeGetCurrent() - startTime
         
+        // Create a task we can cancel if needed
+        let processingTask = Task {
+            await self.processPhotosAsync(newPhotos: newPhotos)
+        }
+        
+        // Set up a timeout to prevent hanging processes
+        let timeoutTask = Task {
+            try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 second timeout
+            if !processingTask.isCancelled {
+                print("Photo processing timeout - cancelling task")
+                processingTask.cancel()
+            }
+        }
+        
+        await processingTask.value
+        timeoutTask.cancel() // Cancel the timeout task once processing completes
+        
+        let duration = CFAbsoluteTimeGetCurrent() - startTime
         if duration > 0.1 { // 100ms threshold
             print("Photo processing took \(String(format: "%.3f", duration))s - exceeds threshold")
         }
@@ -490,10 +526,16 @@ struct ContentView: View {
         viewModel.draftAttachmentData.removeAll()
 
         for item in newPhotos {
+            // Check for task cancellation
+            if Task.isCancelled { break }
+            
             do {
                 if let data = try await item.loadTransferable(type: Data.self) {
                     // Limit image size to prevent memory issues
                     if let processedData = await processImageData(data) {
+                        // Check for task cancellation again
+                        if Task.isCancelled { break }
+                        
                         await MainActor.run {
                             viewModel.draftAttachmentData.append(processedData)
                         }
@@ -513,7 +555,10 @@ struct ContentView: View {
     private func processImageData(_ data: Data) async -> Data? {
         return await withTaskGroup(of: Data?.self) { group in
             group.addTask {
-                autoreleasepool {
+                // Check for cancellation at task start
+                if Task.isCancelled { return nil }
+                
+                return autoreleasepool {
                     guard let image = UIImage(data: data) else { return nil }
                     
                     // Resize large images to reasonable size (max 1024px)
@@ -542,11 +587,19 @@ struct ContentView: View {
                 }
             }
             
-            for await result in group {
-                if let processedData = result {
-                    return processedData
+            // Handle cancellation during awaiting results
+            do {
+                for try await result in group {
+                    if let processedData = result {
+                        group.cancelAll() // Cancel any remaining tasks once we get a result
+                        return processedData
+                    }
                 }
+            } catch {
+                print("Task group processing error: \(error)")
+                group.cancelAll()
             }
+            
             return nil
         }
     }

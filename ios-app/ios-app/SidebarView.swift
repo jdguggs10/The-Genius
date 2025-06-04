@@ -45,7 +45,7 @@ struct SidebarView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Image("appstore")
+            Image("Image")
                 .resizable()
                 .scaledToFit()
                 .frame(width: 28, height: 28)

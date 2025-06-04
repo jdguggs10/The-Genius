@@ -77,7 +77,8 @@ class ChatViewModel: ObservableObject {
         }
         
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
+            // Use streamingSession instead of URLSession.shared for extended timeouts
+            let (data, _) = try await streamingSession.data(from: url)
             if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                let model = json["model"] as? String {
                 return model
@@ -184,174 +185,243 @@ class ChatViewModel: ObservableObject {
         await performStreamingRequest()
     }
     
+    // Track active streaming task to allow cancellation
+    private var activeStreamingTask: Task<Void, Never>? = nil
+    
     private func performStreamingRequest() async {
-        setLoadingState(true)
-        streamingText = ""
-        statusMessage = nil
-        currentErrorMessage = nil
+        // Cancel any existing streaming task before starting a new one
+        activeStreamingTask?.cancel()
         
-        let assistantMessagePlaceholder = Message(role: .assistant, content: "")
-        
-        // Add to both allMessages and displayed messages with windowing
-        allMessages.append(assistantMessagePlaceholder)
-        messages = displayMessages
-        
-        // Find the placeholder in the displayed messages (not allMessages)
-        guard let assistantMessageIndex = messages.lastIndex(where: { $0.id == assistantMessagePlaceholder.id }) else {
-            setError("Internal error: Could not find placeholder message.")
-            return
-        }
-
-        guard let url = URL(string: backendURLString) else {
-            // Update both the displayed message and allMessages
-            if let allMessageIndex = allMessages.lastIndex(where: { $0.id == assistantMessagePlaceholder.id }) {
-                allMessages[allMessageIndex].content = "Error: Invalid backend URL configured."
-            }
-            messages[assistantMessageIndex].content = "Error: Invalid backend URL configured."
-            setError("Error: Invalid backend URL configured.")
-            return
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-        request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
-        request.setValue("keep-alive", forHTTPHeaderField: "Connection")
-        
-        // Get the current conversation to check for last response ID
-        guard let manager = conversationManager,
-              let conversationId = currentConversationId,
-              var conversation = manager.conversations.first(where: { $0.id == conversationId }) else {
-            currentErrorMessage = "Error: Could not find current conversation."
-            isLoading = false
-            return
-        }
-        
-        // Get the latest user message (excluding the placeholder assistant message)
-        guard let latestUserMessage = messages.dropLast().last(where: { $0.role == .user }) else {
-            currentErrorMessage = "Error: No user message found."
-            isLoading = false
-            return
-        }
-        
-        // Get the model to use
-        let modelToUse = await getModelToUse()
-        
-        // Prepare the request payload using proper Responses API patterns
-        let adviceRequest: AdviceRequestPayload
-        
-        if let lastResponseId = conversation.lastResponseId {
-            // Continue conversation using previous_response_id (preferred approach)
-            adviceRequest = AdviceRequestPayload(
-                userMessage: latestUserMessage.content,
-                previousResponseId: lastResponseId,
-                model: modelToUse, // Use dynamically fetched model or fallback
-                enableWebSearch: true
-            )
-        } else {
-            // Start new conversation with full history
-            let conversationPayloads = self.messages.filter { $0.id != assistantMessagePlaceholder.id }.map {
-                MessagePayload(role: $0.role, content: $0.content)
-            }
-            adviceRequest = AdviceRequestPayload(
-                conversation: conversationPayloads,
-                model: modelToUse, // Use dynamically fetched model or fallback
-                enableWebSearch: true
-            )
-        }
-
-        do {
-            request.httpBody = try JSONEncoder().encode(adviceRequest)
-        } catch {
-            messages[assistantMessageIndex].content = "Error: Could not encode request: \(error.localizedDescription)"
-            setError("Error: Could not encode request: \(error.localizedDescription)")
-            return
-        }
-        
-        // Use the streaming session with proper configuration
-        do {
-            let (asyncBytes, response) = try await streamingSession.bytes(for: request)
+        // Create a new task for this streaming request
+        activeStreamingTask = Task { [weak self] in
+            guard let self = self else { return }
             
-            // Check HTTP response
-            if let httpResponse = response as? HTTPURLResponse {
-                if httpResponse.statusCode != 200 {
-                    let errorMsg = "HTTP Error: \(httpResponse.statusCode)"
-                    messages[assistantMessageIndex].content = errorMsg
-                    setError(errorMsg)
+            self.setLoadingState(true)
+            self.streamingText = ""
+            self.statusMessage = nil
+            self.currentErrorMessage = nil
+            
+            let assistantMessagePlaceholder = Message(role: .assistant, content: "")
+            
+            // Add to both allMessages and displayed messages with windowing
+            self.allMessages.append(assistantMessagePlaceholder)
+            self.messages = self.displayMessages
+            
+            // Find the placeholder in the displayed messages (not allMessages)
+            guard let assistantMessageIndex = self.messages.lastIndex(where: { $0.id == assistantMessagePlaceholder.id }) else {
+                self.setError("Internal error: Could not find placeholder message.")
+                return
+            }
+
+            guard let url = URL(string: self.backendURLString) else {
+                // Update both the displayed message and allMessages
+                if let allMessageIndex = self.allMessages.lastIndex(where: { $0.id == assistantMessagePlaceholder.id }) {
+                    self.allMessages[allMessageIndex].content = "Error: Invalid backend URL configured."
+                }
+                self.messages[assistantMessageIndex].content = "Error: Invalid backend URL configured."
+                self.setError("Error: Invalid backend URL configured.")
+                return
+            }
+            
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+            request.setValue("no-cache", forHTTPHeaderField: "Cache-Control")
+            request.setValue("keep-alive", forHTTPHeaderField: "Connection")
+            
+            // Get the current conversation to check for last response ID
+            guard let manager = self.conversationManager,
+                  let conversationId = self.currentConversationId,
+                  var conversation = manager.conversations.first(where: { $0.id == conversationId }) else {
+                
+                self.isLoading = false
+                return
+            }
+            
+            // Get the latest user message (excluding the placeholder assistant message)
+            guard let latestUserMessage = self.messages.dropLast().last(where: { $0.role == .user }) else {
+                self.currentErrorMessage = "Error: No user message found."
+                self.isLoading = false
+                return
+            }
+            
+            // Get the model to use
+            let modelToUse = await self.getModelToUse()
+            
+            // Prepare the request payload using proper Responses API patterns
+            let adviceRequest: AdviceRequestPayload
+            
+            if let lastResponseId = conversation.lastResponseId {
+                // Continue conversation using previous_response_id (preferred approach)
+                adviceRequest = AdviceRequestPayload(
+                    userMessage: latestUserMessage.content,
+                    previousResponseId: lastResponseId,
+                    model: modelToUse, // Use dynamically fetched model or fallback
+                    enableWebSearch: true
+                )
+            } else {
+                // Start new conversation with full history
+                let conversationPayloads = self.messages.filter { $0.id != assistantMessagePlaceholder.id }.map {
+                    MessagePayload(role: $0.role, content: $0.content)
+                }
+                adviceRequest = AdviceRequestPayload(
+                    conversation: conversationPayloads,
+                    model: modelToUse, // Use dynamically fetched model or fallback
+                    enableWebSearch: true
+                )
+            }
+
+            do {
+                request.httpBody = try JSONEncoder().encode(adviceRequest)
+            } catch {
+                self.messages[assistantMessageIndex].content = "Error: Could not encode request: \(error.localizedDescription)"
+                self.setError("Error: Could not encode request: \(error.localizedDescription)")
+                return
+            }
+            
+            // Use the streaming session with proper configuration
+            do {
+                let streamTask = self.streamingSession.dataTask(with: request) { data, response, error in
+                    // This is a fallback for handling immediate task failures
+                    if let error = error {
+                        Task { @MainActor in
+                            self.messages[assistantMessageIndex].content = "Network error: \(error.localizedDescription)"
+                            self.setError("Network error: \(error.localizedDescription)")
+                            self.setLoadingState(false)
+                        }
+                    }
+                }
+                
+                // Set up cancellation handler
+                Task {
+                    await Task.yield() // Allow the task to start
+                    try? await Task.sleep(nanoseconds: 100_000_000) // Small delay to ensure task starts
+                    
+                    // Check if this task was cancelled and cancel the stream if needed
+                    for _ in 0..<600 { // Loop for up to 10 minutes (600 seconds)
+                        if Task.isCancelled || self.activeStreamingTask?.isCancelled == true {
+                            streamTask.cancel()
+                            break
+                        }
+                        try? await Task.sleep(nanoseconds: 1_000_000_000) // Check every second
+                    }
+                }
+                
+                // Start the task but process the data manually with async/await
+                streamTask.resume()
+                
+                // Set up a manual implementation of the bytes streaming
+                let (asyncBytes, response) = try await self.streamingSession.bytes(for: request)
+                
+                // Check if task is cancelled before proceeding
+                if Task.isCancelled { 
+                    streamTask.cancel()
                     return
                 }
-            }
-            
-            var accumulatedText = ""
-            var responseId: String? = nil
-            var eventCount = 0
-            var lineCount = 0
-            var currentEventType: String? = nil
-            var currentData: String? = nil
-            
-            for try await line in asyncBytes.lines {
-                lineCount += 1
                 
-                if line.hasPrefix("event: ") {
-                    // Process previous event if we have both type and data
-                    if let eventType = currentEventType, let data = currentData {
-                        eventCount += 1
-                        let extractedResponseId = await processSSEEvent(eventType: eventType, data: data, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
-                        if let extractedId = extractedResponseId {
-                            responseId = extractedId
-                        }
+                // Check HTTP response
+                if let httpResponse = response as? HTTPURLResponse {
+                    if httpResponse.statusCode != 200 {
+                        let errorMsg = "HTTP Error: \(httpResponse.statusCode)"
+                        self.messages[assistantMessageIndex].content = errorMsg
+                        self.setError(errorMsg)
+                        return
+                    }
+                }
+                
+                var accumulatedText = ""
+                var responseId: String? = nil
+                var eventCount = 0
+                var lineCount = 0
+                var currentEventType: String? = nil
+                var currentData: String? = nil
+                
+                for try await line in asyncBytes.lines {
+                    // Check for task cancellation during streaming
+                    if Task.isCancelled {
+                        break
                     }
                     
-                    // Start new event
-                    currentEventType = String(line.dropFirst(7)).trimmingCharacters(in: .whitespacesAndNewlines)
-                    currentData = nil
-                } else if line.hasPrefix("data: ") {
-                    currentData = String(line.dropFirst(6))
-                } else if line.isEmpty {
-                    // Empty line - process current event if we have both type and data
-                    if let eventType = currentEventType, let data = currentData {
-                        eventCount += 1
-                        let extractedResponseId = await processSSEEvent(eventType: eventType, data: data, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
-                        if let extractedId = extractedResponseId {
-                            responseId = extractedId
+                    lineCount += 1
+                    
+                    if line.hasPrefix("event: ") {
+                        // Process previous event if we have both type and data
+                        if let eventType = currentEventType, let data = currentData {
+                            eventCount += 1
+                            let extractedResponseId = await self.processSSEEvent(eventType: eventType, data: data, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
+                            if let extractedId = extractedResponseId {
+                                responseId = extractedId
+                            }
                         }
                         
-                        // Reset for next event
-                        currentEventType = nil
+                        // Start new event
+                        currentEventType = String(line.dropFirst(7)).trimmingCharacters(in: .whitespacesAndNewlines)
                         currentData = nil
+                    } else if line.hasPrefix("data: ") {
+                        currentData = String(line.dropFirst(6))
+                    } else if line.isEmpty {
+                        // Empty line - process current event if we have both type and data
+                        if let eventType = currentEventType, let data = currentData {
+                            eventCount += 1
+                            let extractedResponseId = await self.processSSEEvent(eventType: eventType, data: data, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
+                            if let extractedId = extractedResponseId {
+                                responseId = extractedId
+                            }
+                            
+                            // Reset for next event
+                            currentEventType = nil
+                            currentData = nil
+                        }
                     }
                 }
-            }
-            
-            // Process final event if exists
-            if let eventType = currentEventType, let data = currentData {
-                let extractedResponseId = await processSSEEvent(eventType: eventType, data: data, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
-                if let extractedId = extractedResponseId {
-                    responseId = extractedId
+                
+                // Process final event if exists
+                if let eventType = currentEventType, let data = currentData {
+                    let extractedResponseId = await self.processSSEEvent(eventType: eventType, data: data, messageIndex: assistantMessageIndex, accumulatedText: &accumulatedText)
+                    if let extractedId = extractedResponseId {
+                        responseId = extractedId
+                    }
+                }
+                
+                // Handle any remaining content
+                if !accumulatedText.isEmpty && self.messages[assistantMessageIndex].content.isEmpty {
+                    self.messages[assistantMessageIndex].content = accumulatedText
+                }
+                
+                // Update conversation with the new response ID for future context
+                if let responseId = responseId {
+                    conversation.updateLastResponseId(responseId)
+                    manager.updateConversation(conversation)
+                }
+                
+            } catch {
+                if Task.isCancelled {
+                    print("Streaming task was cancelled")
+                } else {
+                    let errorMsg = "Network error: \(error.localizedDescription)"
+                    self.messages[assistantMessageIndex].content = errorMsg
+                    self.setError(errorMsg)
                 }
             }
             
-            // Handle any remaining content
-            if !accumulatedText.isEmpty && messages[assistantMessageIndex].content.isEmpty {
-                messages[assistantMessageIndex].content = accumulatedText
-            }
+            self.setLoadingState(false)
+            self.streamingText = ""
+            self.saveConversation()
             
-            // Update conversation with the new response ID for future context
-            if let responseId = responseId {
-                conversation.updateLastResponseId(responseId)
-                manager.updateConversation(conversation)
+            // Clean up task reference when complete
+            if self.activeStreamingTask?.isCancelled == false {
+                self.activeStreamingTask = nil
             }
-            
-        } catch {
-            let errorMsg = "Network error: \(error.localizedDescription)"
-            messages[assistantMessageIndex].content = errorMsg
-            setError(errorMsg)
         }
         
-        setLoadingState(false)
-        streamingText = ""
-        saveConversation()
+        // Wait for the task to complete
+        await activeStreamingTask?.value
+    }
+    
+    // Cancel any active streaming request
+    func cancelStreamingRequest() {
+        activeStreamingTask?.cancel()
     }
     
     // MARK: - Async JSON Parsing Functions

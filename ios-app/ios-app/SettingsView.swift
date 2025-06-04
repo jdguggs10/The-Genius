@@ -94,7 +94,7 @@ struct SettingsView: View {
             .navigationBarTitleDisplayMode(horizontalSizeClass == .regular ? .large : .inline) // Large title on iPad
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Image("appstore")
+                    Image("Image")
                         .resizable()
                         .scaledToFit()
                         .frame(width: horizontalSizeClass == .regular ? 32 : 24,
@@ -124,7 +124,7 @@ struct SettingsView: View {
     // MARK: - Profile Section
     private var profileSection: some View {
         HStack(spacing: horizontalSizeClass == .regular ? 20 : 16) { // More spacing on iPad
-            Image("appstore")
+            Image("Image")
                 .resizable()
                 .scaledToFit()
                 .frame(width: horizontalSizeClass == .regular ? 80 : 66, height: horizontalSizeClass == .regular ? 80 : 66)
