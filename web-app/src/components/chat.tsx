@@ -277,6 +277,61 @@ export default function Chat() {
             setIsSearching(false);
             enqueueTokens(eventData.data.delta || '');
             break;
+          case 'tool_result':
+            // Handle tool results from the backend
+            if (!assistantMessageId) break;
+            logger.info('Received tool result:', eventData.data.tool);
+            
+            // Format tool result for display
+            const toolName = eventData.data.tool || 'Unknown tool';
+            const toolResult = eventData.data.result || 'No result data';
+            
+            try {
+              // Format the tool result based on the tool type
+              let formattedResult = '';
+              
+              if (toolName === 'get_mlb_standings') {
+                // Try to parse the standings JSON
+                try {
+                  const standingsData = JSON.parse(toolResult);
+                  formattedResult = `MLB Standings (${standingsData.year}):\n\n`;
+                  
+                  // Format each division
+                  Object.entries(standingsData.standings || {}).forEach(([division, teams]: [string, any]) => {
+                    formattedResult += `## ${division}\n`;
+                    teams.forEach((team: any, index: number) => {
+                      formattedResult += `${index + 1}. ${team.team} (${team.wins}-${team.losses}, ${team.win_pct})\n`;
+                    });
+                    formattedResult += '\n';
+                  });
+                } catch (e) {
+                  // If parsing fails, just use the raw result
+                  formattedResult = `MLB Standings:\n\n${toolResult}`;
+                }
+              } else if (toolName === 'get_mlb_player_stats') {
+                formattedResult = `Player Statistics:\n\n${toolResult}`;
+              } else if (toolName === 'search_mlb_players') {
+                formattedResult = `Player Search Results:\n\n${toolResult}`;
+              } else {
+                // Default formatting for any other tool
+                formattedResult = `${toolName} Results:\n\n${toolResult}`;
+              }
+              
+              // Update the message with the formatted tool result
+              updateMessage(assistantMessageId, { 
+                content: formattedResult
+              });
+            } catch (error) {
+              // If formatting fails, display the raw result
+              logger.error('Error formatting tool result:', error);
+              updateMessage(assistantMessageId, { 
+                content: `${toolName} Results:\n\n${toolResult}`
+              });
+            }
+            
+            // Log for debugging
+            logger.debug('Tool result data:', toolResult);
+            break;
           case 'response_complete':
             if (!assistantMessageId) break;
             setStatusMessage(null);

@@ -24,7 +24,7 @@ export type AdviceRequest = {
 };
 
 export interface SSEEventData { // Consider renaming to ServerSentEventData or WSEventData if it diverges
-  type: 'status_update' | 'text_delta' | 'response_complete' | 'error' | string; // string for other custom types
+  type: 'status_update' | 'text_delta' | 'response_complete' | 'error' | 'tool_result' | string; // string for other custom types
   data: {
     message?: string;
     delta?: string;
@@ -36,5 +36,8 @@ export interface SSEEventData { // Consider renaming to ServerSentEventData or W
     };
     status?: string;
     response_id?: string;
+    // Tool result data
+    tool?: string;
+    result?: string;
   };
 }
