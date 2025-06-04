@@ -141,8 +141,8 @@ async def get_streaming_response(
         tools.extend([
             {
                 "type": "function",
+                "name": "get_mlb_player_stats",
                 "function": {
-                    "name": "get_mlb_player_stats",
                     "description": "Get season statistics for a specific MLB player",
                     "parameters": {
                         "type": "object",
@@ -162,8 +162,8 @@ async def get_streaming_response(
             },
             {
                 "type": "function",
+                "name": "get_mlb_standings",
                 "function": {
-                    "name": "get_mlb_standings",
                     "description": "Get current MLB standings by division",
                     "parameters": {
                         "type": "object",
@@ -178,8 +178,8 @@ async def get_streaming_response(
             },
             {
                 "type": "function",
+                "name": "search_mlb_players",
                 "function": {
-                    "name": "search_mlb_players",
                     "description": "Search for MLB players by partial name",
                     "parameters": {
                         "type": "object",
@@ -458,8 +458,8 @@ def get_response(
         tools.extend([
             {
                 "type": "function",
+                "name": "get_mlb_player_stats",
                 "function": {
-                    "name": "get_mlb_player_stats",
                     "description": "Get season statistics for a specific MLB player",
                     "parameters": {
                         "type": "object",
@@ -479,8 +479,8 @@ def get_response(
             },
             {
                 "type": "function",
+                "name": "get_mlb_standings",
                 "function": {
-                    "name": "get_mlb_standings",
                     "description": "Get current MLB standings by division",
                     "parameters": {
                         "type": "object",
@@ -495,8 +495,8 @@ def get_response(
             },
             {
                 "type": "function",
+                "name": "search_mlb_players",
                 "function": {
-                    "name": "search_mlb_players",
                     "description": "Search for MLB players by partial name",
                     "parameters": {
                         "type": "object",
