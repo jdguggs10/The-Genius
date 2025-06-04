@@ -31,6 +31,11 @@ from pybaseball_mcp.teams import (
 )
 from pybaseball_mcp.utils import clear_cache, get_cache_info
 
+# For FastAPI web mode
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import JSONResponse
+import uvicorn
+
 # Set up logging - ensure it goes to stderr in MCP mode
 if os.environ.get("MCP_STDIO_MODE") == "1":
     logging.basicConfig(
@@ -47,6 +52,13 @@ logger = logging.getLogger(__name__)
 
 # Initialize the MCP server
 server = Server("pybaseball-stats")
+
+# Initialize FastAPI app for web mode
+app = FastAPI(
+    title="PyBaseball API",
+    description="MLB statistics API powered by pybaseball",
+    version="1.0.0"
+)
 
 @server.list_tools()
 async def handle_list_tools() -> list[MCPTool]:
@@ -258,14 +270,86 @@ async def main():
                 logger.error(f"Unexpected server error: {e}")
                 raise
     else:
-        logger.error("This server only supports MCP STDIO mode")
-        logger.error("Use MCP_STDIO_MODE=1 environment variable to run in stdio mode")
-        sys.exit(1)
+        # FastAPI Web Mode
+        logger.info("Starting PyBaseball Server in FastAPI web mode...")
+        port = int(os.environ.get("PORT", 8000))
+        logger.info(f"Server will listen on port {port}")
+        
+        # This will not return until the server is stopped
+        uvicorn.run(app, host="0.0.0.0", port=port)
+
+# FastAPI routes for web mode
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    import pybaseball
+    return {
+        "status": "healthy",
+        "version": pybaseball.__version__,
+        "service": "PyBaseball API"
+    }
+
+@app.post("/tools/{tool_name}")
+async def call_tool(tool_name: str, request: Request):
+    """Call a specific tool with parameters."""
+    try:
+        # Parse the request body
+        body = await request.json()
+        
+        # Call the appropriate function based on the tool name
+        if tool_name == "player_stats":
+            result = get_player_stats(
+                body.get("player_name"),
+                body.get("year")
+            )
+        elif tool_name == "player_recent_performance":
+            result = get_player_recent_stats(
+                body.get("player_name"),
+                body.get("days", 30)
+            )
+        elif tool_name == "search_players":
+            result = search_player(body.get("search_term"))
+        elif tool_name == "mlb_standings":
+            result = get_standings(body.get("year"))
+        elif tool_name == "stat_leaders":
+            result = get_league_leaders(
+                body.get("stat"),
+                body.get("year"),
+                body.get("top_n", 10),
+                body.get("player_type", "batting")
+            )
+        elif tool_name == "team_statistics":
+            result = get_team_stats(
+                body.get("team_name"),
+                body.get("year")
+            )
+        elif tool_name == "clear_stats_cache":
+            clear_cache()
+            result = "Statistics cache cleared successfully"
+        elif tool_name == "health_check":
+            import pybaseball
+            result = f"PyBaseball MCP Server is running. PyBaseball version: {pybaseball.__version__}"
+        else:
+            raise HTTPException(status_code=404, detail=f"Unknown tool: {tool_name}")
+        
+        return {"result": str(result)}
+    
+    except Exception as e:
+        logger.error(f"Error calling tool {tool_name}: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Error calling tool {tool_name}: {str(e)}"}
+        )
+
+@app.get("/tools")
+async def list_tools():
+    """List available tools."""
+    tools = await handle_list_tools()
+    return {"tools": [tool.name for tool in tools]}
 
 if __name__ == "__main__":
     if os.environ.get("MCP_STDIO_MODE") == "1":
         asyncio.run(main())
     else:
-        logger.error("This server only supports MCP STDIO mode")
-        logger.error("Use MCP_STDIO_MODE=1 environment variable to run in stdio mode")
-        sys.exit(1) 
+        # Start in FastAPI web mode
+        main() 

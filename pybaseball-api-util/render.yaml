@@ -1,18 +1,18 @@
 services:
   - type: web
     name: pybaseball-service
-    env: python # Specify Python runtime
+    runtime: python
     region: oregon # Or any other preferred region
     plan: free # Or your desired plan
-    rootDir: ./pybaseball-api-util # Set the root directory for this service
+    rootDir: pybaseball-api-util # Set the root directory for this service
     buildFilter:
       paths:
       - pybaseball-api-util/**
-    buildCommmand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt
     startCommand: python pybaseball_mcp_server_v2.py
     healthCheckPath: /health # The server script provides a /health endpoint for FastAPI mode
     envVars:
       - key: PYTHON_VERSION
         value: '3.11' # Specify a Python version, matching backend if possible
-      # MCP_STDIO_MODE will not be set, so it defaults to FastAPI mode.
       # The PORT environment variable will be automatically provided by Render.
+      # We're now using FastAPI mode by default (MCP_STDIO_MODE is not set)
