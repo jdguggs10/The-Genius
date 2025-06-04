@@ -195,8 +195,8 @@ class PromptLoader:
             if universal['confidence_guidelines']:
                 system_content += f"\n\n{universal['confidence_guidelines']}"
             
-            # Add schema requirement to system prompt
-            schema_instruction = f"\n\nPlease respond with structured JSON that matches this exact schema: {schema}"
+            # Add schema requirement to system prompt with emphasis on required fields
+            schema_instruction = f"\n\nIMPORTANT: Please respond with structured JSON that matches this exact schema: {schema}\nThe 'main_advice' field is STRICTLY REQUIRED - all responses MUST include this field or they will fail validation. Always ensure your response includes the 'main_advice' field with a clear, actionable recommendation."
             system_content += schema_instruction
             
             messages.append({"role": "system", "content": system_content})
@@ -252,8 +252,8 @@ class PromptLoader:
         if enable_web_search and universal['web_search_guidelines']:
             components.append(universal['web_search_guidelines'])
         
-        # Add schema requirement
-        schema_instruction = f"Please respond with structured JSON that matches this exact schema: {schema}"
+        # Add schema requirement with emphasis on required fields
+        schema_instruction = f"IMPORTANT: Please respond with structured JSON that matches this exact schema: {schema}\nThe 'main_advice' field is STRICTLY REQUIRED - all responses MUST include this field or they will fail validation. Always ensure your response includes the 'main_advice' field with a clear, actionable recommendation."
         components.append(schema_instruction)
         
         # Combine all components
