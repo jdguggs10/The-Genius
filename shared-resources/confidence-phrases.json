@@ -1,112 +1,66 @@
 {
   "version": "1.0.0",
-  "last_updated": "2024-01-15T10:00:00Z",
+  "last_updated": "2025-06-04T00:00:00.000Z",
   "confidence_bands": {
     "0.9-1.0": {
       "range": [0.9, 1.0],
-      "label": "very_high_confidence",
+      "calibration_target": 0.95,
       "phrases": [
         "I'm very confident that",
         "This is a strong recommendation:",
+        "The evidence strongly supports",
         "I highly recommend",
-        "This is a clear-cut decision:",
-        "With high confidence,",
-        "Strong evidence supports"
+        "The data clearly indicates"
       ],
-      "required_evidence": [
-        "Strong statistical advantages with recent confirmation",
-        "Favorable matchups with multiple confirming sources",
-        "Minimal uncertainty factors",
-        "Strong expert consensus from reliable sources",
-        "Consistent with conversation analysis"
-      ],
-      "calibration_target": 0.95,
-      "last_calibrated": null,
-      "performance_notes": "Requires strictest evidence standards"
+      "last_calibrated": "2025-06-04T00:00:00.000Z"
     },
     "0.7-0.9": {
       "range": [0.7, 0.9],
-      "label": "high_confidence", 
-      "phrases": [
-        "I recommend",
-        "This is a solid choice:",
-        "Good evidence suggests",
-        "I'm confident that",
-        "Strong indicators point to",
-        "The data supports"
-      ],
-      "required_evidence": [
-        "Good statistical support with recent data",
-        "Favorable trends and matchups",
-        "Minor uncertainty factors only",
-        "Generally positive expert sentiment"
-      ],
       "calibration_target": 0.8,
-      "last_calibrated": null,
-      "performance_notes": "Standard high-confidence recommendations"
+      "phrases": [
+        "I'm confident that",
+        "This is a solid recommendation:",
+        "Good evidence supports",
+        "I recommend",
+        "The data indicates"
+      ],
+      "last_calibrated": "2025-06-04T00:00:00.000Z"
     },
     "0.5-0.7": {
       "range": [0.5, 0.7],
-      "label": "moderate_confidence",
-      "phrases": [
-        "I lean towards",
-        "This seems like",
-        "Moderate evidence suggests",
-        "I think",
-        "This appears to be",
-        "The indicators point to"
-      ],
-      "required_evidence": [
-        "Mixed statistical indicators",
-        "Some uncertainty factors present",
-        "Multiple variables to consider",
-        "Moderate expert sentiment"
-      ],
       "calibration_target": 0.6,
-      "last_calibrated": null,
-      "performance_notes": "Balanced uncertainty acknowledgment"
+      "phrases": [
+        "I think that",
+        "This appears to be a reasonable choice:",
+        "Some evidence suggests",
+        "I lean towards",
+        "The data suggests"
+      ],
+      "last_calibrated": "2025-06-04T00:00:00.000Z"
     },
     "0.3-0.5": {
       "range": [0.3, 0.5],
-      "label": "low_confidence",
-      "phrases": [
-        "I have concerns about",
-        "This is uncertain, but",
-        "Limited evidence suggests",
-        "I'm hesitant to recommend",
-        "Weak indicators point to",
-        "With reservations,"
-      ],
-      "required_evidence": [
-        "Limited statistical support",
-        "Significant uncertainty factors",
-        "Conflicting information",
-        "Mixed expert opinions"
-      ],
       "calibration_target": 0.4,
-      "last_calibrated": null,
-      "performance_notes": "Clear uncertainty communication"
-    },
-    "0.1-0.3": {
-      "range": [0.1, 0.3],
-      "label": "very_low_confidence",
       "phrases": [
-        "I strongly advise caution with",
-        "This is highly uncertain:",
-        "Very limited evidence for",
-        "I cannot recommend",
-        "Significant risks with",
-        "Strong concerns about"
+        "I'm somewhat uncertain, but",
+        "This might be a reasonable option:",
+        "Limited evidence suggests",
+        "You could consider",
+        "The data is mixed, but suggests"
       ],
-      "required_evidence": [
-        "Poor statistical indicators",
-        "Very unfavorable conditions",
-        "High risk factors",
-        "Negative expert consensus"
+      "last_calibrated": "2025-06-04T00:00:00.000Z"
+    },
+    "0.0-0.3": {
+      "range": [0.0, 0.3],
+      "calibration_target": 0.15,
+      "phrases": [
+        "I'm uncertain, but",
+        "With low confidence:",
+        "There's limited evidence, but",
+        "You might consider",
+        "The data is insufficient, but"
       ],
-      "calibration_target": 0.2,
-      "last_calibrated": null,
-      "performance_notes": "Maximum uncertainty and risk communication"
+      "last_calibrated": "2025-06-04T00:00:00.000Z"
     }
   },
   "auto_tune_settings": {
@@ -117,15 +71,5 @@
     "backup_on_update": true
   },
   "calibration_history": [],
-  "usage_statistics": {
-    "total_phrases_used": 0,
-    "band_usage": {
-      "very_high_confidence": 0,
-      "high_confidence": 0,
-      "moderate_confidence": 0,
-      "low_confidence": 0,
-      "very_low_confidence": 0
-    },
-    "last_reset": "2024-01-15T10:00:00Z"
-  }
+  "usage_statistics": {}
 } 

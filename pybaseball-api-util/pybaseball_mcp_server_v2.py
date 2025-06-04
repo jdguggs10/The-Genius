@@ -280,6 +280,20 @@ async def main():
         pass
 
 # FastAPI routes for web mode
+@app.get("/")
+async def root():
+    """Root endpoint that redirects users to appropriate endpoints."""
+    return {
+        "service": "PyBaseball API",
+        "description": "MLB statistics API powered by pybaseball",
+        "endpoints": {
+            "health": "/health",
+            "list_tools": "/tools",
+            "call_tool": "/tools/{tool_name}"
+        },
+        "message": "Use /tools to see available tools"
+    }
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""
