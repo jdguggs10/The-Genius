@@ -612,6 +612,41 @@ class ChatViewModel: ObservableObject {
             if let responseId = await parseResponseCreated(data) {
                 return responseId
             }
+        } else if eventType == "response_complete" {
+            // Final structured advice and response ID
+            if let responseData = await parseResponseComplete(data, accumulatedText: accumulatedText) {
+                let messageId = messages[messageIndex].id
+                if let allMessageIndex = allMessages.lastIndex(where: { $0.id == messageId }) {
+                    allMessages[allMessageIndex].content = responseData.advice.mainAdvice
+                    allMessages[allMessageIndex].structuredAdvice = responseData.advice
+                }
+
+                var updatedMessage = messages[messageIndex]
+                updatedMessage.content = responseData.advice.mainAdvice
+                updatedMessage.structuredAdvice = responseData.advice
+
+                streamingText = responseData.advice.mainAdvice
+
+                objectWillChange.send()
+                messages[messageIndex] = updatedMessage
+
+                statusMessage = nil
+                isSearching = false
+                streamingMessageId = nil
+
+                return responseData.responseId
+            }
+            if let errorMessage = await parseError(data) {
+                let messageId = messages[messageIndex].id
+                if let allMessageIndex = allMessages.lastIndex(where: { $0.id == messageId }) {
+                    allMessages[allMessageIndex].content = "Error: \(errorMessage)"
+                }
+                var updatedMessage = messages[messageIndex]
+                updatedMessage.content = "Error: \(errorMessage)"
+                messages[messageIndex] = updatedMessage
+                currentErrorMessage = "Error: \(errorMessage)"
+                streamingMessageId = nil
+            }
         } else if eventType == "response.web_search_call.searching" || eventType == "web_search_started" {
             // Handle web search events
             statusMessage = "🔍 Searching the web..."
@@ -644,6 +679,18 @@ class ChatViewModel: ObservableObject {
 
                 statusMessage = nil
                 isSearching = false
+            }
+        } else if eventType == "error" {
+            if let errorMessage = await parseError(data) {
+                let messageId = messages[messageIndex].id
+                if let allMessageIndex = allMessages.lastIndex(where: { $0.id == messageId }) {
+                    allMessages[allMessageIndex].content = "Error: \(errorMessage)"
+                }
+                var updatedMessage = messages[messageIndex]
+                updatedMessage.content = "Error: \(errorMessage)"
+                messages[messageIndex] = updatedMessage
+                currentErrorMessage = "Error: \(errorMessage)"
+                streamingMessageId = nil
             }
         } else if eventType == "response.completed" {
             // Handle official completion event
