@@ -34,7 +34,7 @@ struct SettingsView: View {
                     Text("Profile")
                         .font(horizontalSizeClass == .regular ? .title2 : .headline) // Adaptive header font
                         .fontWeight(.semibold) // Bolder headers
-                        .foregroundColor(appPrimaryFontColor)
+                        .foregroundColor(.primary)
                 }
                 
                 Section {
@@ -43,7 +43,7 @@ struct SettingsView: View {
                     Text("Account")
                         .font(horizontalSizeClass == .regular ? .title2 : .headline)
                         .fontWeight(.semibold)
-                        .foregroundColor(appPrimaryFontColor)
+                        .foregroundColor(.primary)
                 }
                 
                 Section {
@@ -52,7 +52,7 @@ struct SettingsView: View {
                     Text("Integrations")
                         .font(horizontalSizeClass == .regular ? .title2 : .headline)
                         .fontWeight(.semibold)
-                        .foregroundColor(appPrimaryFontColor)
+                        .foregroundColor(.primary)
                 }
                 
                 // Dark Mode Preference Section
@@ -68,7 +68,7 @@ struct SettingsView: View {
                     Text("Dark Mode")
                         .font(horizontalSizeClass == .regular ? .title2 : .headline)
                         .fontWeight(.semibold)
-                        .foregroundColor(appPrimaryFontColor)
+                        .foregroundColor(.primary)
                 }
                 
                 Section {
@@ -77,7 +77,7 @@ struct SettingsView: View {
                     Text("Usage")
                         .font(horizontalSizeClass == .regular ? .title2 : .headline)
                         .fontWeight(.semibold)
-                        .foregroundColor(appPrimaryFontColor)
+                        .foregroundColor(.primary)
                 }
                 
                 Section {
@@ -86,7 +86,7 @@ struct SettingsView: View {
                     Text("About The Genius")
                         .font(horizontalSizeClass == .regular ? .title2 : .headline)
                         .fontWeight(.semibold)
-                        .foregroundColor(appPrimaryFontColor)
+                        .foregroundColor(.primary)
                 }
             }
             .listStyle(.insetGrouped) // Standard iOS settings style
@@ -108,7 +108,7 @@ struct SettingsView: View {
                     }
                     .font(.headline) // Make "Done" more prominent
                     .frame(minWidth: 44, minHeight: 44) // Ensure touch target
-                    .foregroundColor(appPrimaryFontColor)
+                    .foregroundColor(.primary)
                 }
             }
             .sheet(isPresented: $showingESPNLoginWebView) {
@@ -124,9 +124,9 @@ struct SettingsView: View {
     // MARK: - Profile Section
     private var profileSection: some View {
         HStack(spacing: horizontalSizeClass == .regular ? 20 : 16) { // More spacing on iPad
-            Circle()
-                .fill(Color.blue.gradient)
-                .overlay(Text("FG").font(horizontalSizeClass == .regular ? .largeTitle : .title2).fontWeight(.semibold).foregroundColor(.white))
+            Image("appstore")
+                .resizable()
+                .scaledToFit()
                 .frame(width: horizontalSizeClass == .regular ? 80 : 66, height: horizontalSizeClass == .regular ? 80 : 66)
                 .clipShape(Circle())
             
@@ -134,7 +134,7 @@ struct SettingsView: View {
                 Text("John Doe")
                     .font(horizontalSizeClass == .regular ? .title : .headline) // Larger name on iPad
                     .fontWeight(.medium)
-                    .foregroundColor(appPrimaryFontColor)
+                    .foregroundColor(.primary)
                 
                 Text("john.doe@example.com")
                     .font(horizontalSizeClass == .regular ? .headline : .subheadline) // Larger email on iPad
@@ -144,7 +144,7 @@ struct SettingsView: View {
                     showingLoginView = true   // Present LoginView
                 }
                 .font(horizontalSizeClass == .regular ? .body : .caption) // Larger button text on iPad
-                .foregroundColor(appPrimaryFontColor) // Use accent color for actions
+                .foregroundColor(appPrimaryFontColor) // Keep accent color for actions
                 .padding(.top, horizontalSizeClass == .regular ? 4 : 2)
                 .frame(minHeight: 44) // Ensure touch target
             }
@@ -157,8 +157,12 @@ struct SettingsView: View {
     private var accountSection: some View {
         Group {
             HStack {
-                Label("Account Status", systemImage: "person.crop.circle.badge.checkmark")
-                    .foregroundColor(appPrimaryFontColor)
+                Label {
+                    Text("Account Status").foregroundColor(.primary)
+                } icon: {
+                    Image(systemName: "person.crop.circle.badge.checkmark").foregroundColor(appPrimaryFontColor)
+                }
+                
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("Genius Pro").font(.subheadline).fontWeight(.semibold).foregroundColor(.orange)
@@ -168,8 +172,12 @@ struct SettingsView: View {
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4) // Adaptive padding
 
             HStack {
-                Label("Manage Subscription", systemImage: "creditcard.and.arrow.up")
-                    .foregroundColor(appPrimaryFontColor)
+                Label {
+                    Text("Manage Subscription").foregroundColor(.primary)
+                } icon: {
+                    Image(systemName: "creditcard.and.arrow.up").foregroundColor(appPrimaryFontColor)
+                }
+                
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
@@ -191,8 +199,12 @@ struct SettingsView: View {
             // integrationRow(title: "Sleeper", subtitle: "Not Connected", icon: "moon.zzz.fill", iconColor: .indigo, isConnected: false)
             
             HStack {
-                Label("Add Integration", systemImage: "plus.app.fill")
-                    .foregroundColor(appPrimaryFontColor)
+                Label {
+                    Text("Add Integration").foregroundColor(.primary)
+                } icon: {
+                    Image(systemName: "plus.app.fill").foregroundColor(appPrimaryFontColor)
+                }
+                
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
@@ -213,7 +225,7 @@ struct SettingsView: View {
                 .frame(width: 30, alignment: .center) // Ensure icons are aligned
             
             VStack(alignment: .leading, spacing: 2) {
-                Text(title) // Font applied by Group
+                Text(title).foregroundColor(.primary) // Update text color
                 Text(subtitle)
                     .font(horizontalSizeClass == .regular ? .subheadline : .caption)
                     .foregroundColor(isConnected ? .green : .secondary)
@@ -235,8 +247,12 @@ struct SettingsView: View {
     private var usageSection: some View {
         Group {
             HStack {
-                Label("Monthly Usage", systemImage: "chart.bar.xaxis")
-                    .foregroundColor(appPrimaryFontColor)
+                Label {
+                    Text("Monthly Usage").foregroundColor(.primary)
+                } icon: {
+                    Image(systemName: "chart.bar.xaxis").foregroundColor(appPrimaryFontColor)
+                }
+                
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("847 / 1000").font(.subheadline).fontWeight(.medium)
@@ -246,8 +262,12 @@ struct SettingsView: View {
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
 
             HStack {
-                Label("Usage History", systemImage: "clock.arrow.circlepath")
-                    .foregroundColor(appPrimaryFontColor)
+                Label {
+                    Text("Usage History").foregroundColor(.primary)
+                } icon: {
+                    Image(systemName: "clock.arrow.circlepath").foregroundColor(appPrimaryFontColor)
+                }
+                
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
@@ -256,8 +276,12 @@ struct SettingsView: View {
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
 
             HStack {
-                Label("Reset Usage", systemImage: "arrow.counterclockwise.circle.fill")
-                    .foregroundColor(appPrimaryFontColor)
+                Label {
+                    Text("Reset Usage").foregroundColor(.primary)
+                } icon: {
+                    Image(systemName: "arrow.counterclockwise.circle.fill").foregroundColor(appPrimaryFontColor)
+                }
+                
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
@@ -272,16 +296,24 @@ struct SettingsView: View {
     private var aboutSection: some View {
         Group {
             HStack {
-                Label("Version", systemImage: "app.badge.checkmark.fill")
-                    .foregroundColor(appPrimaryFontColor)
+                Label {
+                    Text("Version").foregroundColor(.primary)
+                } icon: {
+                    Image(systemName: "app.badge.checkmark.fill").foregroundColor(appPrimaryFontColor)
+                }
+                
                 Spacer()
                 Text("1.0.0 (Build 1)").font(.subheadline).foregroundColor(.secondary)
             }
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
 
             HStack {
-                Label("What's New", systemImage: "star.bubble.fill")
-                    .foregroundColor(appPrimaryFontColor)
+                Label {
+                    Text("What's New").foregroundColor(.primary)
+                } icon: {
+                    Image(systemName: "star.bubble.fill").foregroundColor(appPrimaryFontColor)
+                }
+                
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
@@ -290,8 +322,12 @@ struct SettingsView: View {
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
 
             HStack {
-                Label("Help & Support", systemImage: "lifepreserver.fill")
-                    .foregroundColor(appPrimaryFontColor)
+                Label {
+                    Text("Help & Support").foregroundColor(.primary)
+                } icon: {
+                    Image(systemName: "lifepreserver.fill").foregroundColor(appPrimaryFontColor)
+                }
+                
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
@@ -300,8 +336,12 @@ struct SettingsView: View {
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
 
             HStack {
-                Label("Privacy Policy", systemImage: "lock.doc.fill")
-                    .foregroundColor(appPrimaryFontColor)
+                Label {
+                    Text("Privacy Policy").foregroundColor(.primary)
+                } icon: {
+                    Image(systemName: "lock.doc.fill").foregroundColor(appPrimaryFontColor)
+                }
+                
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
@@ -310,8 +350,12 @@ struct SettingsView: View {
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
 
             HStack {
-                Label("Terms of Service", systemImage: "doc.plaintext.fill")
-                    .foregroundColor(appPrimaryFontColor)
+                Label {
+                    Text("Terms of Service").foregroundColor(.primary)
+                } icon: {
+                    Image(systemName: "doc.plaintext.fill").foregroundColor(appPrimaryFontColor)
+                }
+                
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }

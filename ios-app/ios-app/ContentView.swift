@@ -150,9 +150,12 @@ struct ContentView: View {
                 // Placeholder when no conversation is selected and not showing settings
                 Text("Select a conversation or start a new one.")
                     .font(.title)
-                    .foregroundColor(appPrimaryFontColor)
+                    .foregroundColor(.primary)
                     .navigationTitle("Fantasy Genius")
                     .toolbar(content: navigationToolbarContent)
+                    .toolbarBackground(.visible, for: .navigationBar)
+                    .toolbarBackground(appBackgroundColor, for: .navigationBar)
+                    .toolbarHeight(44 + 4) // Standard 44 + 4 points extra
             }
         }
         .background(appBackgroundColor)
@@ -169,6 +172,9 @@ struct ContentView: View {
         .navigationTitle(conversation.title)
         .navigationBarTitleDisplayMode(horizontalSizeClass == .regular ? .automatic : .inline)
         .toolbar(content: navigationToolbarContent)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarBackground(appBackgroundColor, for: .navigationBar)
+        .toolbarHeight(44 + 4) // Standard 44 + 4 points extra
     }
     
     // MARK: - Error Message View
@@ -378,6 +384,15 @@ struct ContentView: View {
             setupInitialConversationSelection()
         }
         updateSidebarWidth(for: geometry.size)
+        
+        // Apply taller navigation bar appearance to UIKit
+        let appearance = UINavigationBarAppearance()
+        appearance.configureWithOpaqueBackground()
+        appearance.backgroundColor = UIColor(red: 253/255, green: 245/255, blue: 230/255, alpha: 1.0) // Match appBackgroundColor
+        appearance.shadowColor = .clear
+        UINavigationBar.appearance().standardAppearance = appearance
+        UINavigationBar.appearance().scrollEdgeAppearance = appearance
+        UINavigationBar.appearance().compactAppearance = appearance
     }
 
     private func updateSidebarWidth(for size: CGSize) {
@@ -549,7 +564,7 @@ struct ContentView: View {
                 Image(systemName: "square.and.pencil")
                     .font(.system(size: 17, weight: .semibold))
                     .foregroundColor(appPrimaryFontColor)
-                    .frame(minWidth: 44, minHeight: 44)
+                    .frame(minWidth: 44, minHeight: 44 + 4) // Add 4 points to match taller toolbar
             }
             .accessibilityLabel("New Conversation")
         }
@@ -559,7 +574,7 @@ struct ContentView: View {
                 Button(action: { withAnimation(.easeInOut(duration: 0.3)) { showingSidebarForCompact.toggle() } }) {
                     Image(systemName: "line.horizontal.3").font(.system(size: 17, weight: .semibold))
                         .foregroundColor(appPrimaryFontColor)
-                        .frame(minWidth: 44, minHeight: 44)
+                        .frame(minWidth: 44, minHeight: 44 + 4) // Add 4 points to match taller toolbar
                 }
                 .accessibilityLabel("Toggle sidebar")
             }

@@ -45,10 +45,11 @@ struct SidebarView: View {
 
     private var header: some View {
         HStack(spacing: 12) {
-            Image("AppIcon")
+            Image("appstore")
                 .resizable()
+                .scaledToFit()
                 .frame(width: 28, height: 28)
-                .cornerRadius(6)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
             
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
@@ -57,7 +58,7 @@ struct SidebarView: View {
                 
                 TextField("Search", text: $searchText)
                     .font(.subheadline)
-                    .frame(height: 36)
+                    .frame(height: 32)
                 
                 if !searchText.isEmpty {
                     Button(action: {
@@ -71,18 +72,18 @@ struct SidebarView: View {
                     .transition(.opacity)
                 }
             }
-            .padding(.horizontal, 10)
-            .frame(height: 36)
+            .padding(.horizontal, 8)
+            .frame(height: 32)
             .background(Color(.systemGray6))
-            .cornerRadius(10)
+            .cornerRadius(8)
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: 8)
                     .stroke(appPrimaryFontColor.opacity(0.2), lineWidth: 1)
             )
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 16)
-        .padding(.bottom, 8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .frame(height: 44)
         .background(appBackgroundColor)
     }
 
