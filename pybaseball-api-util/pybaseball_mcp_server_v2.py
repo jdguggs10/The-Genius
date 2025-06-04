@@ -276,15 +276,8 @@ async def main():
                 logger.error(f"Unexpected server error: {e}")
                 raise
     else:
-        # FastAPI Web Mode
-        if is_on_render:
-            logger.info("Detected Render.com environment, forcing web mode...")
-        logger.info("Starting PyBaseball Server in FastAPI web mode...")
-        port = int(os.environ.get("PORT", 8000))
-        logger.info(f"Server will listen on port {port}")
-        
-        # This will not return until the server is stopped
-        uvicorn.run(app, host="0.0.0.0", port=port)
+        # This code is no longer needed as it's handled in the __main__ block
+        pass
 
 # FastAPI routes for web mode
 @app.get("/health")
@@ -355,9 +348,22 @@ async def list_tools():
     tools = await handle_list_tools()
     return {"tools": [tool.name for tool in tools]}
 
+# Update the __main__ block to properly handle both modes
 if __name__ == "__main__":
     if use_stdio_mode:
         asyncio.run(main())
     else:
-        # Start in FastAPI web mode
-        main() 
+        # Start in FastAPI web mode directly
+        if is_on_render:
+            logger.info("Detected Render.com environment, forcing web mode...")
+            # On Render, ensure we bind to the PORT they provide
+            port = int(os.environ.get("PORT", 10000))
+            logger.info(f"Render deployment: binding to PORT {port}")
+        else:
+            # Local development
+            port = int(os.environ.get("PORT", 8000))
+            logger.info(f"Local development: Server will listen on port {port}")
+        
+        # Make sure uvicorn binds to 0.0.0.0 to be accessible externally
+        logger.info(f"Starting uvicorn on 0.0.0.0:{port}")
+        uvicorn.run(app, host="0.0.0.0", port=port) 
