@@ -150,7 +150,7 @@ struct ContentView: View {
                 // Placeholder when no conversation is selected and not showing settings
                 Text("Select a conversation or start a new one.")
                     .font(.title)
-                    .foregroundColor(appPrimaryFontColor.opacity(0.7))
+                    .foregroundColor(appPrimaryFontColor)
                     .navigationTitle("Fantasy Genius")
                     .toolbar(content: navigationToolbarContent)
             }

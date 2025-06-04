@@ -2,7 +2,54 @@
 
 ## Overview
 
-The iOS Fantasy Genius app is a SwiftUI-based mobile client that provides AI-powered fantasy sports advice through real-time streaming conversations. The app integrates with OpenAI's GPT-4.1-Mini Responses API via a FastAPI backend, offering users contextual and structured fantasy sports recommendations.
+The iOS Fantasy Genius app is a SwiftUI-based mobile client designed to provide AI-powered fantasy sports advice through real-time streaming conversations. The app leverages a robust backend (OpenAI's GPT-4.1-Mini Responses API via a FastAPI backend) to deliver contextual and structured fantasy sports recommendations. It features a responsive user interface that adapts to different screen sizes and orientations, ensuring a seamless experience on both iPhone and iPad.
+
+## Key Features
+
+- **📱 Adaptive UI**: Responsive design that adjusts layout for compact and regular horizontal size classes (iPhone/iPad).
+- **🗨️ Real-time Chat Interface**: Streaming conversations with Fantasy Genius AI, showing live typing effects and status updates.
+- **💬 Conversation Management**: Persistent chat history, ability to start new conversations, and clear context.
+- **🖼️ Image Attachments**: Users can attach images to messages, with previews in the input bar.
+- **👉 Swipe Gestures**: Intuitive swipe gestures for common actions like initiating a new conversation.
+- **⚙️ Settings Management**: In-app settings accessible via a modal sheet (compact) or a detail view (regular).
+- **📊 Structured Advice**: Detailed responses with reasoning, confidence scores, and alternatives.
+- **🔍 Web Search Integration**: Real-time sports data via built-in search tools (facilitated by backend).
+- **🔒 ESPN Integration**: Allows users to log into their ESPN accounts via an in-app WebView. Session cookies (`espn_s2` and `SWID`) are securely extracted and stored.
+
+## Application Architecture
+
+The application is built using SwiftUI and follows the MVVM (Model-View-ViewModel) design pattern.
+
+### UI Structure
+- **`ContentView.swift`**: The main entry point for the UI. It manages the overall layout and adapts based on the horizontal size class.
+    - **Compact Layout (e.g., iPhone Portrait)**: Uses a `ZStack` to manage a slide-out `SidebarView` and a main `NavigationStack` for chat content or settings.
+    - **Regular Layout (e.g., iPad)**: Employs a `NavigationSplitView` with `SidebarView` in the primary column and the chat content or `SettingsView` in the detail column.
+- **`SidebarView.swift`**: Displays a list of conversations and provides access to app settings.
+- **`ChatViewModel.swift`**: Manages the state and logic for a single conversation, including message fetching, sending, SSE handling, and image attachments.
+- **`ConversationManager.swift`**: Handles the creation, storage, and retrieval of multiple conversations.
+- **Message Display**:
+    - **`MessageListView`**: A scrollable view displaying `MessageBubble` instances for each message.
+    - **`MessageBubble.swift`**: Renders individual chat messages, distinguishing between user and AI.
+- **Input Handling**:
+    - **`InputBarView` (within `ContentView.swift`) / `InputBar.swift` (refactored component)**: A dedicated component for text input, image selection (via `PhotosPicker`), and sending messages. Includes attachment previews.
+- **Settings**:
+    - **`SettingsView.swift`**: Provides UI for application settings, presented modally or in the detail view.
+- **State Management**:
+    - Primarily uses SwiftUI's built-in property wrappers: `@State`, `@StateObject`, `@ObservedObject`, `@EnvironmentObject`, and `@Environment`.
+    - `ConversationManager` and `ChatViewModel` are key observable objects driving the UI.
+- **Navigation**:
+    - `NavigationStack` is used for drill-down navigation within the chat detail and settings.
+    - `NavigationSplitView` manages the master-detail interface in regular layouts.
+    - Programmatic navigation is used for selecting conversations and presenting settings.
+
+### Core SwiftUI Components Utilized
+- `GeometryReader`: For dynamic layout adjustments based on available space.
+- `ScrollViewReader`: To automatically scroll to the latest message in the chat.
+- `LazyVStack`: For efficient rendering of message lists.
+- `PhotosPicker`: For selecting images from the user's photo library.
+- `NavigationSplitViewVisibility`: To control the visibility of columns in `NavigationSplitView`.
+- `.task` and `async/await`: For performing asynchronous operations like fetching data and processing images.
+- `.onChange`: To react to state changes and trigger updates (e.g., layout changes on size class change, loading conversation on selection).
 
 ## 🚨 Recent SSE Issues Resolution
 
@@ -21,30 +68,53 @@ This app has been **significantly improved** to resolve SSE (Server-Sent Events)
 
 #### Enhanced Network Models
 ```swift
+// From NetworkModels.swift (example, ensure this matches actual file)
 struct AdviceRequestPayload: Codable {
-    let previousResponseId: String? // NEW: Responses API state management
+    let previousResponseId: String? // Responses API state management
+    let userMessage: String
+    let model: String?
+    let enableWebSearch: Bool?
+    // ... other relevant fields ...
+
     // Convenience initializer for continuing conversations
-    init(userMessage: String, previousResponseId: String, model: String? = nil, enableWebSearch: Bool? = nil)
+    init(userMessage: String, previousResponseId: String, model: String? = nil, enableWebSearch: Bool? = nil) {
+        self.userMessage = userMessage
+        self.previousResponseId = previousResponseId
+        self.model = model
+        self.enableWebSearch = enableWebSearch
+        // ...
+    }
 }
 
+// From Conversation.swift (example, ensure this matches actual file)
 struct Conversation: Identifiable, Codable, Equatable {
-    var lastResponseId: String? // NEW: Track OpenAI response ID
-    mutating func updateLastResponseId(_ responseId: String?)
-    mutating func resetConversationState()
+    var id: UUID
+    var title: String
+    var messages: [Message]
+    var lastResponseId: String? // Track OpenAI response ID
+
+    mutating func updateLastResponseId(_ responseId: String?) {
+        self.lastResponseId = responseId
+    }
+    mutating func resetConversationState() {
+        self.lastResponseId = nil
+        // Potentially clear messages or other state if needed by app logic
+    }
 }
 ```
 
 #### Smart Request Logic
-- **Continuing Conversations**: Uses `previous_response_id` + new message only (optimal)
-- **New Conversations**: Sends full conversation history as fallback
-- **Dynamic Model Selection**: Fetches current backend default model or uses `gpt-4.1-mini` fallback
-- **Response ID Tracking**: Captures and stores IDs from SSE events
+- **Continuing Conversations**: Uses `previous_response_id` + new message only (optimal).
+- **New Conversations**: Sends full conversation history as fallback.
+- **Dynamic Model Selection**: Fetches current backend default model or uses `gpt-4.1-mini` fallback.
+- **Response ID Tracking**: Captures and stores IDs from SSE events.
 
 #### Model Configuration Management
 ```swift
+// Example from ApiConfiguration.swift or similar
 // Dynamic model fetching from backend
-func fetchBackendDefaultModel() async -> String?
-private func getModelToUse() async -> String
+func fetchBackendDefaultModel() async -> String? { /* ... */ }
+private func getModelToUse() async -> String { /* ... */ }
 
 // Automatic sync with backend's current default model
 // Falls back to gpt-4.1-mini if backend is unavailable
@@ -52,139 +122,152 @@ private func getModelToUse() async -> String
 
 #### Enhanced SSE Event Handling
 ```swift
-// Now supports official Responses API events:
-- "response.output_text.delta"        // Official text streaming
-- "response.web_search_call.searching"// Web search status  
-- "response.completed"                // Official completion
-- "response_created"                  // Response ID capture
-- "status_update"                     // Backend custom events
+// ChatViewModel.swift now supports official Responses API events:
+// - "response.output_text.delta"        // Official text streaming
+// - "response.web_search_call.searching"// Web search status
+// - "response.completed"                // Official completion
+// - "response_created"                  // Response ID capture (or similar custom event for ID)
+// - "status_update"                     // Backend custom events for status messages
 ```
 
 ### 🎯 **Responses API Best Practices Implemented**
 
-1. ✅ **Dynamic model selection** synced with backend configuration
-2. ✅ **Server-side state management** with `previous_response_id`
-3. ✅ **Optimized token usage** - only new messages sent when continuing
-4. ✅ **Official event handling** for all Responses API event types
-5. ✅ **Built-in tools support** for web search integration
+1. ✅ **Dynamic model selection** synced with backend configuration.
+2. ✅ **Server-side state management** with `previous_response_id`.
+3. ✅ **Optimized token usage** - only new messages sent when continuing.
+4. ✅ **Official event handling** for all Responses API event types.
+5. ✅ **Built-in tools support** for web search integration.
 
 ### 🧪 **Testing Multi-Turn Context**
 
 Test these scenarios to verify improvements:
-
 ```
 1. Context Continuity:
    → "Who is Patrick Mahomes?"
    → "What are his stats this season?" (should understand "his" = Mahomes)
 
-2. Context Reset:
-   → Use toolbar menu → "Reset Context"
+2. Context Reset (if applicable via UI):
+   → Use toolbar menu → "Reset Context" or similar action
    → Follow-up questions start fresh without prior context
 
 3. New Conversation:
-   → Use toolbar menu → "New Conversation" 
+   → Use toolbar menu → "New Conversation"
    → Proper state initialization and context separation
 ```
 
-### 🏗️ **Architecture Benefits**
+### 🏗️ **Architecture Benefits (from API improvements)**
 
-- **Reduced Token Usage**: 60-80% reduction using `previous_response_id`
-- **Better Performance**: Faster responses via server-side state management  
-- **Enhanced Reliability**: Proper error handling and fallback mechanisms
-- **Future-Proof**: Aligned with OpenAI's latest API patterns
-- **Improved UX**: Contextually aware multi-turn conversations
+- **Reduced Token Usage**: Significant reduction using `previous_response_id`.
+- **Better Performance**: Faster responses via server-side state management.
+- **Enhanced Reliability**: Proper error handling and fallback mechanisms.
+- **Future-Proof**: Aligned with OpenAI's latest API patterns.
+- **Improved UX**: Contextually aware multi-turn conversations.
 
 ---
 
-## ✨ Features
-
-- **🗨️ Chat Interface**: Real-time streaming conversations with Fantasy Genius AI
-- **📊 Structured Advice**: Detailed responses with reasoning, confidence scores, and alternatives
-- **💬 Conversation History**: Persistent chat history with proper context management
-- **🔍 Web Search Integration**: Real-time sports data via built-in search tools
-- **📱 Native iOS Experience**: SwiftUI design following Apple HIG guidelines
-- **🖼️ Image Attachments**: Support for attaching images to messages
-- **⚡ Real-time Streaming**: Live typing effects with status updates
-- **🔒 ESPN Integration**: Allows users to log into their ESPN accounts via an in-app WebView. Session cookies (`espn_s2` and `SWID`) are securely extracted and stored for future authenticated requests to ESPN services.
-
 ## 🔧 Technology Stack
 
-- **SwiftUI**: Modern declarative UI framework
-- **Combine & async/await**: Asynchronous operations and reactive programming
-- **URLSession**: HTTP streaming with proper SSE handling
-- **Codable**: Type-safe JSON encoding/decoding
-- **WebKit**: For in-app web browsing (ESPN Login)
-- **OpenAI Responses API**: GPT-4.1-Mini with built-in tools integration
+- **SwiftUI**: Modern declarative UI framework for iOS.
+- **Combine & async/await**: For asynchronous operations and reactive programming.
+- **URLSession**: For HTTP streaming and handling Server-Sent Events (SSE).
+- **Codable**: For type-safe JSON encoding and decoding.
+- **PhotosUI**: For accessing the photo library (specifically `PhotosPicker`).
+- **WebKit**: For in-app web browsing (used for ESPN Login via `WKWebView`).
+- **OpenAI Responses API**: GPT-4.1-Mini (or backend-configured model) with built-in tools integration.
 
 ## 🚀 Getting Started
 
-1. **Prerequisites**: iOS 16.0+, Xcode 15.0+
-2. **Backend Setup**: Ensure the Fantasy AI Backend is running. For production, this is typically `https://genius-backend-nhl3.onrender.com/advice`. For local development, ensure your local backend is running (e.g., at `http://localhost:8000`) and configure the app to point to it as described in the 'Local Development' subsection below.
-3. **Build & Run**: Open `ios-app.xcodeproj` in Xcode and run on simulator or device
+1.  **Prerequisites**: iOS 16.0+ (Verify specific version if changed), Xcode 15.0+ (Verify specific version).
+2.  **Backend Setup**: Ensure the Fantasy AI Backend is running.
+    *   **Production**: Typically `https://genius-backend-nhl3.onrender.com/advice`.
+    *   **Local Development**: Ensure your local backend is running (e.g., at `http://localhost:8000`).
+3.  **Build & Run**: Open `ios-app.xcodeproj` in Xcode and run on a simulator or physical device.
 
-### Local Development
-For local testing against a backend running on `http://localhost:8000`, you need to modify `ApiConfiguration.swift`:
+### Local Development Configuration
+To test against a local backend (e.g., `http://localhost:8000`):
 
-1. Open the file `ios-app/ios-app/ApiConfiguration.swift`.
-2. Locate the `getBackendBaseURL()` function.
-3. Inside the `#if DEBUG` block, comment out `return productionBackendURL` and uncomment `return localBackendURL`:
+1.  Open the file `ios-app/ios-app/ApiConfiguration.swift`.
+2.  Locate the `getBackendBaseURL()` function.
+3.  Inside the `#if DEBUG` block, ensure `return localBackendURL` is uncommented and `return productionBackendURL` is commented out:
 
-```swift
-#if DEBUG
-// In debug mode, you can uncomment the next line to use local backend
-return localBackendURL // Ensure this line is uncommented
-// return productionBackendURL // Ensure this line is commented out
-#else
-return productionBackendURL
-#endif
-```
-The app will then use `http://localhost:8000` for its API requests when built in the Debug configuration.
+    ```swift
+    #if DEBUG
+    // In debug mode, use the local backend
+    return localBackendURL // Ensure this line is uncommented
+    // return productionBackendURL // Ensure this line is commented out
+    #else
+    // In release mode, use the production backend
+    return productionBackendURL
+    #endif
+    ```
+The app will then use `http://localhost:8000` for its API requests when built in the `Debug` configuration.
 
-## 📂 Key Architecture Files
+## 📂 Key Files & Structure
 
-| File | Purpose |
-|------|---------|
-| `ChatViewModel.swift` | Core MVVM logic, Responses API integration, SSE handling |
-| `NetworkModels.swift` | Request/response structures with `previous_response_id` support |
-| `ApiConfiguration.swift` | Manages backend API endpoint URLs and distinguishes between local development and production environments. |
-| `Conversation.swift` | Defines the `Conversation` data model and includes the `ConversationManager` class for creating, managing, persisting, and tracking multiple chat sessions and their state (e.g., `lastResponseId`). |
-| `ContentView.swift` | Main UI with enhanced conversation controls |
-| `MessageBubble.swift` | Message display with structured advice rendering |
-| `WebView.swift` | Generic SwiftUI wrapper for `WKWebView` |
-| `ESPNLoginWebView.swift` | Specific `WebView` implementation for ESPN login flow |
-| `ESPNCookieManager.swift` | Manages ESPN session cookies (storage and retrieval) |
+| File/Directory         | Purpose                                                                                                                               |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `ios-app/`             | Main application module.                                                                                                              |
+| ├── `ContentView.swift`  | Root view managing overall UI layout (adapts to compact/regular size classes), navigation, and gesture handling.                    |
+| ├── `ChatViewModel.swift`| MVVM ViewModel for chat logic, API interaction, SSE handling, image processing, and state for a single conversation.                |
+| ├── `ConversationManager.swift` | Manages lifecycle of multiple `Conversation` objects (creation, storage, selection).                                         |
+| ├── `Conversation.swift` | Data model for a single conversation, including messages and `lastResponseId`.                                                        |
+| ├── `Message.swift`      | Data model for individual chat messages.                                                                                              |
+| ├── `NetworkModels.swift`| Defines `Codable` structures for API requests (e.g., `AdviceRequestPayload`) and responses.                                       |
+| ├── `ApiConfiguration.swift`| Manages backend API endpoint URLs (local/production) and model configuration.                                                      |
+| ├── `SidebarView.swift`  | UI for displaying conversation list and accessing settings; part of `NavigationSplitView` or slide-out panel.                     |
+| ├── `SettingsView.swift` | UI for application settings.                                                                                                          |
+| ├── `MessageBubble.swift`| View for rendering individual chat messages.                                                                                          |
+| ├── `InputBar.swift` (or similar) | Component for message input, photo picker, and send button.                                                                |
+| ├── `PhotosPicker`       | Utilized within input bar for image selection.                                                                                        |
+| ├── `WebView.swift`      | Generic SwiftUI wrapper for `WKWebView`.                                                                                              |
+| ├── `ESPNLoginWebView.swift` | Specific `WebView` implementation for the ESPN login flow.                                                                         |
+| ├── `ESPNCookieManager.swift` | Manages ESPN session cookies (storage and retrieval using `UserDefaults`).                                                        |
+| `Assets.xcassets/`     | App icons, custom colors (e.g., `appBackgroundColor`, `appPrimaryFontColor`).                                                         |
+| `ios-app.xcodeproj/`   | Xcode project file.                                                                                                                   |
 
 ## 🔌 API Integration
 
-- **Endpoint**: POST `/advice` with SSE streaming response
-- **Authentication**: Backend handles OpenAI API key
-- **Request Format**: `AdviceRequestPayload` with conversation context or `previous_response_id`
-- **Response Format**: SSE stream with structured `StructuredAdviceResponse`
+- **Endpoint**: `POST /advice` (or as configured in `ApiConfiguration.swift`) with an SSE streaming response.
+- **Authentication**: The backend service handles OpenAI API key management.
+- **Request Format**: `AdviceRequestPayload` (defined in `NetworkModels.swift`), which includes the user's message, and optionally `previousResponseId` for context continuity, along with other parameters like model choice or web search enablement.
+- **Response Format**: Server-Sent Events (SSE) stream, with events like `response.output_text.delta`, `response.web_search_call.searching`, `response.completed`, and custom events like `response_created` or `status_update`. These are parsed into structured data, often culminating in a `StructuredAdviceResponse` or similar model.
 
-### SSE Event Flow
+### SSE Event Flow Example
 ```
-1. User sends message → AdviceRequestPayload created
-2. Backend streams: status_update → text_delta → response_complete  
-3. iOS processes events → UI updates in real-time
-4. Response ID captured → stored for next conversation turn
+1. User types message and taps send (or attaches image).
+2. `ChatViewModel` prepares `AdviceRequestPayload`.
+   - If `conversation.lastResponseId` exists, it's included.
+   - Otherwise, full (or relevant part of) message history might be sent (though `previous_responseId` is preferred).
+3. Request is sent to the backend API.
+4. Backend streams SSE events:
+   - `response_created` (or similar custom event): provides the `responseId` for the current turn.
+   - `status_update`: provides intermediate status messages (e.g., "Searching web...").
+   - `response.output_text.delta`: streams parts of the AI's text response.
+   - `response.web_search_call.searching` / `response.web_search_call.results`: if web search is used.
+   - `response.completed`: signals the end of the AI's response for this turn.
+5. `ChatViewModel` processes these events in real-time:
+   - Updates `viewModel.messages` with new text.
+   - Displays status messages.
+   - Stores the `responseId` in `conversation.lastResponseId` upon completion or receipt.
+6. UI (e.g., `MessageListView`, `MessageBubble`) updates reactively to show new content and statuses.
 ```
 
 ## ESPN Integration Details
 
-The ESPN integration allows users to log into their ESPN accounts to potentially enable access to personalized fantasy sports data in future features.
+The ESPN integration allows users to log into their ESPN accounts. This is a foundational step for potential future features that might leverage personalized fantasy sports data.
 
 ### Login Flow
-1.  **Initiation**: The user navigates to "Settings" and selects the "ESPN Fantasy" integration option.
-2.  **WebView Presentation**: A `WKWebView` (via `ESPNLoginWebView.swift`) is presented as a sheet.
-3.  **Authentication URL**: The WebView loads the ESPN login page: `https://secure.web.plus.espn.com/identity/login?redirectUrl=https://www.espn.com/`.
-4.  **User Authentication**: The user enters their ESPN credentials directly into the web page provided by ESPN. The app does not handle or see these credentials.
-5.  **Redirection & Cookie Extraction**: Upon successful login, ESPN redirects the WebView to `https://www.espn.com/`. The `WebView`'s `WKNavigationDelegate` (the nested `Coordinator` class) detects this navigation completion.
-6.  **Cookie Retrieval**: The `Coordinator` then accesses `WKWebsiteDataStore.default().httpCookieStore` to retrieve all HTTP cookies for the `espn.com` domain.
+1.  **Initiation**: The user navigates to "Settings" (via `SidebarView`) and selects an "ESPN Fantasy" (or similar) integration option.
+2.  **WebView Presentation**: `ESPNLoginWebView.swift` (which uses the generic `WebView.swift`) is presented, typically as a sheet.
+3.  **Authentication URL**: The `WKWebView` loads the ESPN login page (e.g., `https://secure.web.plus.espn.com/identity/login?...`).
+4.  **User Authentication**: The user enters their ESPN credentials directly into the ESPN web page. The app itself does not handle or store these credentials.
+5.  **Redirection & Cookie Extraction**: Upon successful login, ESPN redirects the WebView (e.g., to `https://www.espn.com/`). The `WKNavigationDelegate` (the nested `Coordinator` class within `WebView.swift`) detects navigation completion for relevant domains.
+6.  **Cookie Retrieval**: The `Coordinator` accesses `WKWebsiteDataStore.default().httpCookieStore` to retrieve all HTTP cookies for the `espn.com` domain.
 7.  **Cookie Storage**: The `onCookiesAvailable` callback in `ESPNLoginWebView.swift` filters these cookies for `espn_s2` and `SWID`. If found, these are passed to `ESPNCookieManager.shared.saveCookies()`, which currently stores them in `UserDefaults`.
-8.  **Dismissal**: After the cookies are processed (saved or not), the `ESPNLoginWebView` is automatically dismissed.
+8.  **Dismissal**: After cookie processing, the `ESPNLoginWebView` is typically dismissed automatically.
 
 ### Using Stored Cookies
-To make authenticated requests to ESPN APIs (not yet implemented in this version but planned for), the stored cookies can be retrieved as a formatted header string:
+To make authenticated requests to ESPN APIs (for future features):
 ```swift
 if let cookieHeader = ESPNCookieManager.shared.getCookieHeader() {
     // Add this string to the "Cookie" HTTP header for your URLRequest
@@ -193,46 +276,45 @@ if let cookieHeader = ESPNCookieManager.shared.getCookieHeader() {
 ```
 
 ### Security Note
-Currently, cookies (`espn_s2` and `SWID`) are stored in `UserDefaults`. While convenient for development, `UserDefaults` is not a secure storage mechanism for sensitive session information. **For enhanced security in a production environment, these cookies should be migrated to Keychain storage.**
+Currently, ESPN session cookies (`espn_s2` and `SWID`) are stored in `UserDefaults`. While convenient for development, `UserDefaults` is **not secure** for sensitive session information. **For production, these cookies must be migrated to Keychain storage for enhanced security.**
 
-## 🛠️ Development Notes
+## 🛠️ Development Notes & Best Practices
 
-### Testing Context Management
-```swift
-// Test previous_response_id usage
-if let lastResponseId = conversation.lastResponseId {
-    // Continuing conversation - optimal approach
-    adviceRequest = AdviceRequestPayload(
-        userMessage: latestUserMessage.content,
-        previousResponseId: lastResponseId,
-        model: "gpt-4.1-mini"
-    )
-}
-```
+### Testing Context Management & UI Flow
+-   Verify that `previous_response_id` is correctly used when continuing conversations.
+-   Test the "New Conversation" functionality (toolbar button, swipe gesture) to ensure proper state reset and UI updates.
+-   Test settings presentation and dismissal in both compact and regular layouts.
+-   Validate image attachment flow: picking, previewing, sending, and (if applicable) displaying in chat.
+-   Check error handling for API issues and image loading failures.
 
-### Debugging Tools
-- **Toolbar Menu**: Access "Reset Context" for testing
-- **Console Logging**: SSE events and response ID tracking
-- **Error Handling**: Comprehensive error display and recovery
+### Debugging
+-   Use Xcode's console for logging SSE events, `responseId` tracking, and other debug information from `ChatViewModel` and `ConversationManager`.
+-   Leverage SwiftUI Previews for isolated component testing.
+-   Inspect `UserDefaults` (or Keychain, once implemented) to verify cookie storage if needed.
 
-## 📈 Performance Metrics
+### Code Style and Structure
+- Adhere to SwiftUI best practices (e.g., view composition, state management principles).
+- Keep ViewModels focused on presentation logic and data transformation.
+- Ensure services like `ConversationManager` and `ESPNCookieManager` have clear responsibilities.
 
-- **Token Reduction**: 60-80% fewer tokens using `previous_response_id`
-- **Response Time**: Faster due to server-side context management
-- **Memory Usage**: Efficient state management without full history storage
-- **Network Efficiency**: Minimal payload for continuing conversations
+## 📈 Performance
+- **Image Processing**: Images selected via `PhotosPicker` are processed asynchronously in `ContentView.swift` (`processImageData`):
+    - Resized to a maximum dimension (e.g., 1024px) to prevent excessive memory usage.
+    - Compressed (e.g., JPEG with 0.8 quality).
+    - Performance metrics (duration) for image processing are logged if exceeding a threshold.
+- **Lazy Loading**: `LazyVStack` is used in `messageListView` for efficient scrolling through messages.
+- **API Efficiency**: Use of `previous_response_id` significantly reduces token usage and improves response times for continued conversations.
+- **Memory Management**: `autoreleasepool` is used during image processing to manage memory for `UIImage` objects.
 
 ---
 
-## 🤖 AI Integration Details
+## 🤖 AI Integration Details (For AI Agents/Code Review)
 
-**For AI agents reviewing this implementation:**
+- **Core Logic**: `ChatViewModel.swift` is central to the AI interaction, managing the MVVM pattern, handling Responses API integration, SSE parsing, and state for individual conversations.
+- **State Management (Context)**: The system primarily uses `previous_response_id` (stored in `Conversation.lastResponseId`) for maintaining conversational context with the backend. This is crucial for efficient and contextually accurate AI responses.
+- **SSE Processing**: Robust line-by-line parsing of SSE events is implemented in `ChatViewModel.swift`, handling various event types including text deltas, status updates, completion signals, and response ID capture.
+- **Error Recovery**: The app includes mechanisms for displaying errors from the API and attempts graceful fallbacks where possible.
+- **Model Usage**: The app is designed to dynamically use the model specified by the backend configuration (via `ApiConfiguration.swift`), with a fallback to a default like `gpt-4.1-mini` if the backend config is unavailable. This aligns with OpenAI best practices.
+- **Data Models**: Type-safe `Codable` structs (e.g., `AdviceRequestPayload`, `StructuredAdviceResponse`, `Message`, `Conversation`) are used for API communication and local data persistence, ensuring consistency with backend contracts.
 
-- **Core Logic**: `ChatViewModel.swift` implements MVVM with Responses API integration
-- **State Management**: Uses `previous_response_id` for optimal context continuity  
-- **SSE Processing**: Robust line-by-line parsing with comprehensive event handling
-- **Error Recovery**: Graceful fallbacks and proper error propagation
-- **Model Usage**: Dynamically uses the model specified by the backend, falling back to `gpt-4.1-mini` if the backend configuration is unavailable. This aligns with OpenAI best practices for model selection and usage.
-- **Data Models**: Type-safe `Codable` structs matching backend API contracts
-
-The implementation follows OpenAI's official Responses API patterns and resolves all identified SSE issues for production-ready fantasy sports advice delivery.
+The implementation is aligned with OpenAI's official Responses API patterns and has resolved previously noted SSE issues, aiming for a production-ready delivery of fantasy sports advice.

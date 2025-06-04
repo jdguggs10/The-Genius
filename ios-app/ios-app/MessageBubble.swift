@@ -50,8 +50,6 @@ struct MessageBubble: View {
     var body: some View {
         VStack(alignment: horizontalAlignment, spacing: 2) { // Changed HStack to VStack for timestamp placement
             messageContentWrapper
-            // Timestamp only for non-assistant or if explicitly set for assistant
-            timestampView
         }
         .padding(.vertical, 5)
         .padding(.horizontal, 10) // Universal horizontal padding for the whole bubble container
@@ -174,14 +172,6 @@ struct MessageBubble: View {
         .padding(.top, 4)
     }
     
-    private var timestampView: some View {
-        Text(message.timestamp, style: .time)
-            .font(.caption2)
-            .foregroundColor(appPrimaryFontColor.opacity(0.6))
-            .padding(.trailing, isUserMessage ? 5 : 0)
-            .padding(.leading, !isUserMessage ? 5 : 0)
-    }
-
     private var copyButton: some View {
         Button {
             UIPasteboard.general.string = message.content

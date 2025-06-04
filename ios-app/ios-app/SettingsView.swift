@@ -55,6 +55,22 @@ struct SettingsView: View {
                         .foregroundColor(appPrimaryFontColor)
                 }
                 
+                // Dark Mode Preference Section
+                Section {
+                    Picker("", selection: $appSettings.darkModeOption) {
+                        ForEach(AppSettings.DarkModeOption.allCases) { option in
+                            Text(option.displayName).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
+                } header: {
+                    Text("Dark Mode")
+                        .font(horizontalSizeClass == .regular ? .title2 : .headline)
+                        .fontWeight(.semibold)
+                        .foregroundColor(appPrimaryFontColor)
+                }
+                
                 Section {
                     usageSection
                 } header: {
@@ -77,6 +93,13 @@ struct SettingsView: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(horizontalSizeClass == .regular ? .large : .inline) // Large title on iPad
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Image("appstore")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: horizontalSizeClass == .regular ? 32 : 24,
+                               height: horizontalSizeClass == .regular ? 32 : 24)
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
                         onDismiss?() // Call the dismiss callback first
@@ -104,7 +127,7 @@ struct SettingsView: View {
             Circle()
                 .fill(Color.blue.gradient)
                 .overlay(Text("FG").font(horizontalSizeClass == .regular ? .largeTitle : .title2).fontWeight(.semibold).foregroundColor(.white))
-                .frame(width: horizontalSizeClass == .regular ? 80 : 60, height: horizontalSizeClass == .regular ? 80 : 60)
+                .frame(width: horizontalSizeClass == .regular ? 80 : 66, height: horizontalSizeClass == .regular ? 80 : 66)
                 .clipShape(Circle())
             
             VStack(alignment: .leading, spacing: horizontalSizeClass == .regular ? 6 : 4) {
@@ -134,7 +157,8 @@ struct SettingsView: View {
     private var accountSection: some View {
         Group {
             HStack {
-                Label("Account Status", systemImage: "crown.fill").foregroundColor(.orange)
+                Label("Account Status", systemImage: "person.crop.circle.badge.checkmark")
+                    .foregroundColor(appPrimaryFontColor)
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("Genius Pro").font(.subheadline).fontWeight(.semibold).foregroundColor(.orange)
@@ -144,7 +168,8 @@ struct SettingsView: View {
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4) // Adaptive padding
 
             HStack {
-                Label("Manage Subscription", systemImage: "creditcard").foregroundColor(.accentColor)
+                Label("Manage Subscription", systemImage: "creditcard.and.arrow.up")
+                    .foregroundColor(appPrimaryFontColor)
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
@@ -158,7 +183,7 @@ struct SettingsView: View {
     // MARK: - Integrations Section
     private var integrationsSection: some View {
         Group {
-            integrationRow(title: "ESPN Fantasy", subtitle: "Connected", icon: "sportscourt.fill", iconColor: .red, isConnected: true)
+            integrationRow(title: "ESPN Fantasy", subtitle: "Connected", icon: "football.fill", iconColor: appPrimaryFontColor, isConnected: true)
                 .onTapGesture { // Modified onTapGesture
                     showingESPNLoginWebView = true
                 }
@@ -166,7 +191,8 @@ struct SettingsView: View {
             // integrationRow(title: "Sleeper", subtitle: "Not Connected", icon: "moon.zzz.fill", iconColor: .indigo, isConnected: false)
             
             HStack {
-                Label("Add Integration", systemImage: "plus.circle.fill").foregroundColor(.accentColor)
+                Label("Add Integration", systemImage: "plus.app.fill")
+                    .foregroundColor(appPrimaryFontColor)
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
@@ -209,7 +235,8 @@ struct SettingsView: View {
     private var usageSection: some View {
         Group {
             HStack {
-                Label("Monthly Usage", systemImage: "chart.bar.fill").foregroundColor(.accentColor)
+                Label("Monthly Usage", systemImage: "chart.bar.xaxis")
+                    .foregroundColor(appPrimaryFontColor)
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     Text("847 / 1000").font(.subheadline).fontWeight(.medium)
@@ -219,7 +246,8 @@ struct SettingsView: View {
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
 
             HStack {
-                Label("Usage History", systemImage: "calendar").foregroundColor(.accentColor)
+                Label("Usage History", systemImage: "clock.arrow.circlepath")
+                    .foregroundColor(appPrimaryFontColor)
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
@@ -228,7 +256,8 @@ struct SettingsView: View {
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
 
             HStack {
-                Label("Reset Usage", systemImage: "arrow.clockwise.circle.fill").foregroundColor(.orange)
+                Label("Reset Usage", systemImage: "arrow.counterclockwise.circle.fill")
+                    .foregroundColor(appPrimaryFontColor)
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
@@ -243,14 +272,16 @@ struct SettingsView: View {
     private var aboutSection: some View {
         Group {
             HStack {
-                Label("Version", systemImage: "info.circle.fill").foregroundColor(.accentColor)
+                Label("Version", systemImage: "app.badge.checkmark.fill")
+                    .foregroundColor(appPrimaryFontColor)
                 Spacer()
                 Text("1.0.0 (Build 1)").font(.subheadline).foregroundColor(.secondary)
             }
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
 
             HStack {
-                Label("What's New", systemImage: "sparkles").foregroundColor(.orange)
+                Label("What's New", systemImage: "star.bubble.fill")
+                    .foregroundColor(appPrimaryFontColor)
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
@@ -259,7 +290,8 @@ struct SettingsView: View {
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
 
             HStack {
-                Label("Help & Support", systemImage: "questionmark.circle.fill").foregroundColor(.green)
+                Label("Help & Support", systemImage: "lifepreserver.fill")
+                    .foregroundColor(appPrimaryFontColor)
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
@@ -268,7 +300,8 @@ struct SettingsView: View {
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
 
             HStack {
-                Label("Privacy Policy", systemImage: "doc.text.fill").foregroundColor(.gray)
+                Label("Privacy Policy", systemImage: "lock.doc.fill")
+                    .foregroundColor(appPrimaryFontColor)
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
@@ -277,7 +310,8 @@ struct SettingsView: View {
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
 
             HStack {
-                Label("Terms of Service", systemImage: "doc.text.fill").foregroundColor(.gray)
+                Label("Terms of Service", systemImage: "doc.plaintext.fill")
+                    .foregroundColor(appPrimaryFontColor)
                 Spacer()
                 Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
             }
@@ -286,21 +320,5 @@ struct SettingsView: View {
             .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
         }
         .font(horizontalSizeClass == .regular ? .headline : .body)
-    }
-}
-
-// MARK: - Preview
-struct SettingsView_Previews: PreviewProvider {
-    static var previews: some View {
-        SettingsView(isPresented: .constant(true))
-            .environmentObject(AppSettings())
-            .environmentObject(ConversationManager())
-            .previewDisplayName("Settings Light")
-        
-        SettingsView(isPresented: .constant(true))
-            .environmentObject(AppSettings())
-            .environmentObject(ConversationManager())
-            .preferredColorScheme(.dark)
-            .previewDisplayName("Settings Dark (Reference)")
     }
 }
