@@ -67,7 +67,7 @@ async def root():
     """
     Root endpoint providing basic info about the API.
     """
-    return """
+    return f"""
     <html>
         <head>
             <title>Fantasy AI Backend</title>
