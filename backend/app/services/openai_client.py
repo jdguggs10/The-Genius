@@ -17,6 +17,9 @@ from app.services.prompt_loader import prompt_loader
 # Import the schema validator
 from app.services.schema_validator import schema_validator
 
+# Import the PyBaseball service
+from app.services.pybaseball_service import PyBaseballService
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -122,8 +125,70 @@ async def get_streaming_response(
         logger.info(f"Using previous_response_id: {previous_response_id is not None}")
         logger.info(f"Using Step 2 architecture: {use_step2_architecture}")
         
-        # Prepare tools if web search is enabled
-        tools = [{"type": "web_search"}] if enable_web_search else None
+        # Prepare tools including PyBaseball integration
+        tools = []
+
+        # Add web search if enabled
+        if enable_web_search:
+            tools.append({"type": "web_search"})
+
+        # Add PyBaseball tools
+        tools.extend([
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_mlb_player_stats",
+                    "description": "Get season statistics for a specific MLB player",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "player_name": {
+                                "type": "string",
+                                "description": "Full name of the player (e.g., 'Shohei Ohtani')"
+                            },
+                            "year": {
+                                "type": "integer",
+                                "description": "Season year (optional, defaults to current year)"
+                            }
+                        },
+                        "required": ["player_name"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_mlb_standings",
+                    "description": "Get current MLB standings by division",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "year": {
+                                "type": "integer",
+                                "description": "Season year (optional)"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "search_mlb_players",
+                    "description": "Search for MLB players by partial name",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "search_term": {
+                                "type": "string",
+                                "description": "Partial name to search for"
+                            }
+                        },
+                        "required": ["search_term"]
+                    }
+                }
+            }
+        ])
         
         # Build the API call parameters
         api_params = {
@@ -133,10 +198,10 @@ async def get_streaming_response(
             "max_output_tokens": max_tokens,
         }
         
-        # Add tools if enabled
+        # Add tools if there are any
         if tools:
             api_params["tools"] = tools
-            
+        
         # Add previous response ID if provided
         if previous_response_id:
             api_params["previous_response_id"] = previous_response_id
@@ -188,6 +253,46 @@ async def get_streaming_response(
                 continue
             elif evt_type == "response.web_search_call.completed":
                 yield f"event: status_update\ndata: {json.dumps({'status': 'web_search_completed', 'message': 'Web search completed.'})}\n\n"
+            elif evt_type == "response.function_call":
+                # Handle function calls to PyBaseball service
+                if hasattr(event, 'function_call'):
+                    func_call = event.function_call
+                    func_name = func_call.name if hasattr(func_call, 'name') else ''
+                    
+                    yield f"event: status_update\ndata: {json.dumps({'status': 'function_call_started', 'message': f'Calling {func_name}...'})}\n\n"
+            elif evt_type == "response.function_call.done":
+                # Handle completed function calls to PyBaseball service
+                if hasattr(event, 'function_call'):
+                    func_call = event.function_call
+                    func_name = func_call.name if hasattr(func_call, 'name') else ''
+                    args = json.loads(func_call.arguments) if hasattr(func_call, 'arguments') else {}
+                    
+                    try:
+                        result = None
+                        
+                        # Route to appropriate PyBaseball function
+                        if func_name == "get_mlb_player_stats":
+                            result = await pybaseball_service.get_player_stats(
+                                args.get('player_name'),
+                                args.get('year')
+                            )
+                        elif func_name == "get_mlb_standings":
+                            result = await pybaseball_service.get_mlb_standings(
+                                args.get('year')
+                            )
+                        elif func_name == "search_mlb_players":
+                            result = await pybaseball_service.search_players(
+                                args.get('search_term')
+                            )
+                        
+                        if result:
+                            # Stream the tool result back
+                            yield f"event: tool_result\ndata: {json.dumps({'tool': func_name, 'result': result})}\n\n"
+                            yield f"event: status_update\ndata: {json.dumps({'status': 'function_call_completed', 'message': f'{func_name} completed.'})}\n\n"
+                            
+                    except Exception as e:
+                        logger.error(f"Error executing tool {func_name}: {e}")
+                        yield f"event: tool_error\ndata: {json.dumps({'tool': func_name, 'error': str(e)})}\n\n"
             elif evt_type == "response.output_item.done":
                 item_type = getattr(getattr(event, 'item', None), 'type', None)
                 if item_type == 'message':
@@ -335,15 +440,77 @@ def get_response(
         
         logger.info(f"Request to OpenAI Responses API model: {model}")
         
-        # Prepare tools if web search is enabled
-        tools = [{"type": "web_search"}] if enable_web_search else None
+        # Prepare tools including PyBaseball integration
+        tools = []
+
+        # Add web search if enabled
+        if enable_web_search:
+            tools.append({"type": "web_search"})
+
+        # Add PyBaseball tools
+        tools.extend([
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_mlb_player_stats",
+                    "description": "Get season statistics for a specific MLB player",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "player_name": {
+                                "type": "string",
+                                "description": "Full name of the player (e.g., 'Shohei Ohtani')"
+                            },
+                            "year": {
+                                "type": "integer",
+                                "description": "Season year (optional, defaults to current year)"
+                            }
+                        },
+                        "required": ["player_name"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_mlb_standings",
+                    "description": "Get current MLB standings by division",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "year": {
+                                "type": "integer",
+                                "description": "Season year (optional)"
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "search_mlb_players",
+                    "description": "Search for MLB players by partial name",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "search_term": {
+                                "type": "string",
+                                "description": "Partial name to search for"
+                            }
+                        },
+                        "required": ["search_term"]
+                    }
+                }
+            }
+        ])
         
         response = client.responses.create(
             model=model,
             input=full_prompt,
             stream=False,
             max_output_tokens=max_tokens,
-            tools=tools
+            tools=tools if tools else None
         )
         
         # Extract content from response
@@ -395,75 +562,3 @@ def get_response(
         logger.error(f"An unexpected error occurred: {e}")
         return StructuredAdvice(main_advice=f"Error: An unexpected error occurred. {e}")
 
-# Example usage for CLI testing (if __name__ == "__main__")
-async def main_cli():
-    print("Starting CLI for OpenAI Fantasy Sports Assistant...")
-    print("Using model:", OPENAI_DEFAULT_MODEL_INTERNAL)
-    print("Type 'exit' to quit, or 'searchon'/'searchoff' to toggle web search (currently illustrative).")
-    
-    enable_search_cli = False # Default search to off
-
-    while True:
-        try:
-            user_input = input("You: ")
-            if user_input.lower() == "exit":
-                break
-            if user_input.lower() == "searchon":
-                enable_search_cli = True
-                print("Web search (illustrative) is ON for next query.")
-                continue
-            if user_input.lower() == "searchoff":
-                enable_search_cli = False
-                print("Web search (illustrative) is OFF for next query.")
-                continue
-            
-            # --- Streaming Response Example (Commented out by default) ---
-            # print("\nAI Assistant (Streaming JSON Chunks):")
-            # accumulated_json = []
-            # async for chunk in get_streaming_response(user_input, enable_web_search=enable_search_cli):
-            #     print(chunk, end="", flush=True)
-            #     accumulated_json.append(chunk)
-            # print("\n--- End of Stream ---")
-            # try:
-            #     full_json_str = "".join(accumulated_json)
-            #     if full_json_str.strip(): # Ensure not empty
-            #         parsed_streamed_advice = StructuredAdvice.model_validate_json(full_json_str)
-            #         print("\nParsed Streamed Advice:")
-            #         print(parsed_streamed_advice.model_dump_json(indent=2))
-            #     else:
-            #         print("\nStream produced no JSON content.")
-            # except json.JSONDecodeError as e:
-            #     print(f"\nError decoding streamed JSON: {e}")
-            #     print(f"Received: {full_json_str}")
-            # except Exception as e:
-            #     print(f"\nError processing streamed response: {e}")
-            # print("\n")
-            
-            # --- Non-Streaming Response Example (Default for CLI) ---
-            print("\nAI Assistant (Structured JSON Response):")
-            response_obj = get_response(user_input, enable_web_search=enable_search_cli)
-            if response_obj: # Should always be a StructuredAdvice object due to error handling
-                print(response_obj.model_dump_json(indent=2))
-            else:
-                # This case should ideally not be reached if get_response always returns a StructuredAdvice
-                print("Error: No response object received.")
-            print("\n")
-
-        except KeyboardInterrupt:
-            print("\nExiting...")
-            break
-        except Exception as e:
-            print(f"CLI Error: {e}")
-            logger.exception("Exception in CLI loop")
-
-if __name__ == "__main__":
-    import asyncio
-    # To run the async main_cli in a synchronous context if this file is run directly
-    # For Python 3.7+
-    try:
-        asyncio.run(main_cli())
-    except KeyboardInterrupt:
-        print("Exiting via KeyboardInterrupt...")
-    except Exception as e:
-        print(f"Unhandled error in CLI: {e}")
-        logger.error(f"Unhandled error in CLI execution: {e}", exc_info=True)
