@@ -598,20 +598,9 @@ struct ContentView: View {
                 }
             }
             
-            // Handle cancellation during awaiting results
-            do {
-                for try await result in group {
-                    if let processedData = result {
-                        group.cancelAll() // Cancel any remaining tasks once we get a result
-                        return processedData
-                    }
-                }
-            } catch {
-                print("Task group processing error: \(error)")
-                group.cancelAll()
-            }
-            
-            return nil
+            // Retrieve the first completed task's result (if any) and cancel any remaining tasks
+            defer { group.cancelAll() }
+            return await group.next() ?? nil
         }
     }
 

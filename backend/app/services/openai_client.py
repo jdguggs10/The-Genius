@@ -514,7 +514,28 @@ async def get_streaming_response(
                     # Parse the validated content
                     if accumulated_content.strip().startswith('{'):
                         logger.info("Parsing accumulated content as JSON")
-                        parsed_advice = StructuredAdvice.model_validate_json(accumulated_content)
+                        try:
+                            # Try to parse the JSON
+                            json_content = json.loads(accumulated_content)
+                            
+                            # Check if we need to transform the JSON structure
+                            if 'message' in json_content and 'main_advice' not in json_content:
+                                logger.info("Transforming response format from 'message' to 'main_advice'")
+                                json_content['main_advice'] = json_content['message']
+                                # Keep the confidence if present
+                                if 'confidence' in json_content and 'confidence_score' not in json_content:
+                                    json_content['confidence_score'] = json_content['confidence']
+                                
+                                # Re-serialize the transformed JSON
+                                accumulated_content = json.dumps(json_content)
+                            
+                            parsed_advice = StructuredAdvice.model_validate_json(accumulated_content)
+                        except Exception as e:
+                            logger.error(f"Failed to parse or transform JSON: {e}")
+                            parsed_advice = StructuredAdvice(
+                                main_advice=accumulated_content.strip(),
+                                model_identifier=model
+                            )
                     else:
                         logger.info("Parsing accumulated content as plain text")
                         parsed_advice = StructuredAdvice(
@@ -717,18 +738,25 @@ def get_response(
                             # Try to parse as JSON first
                             try:
                                 if response_text.strip().startswith('{'):
+                                    # Transform JSON if needed
+                                    json_content = json.loads(response_text)
+                                    
+                                    # Map "message" to "main_advice" if needed
+                                    if 'message' in json_content and 'main_advice' not in json_content:
+                                        json_content['main_advice'] = json_content['message']
+                                        # Keep the confidence if present
+                                        if 'confidence' in json_content and 'confidence_score' not in json_content:
+                                            json_content['confidence_score'] = json_content['confidence']
+                                        
+                                        # Re-serialize the transformed JSON
+                                        response_text = json.dumps(json_content)
+                                    
                                     parsed_advice = StructuredAdvice.model_validate_json(response_text)
                                     if parsed_advice.model_identifier is None:
                                         parsed_advice.model_identifier = model
                                     return parsed_advice
                             except:
                                 pass
-                            
-                            # Fallback: create structured advice from text
-                            return StructuredAdvice(
-                                main_advice=response_text.strip(),
-                                model_identifier=model
-                            )
         
         # Fallback error case
         return StructuredAdvice(

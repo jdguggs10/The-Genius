@@ -207,21 +207,29 @@ The app will then use `http://localhost:8000` for its API requests when built in
 | File/Directory         | Purpose                                                                                                                               |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | `ios-app/`             | Main application module.                                                                                                              |
-| ├── `ContentView.swift`  | Root view managing overall UI layout (adapts to compact/regular size classes), navigation, and gesture handling.                    |
+| ├── `ContentView.swift`  | Root view managing overall UI layout (adapts to compact/regular size classes), navigation, and gesture handling. Also handles input bar functionality. |
 | ├── `ChatViewModel.swift`| MVVM ViewModel for chat logic, API interaction, SSE handling, image processing, and state for a single conversation.                |
-| ├── `ConversationManager.swift` | Manages lifecycle of multiple `Conversation` objects (creation, storage, selection).                                         |
 | ├── `Conversation.swift` | Data model for a single conversation, including messages and `lastResponseId`.                                                        |
-| ├── `Message.swift`      | Data model for individual chat messages.                                                                                              |
+| ├── `Models.swift`       | Contains core data models for the application, such as `Message`.                                                                     |
 | ├── `NetworkModels.swift`| Defines `Codable` structures for API requests (e.g., `AdviceRequestPayload`) and responses.                                       |
 | ├── `ApiConfiguration.swift`| Manages backend API endpoint URLs (local/production) and model configuration.                                                      |
-| ├── `SidebarView.swift`  | UI for displaying conversation list and accessing settings; part of `NavigationSplitView` or slide-out panel.                     |
+| ├── `SidebarView.swift`  | UI for displaying conversation list and accessing settings; part of `NavigationSplitView` or slide-out panel. Works with `ContentView` and `ChatViewModel` for conversation management. |
 | ├── `SettingsView.swift` | UI for application settings.                                                                                                          |
-| ├── `MessageBubble.swift`| View for rendering individual chat messages.                                                                                          |
-| ├── `InputBar.swift` (or similar) | Component for message input, photo picker, and send button.                                                                |
-| ├── `PhotosPicker`       | Utilized within input bar for image selection.                                                                                        |
+| ├── `MessageRow.swift`   | View for displaying a single row in the chat, containing either a user or assistant message.                                        |
+| ├── `AssistantBubble.swift`| View for rendering AI/assistant messages with specific styling.                                                                     |
+| ├── `UserBubble.swift`   | View for rendering user messages with specific styling.                                                                               |
+| ├── `BubbleShell.swift`  | A container view or modifier for chat bubbles, providing common styling or layout.                                                  |
+| ├── `MessageBubble.swift`| Generic view for rendering individual chat messages, potentially used by or in conjunction with `AssistantBubble` and `UserBubble`. |
+| ├── `DetailsCardView.swift`| A reusable card view component for displaying detailed information.                                                                 |
+| ├── `Constants.swift`    | Defines global constants used throughout the application.                                                                            |
+| ├── `AppSettings.swift`  | Manages application-level settings and their persistence.                                                                           |
+| ├── `LoginView.swift`    | Provides a UI for user authentication.                                                                                                |
+| ├── `ios_appApp.swift`   | The main entry point of the application, conforming to the `App` protocol.                                                            |
+| ├── `PhotosPicker`       | (SwiftUI Component) Utilized for image selection from the user's photo library.                                                      |
 | ├── `WebView.swift`      | Generic SwiftUI wrapper for `WKWebView`.                                                                                              |
 | ├── `ESPNLoginWebView.swift` | Specific `WebView` implementation for the ESPN login flow.                                                                         |
 | ├── `ESPNCookieManager.swift` | Manages ESPN session cookies (storage and retrieval using `UserDefaults`).                                                        |
+| ├── `ios-app.entitlements` | Project configuration file defining application capabilities and permissions.                                                       |
 | `Assets.xcassets/`     | App icons, custom colors (e.g., `appBackgroundColor`, `appPrimaryFontColor`).                                                         |
 | `ios-app.xcodeproj/`   | Xcode project file.                                                                                                                   |
 
@@ -315,6 +323,6 @@ Currently, ESPN session cookies (`espn_s2` and `SWID`) are stored in `UserDefaul
 - **SSE Processing**: Robust line-by-line parsing of SSE events is implemented in `ChatViewModel.swift`, handling various event types including text deltas, status updates, completion signals, and response ID capture.
 - **Error Recovery**: The app includes mechanisms for displaying errors from the API and attempts graceful fallbacks where possible.
 - **Model Usage**: The app is designed to dynamically use the model specified by the backend configuration (via `ApiConfiguration.swift`), with a fallback to a default like `gpt-4.1-mini` if the backend config is unavailable. This aligns with OpenAI best practices.
-- **Data Models**: Type-safe `Codable` structs (e.g., `AdviceRequestPayload`, `StructuredAdviceResponse`, `Message`, `Conversation`) are used for API communication and local data persistence, ensuring consistency with backend contracts.
+- **Data Models**: Type-safe `Codable` structs (e.g., `AdviceRequestPayload`, `StructuredAdviceResponse` (from `NetworkModels.swift`), `Message` (from `Models.swift`), `Conversation`) are used for API communication and local data persistence, ensuring consistency with backend contracts.
 
 The implementation is aligned with OpenAI's official Responses API patterns and has resolved previously noted SSE issues, aiming for a production-ready delivery of fantasy sports advice.

@@ -8,12 +8,12 @@
 import Foundation
 import UIKit
 
-// Message model representing a chat message
-struct Message: Identifiable, Equatable {
+// Chat message model representing a chat message
+struct ChatMessage: Identifiable, Equatable, Codable {
     let id: String
     let createdAt: Date
     let role: MessageRole
-    let content: String
+    var content: String
     let attachments: [Attachment]
     var structuredAdvice: StructuredAdviceResponse?
     
@@ -22,7 +22,7 @@ struct Message: Identifiable, Equatable {
         case assistant
     }
     
-    struct Attachment: Equatable {
+    struct Attachment: Equatable, Codable {
         let type: AttachmentType
         let data: Data?
         
@@ -32,29 +32,9 @@ struct Message: Identifiable, Equatable {
         }
     }
     
-    static func == (lhs: Message, rhs: Message) -> Bool {
+    static func == (lhs: ChatMessage, rhs: ChatMessage) -> Bool {
         return lhs.id == rhs.id
     }
 }
 
-// Structured advice format for AI responses
-struct StructuredAdviceResponse: Codable {
-    let mainAdvice: String
-    let reasoning: String?
-    let confidenceScore: Double?
-    let alternatives: [Alternative]?
-    let modelIdentifier: String?
-    
-    struct Alternative: Codable {
-        let player: String
-        let reason: String?
-    }
-    
-    enum CodingKeys: String, CodingKey {
-        case mainAdvice = "main_advice"
-        case reasoning
-        case confidenceScore = "confidence_score"
-        case alternatives
-        case modelIdentifier = "model_identifier"
-    }
-} 
+// Removed duplicate StructuredAdviceResponse struct - using the one from NetworkModels.swift 

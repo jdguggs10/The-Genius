@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct AssistantBubble: View {
-    let message: Message
+    let message: ChatMessage
     @State private var showingDetailsOverlay = false
     @State private var showCopyConfirmation = false
     

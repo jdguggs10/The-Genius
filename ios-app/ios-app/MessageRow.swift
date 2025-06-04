@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct MessageRow: View {
-    let message: Message
+    let message: ChatMessage
     
     var body: some View {
         if message.role == .user {
@@ -21,7 +21,7 @@ struct MessageRow: View {
 
 #Preview {
     VStack {
-        MessageRow(message: Message(
+        MessageRow(message: ChatMessage(
             id: UUID().uuidString,
             createdAt: Date(),
             role: .user,
@@ -29,7 +29,7 @@ struct MessageRow: View {
             attachments: []
         ))
         
-        MessageRow(message: Message(
+        MessageRow(message: ChatMessage(
             id: UUID().uuidString,
             createdAt: Date(),
             role: .assistant,

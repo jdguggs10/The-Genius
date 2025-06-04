@@ -11,12 +11,12 @@ import SwiftUI
 struct Conversation: Identifiable, Codable, Equatable {
     let id: UUID
     var title: String
-    var messages: [Message]
+    var messages: [ChatMessage]
     let createdDate: Date
     var lastMessageDate: Date
     var lastResponseId: String? // Track the last OpenAI response ID for context continuity
     
-    init(id: UUID = UUID(), title: String = "New Chat", messages: [Message] = []) {
+    init(id: UUID = UUID(), title: String = "New Chat", messages: [ChatMessage] = []) {
         self.id = id
         self.title = title
         self.messages = messages

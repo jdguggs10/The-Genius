@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct UserBubble: View {
-    let message: Message
+    let message: ChatMessage
     @State private var showCopyConfirmation = false
     
     var body: some View {
@@ -34,14 +34,15 @@ struct UserBubble: View {
     }
     
     private func textBubble() -> some View {
-        BubbleShell(corners: [.topLeft, .bottomLeft, .topRight]) {
+        BubbleShell(corners: [.topLeft, .topRight, .bottomLeft, .bottomRight]) {
             Text(message.content)
                 .font(.system(size: 16))
-                .foregroundColor(.white)
+                .foregroundColor(.black)
                 .lineSpacing(3)
                 .textSelection(.enabled)
         }
-        .background(AppColors.primaryFontColor)
+        .cornerRadius(10)
+        .background(Color.white.cornerRadius(10))
         .shadow(color: Color.black.opacity(0.05), radius: 2, x: 1, y: 1)
     }
     

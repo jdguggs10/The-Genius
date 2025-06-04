@@ -7,12 +7,12 @@
 
 import Foundation
 
-// Re-using MessageRole from Message.swift, assuming it's accessible.
+// Re-using MessageRole from ChatMessage in Models.swift
 // If not, it should be defined here or imported appropriately.
 
 /// Payload for a single message in the conversation history sent to the backend.
 struct MessagePayload: Codable {
-    let role: MessageRole // Assuming MessageRole is defined in Message.swift and accessible
+    let role: ChatMessage.MessageRole
     let content: String
 }
 
@@ -49,7 +49,7 @@ struct AdviceRequestPayload: Codable {
 }
 
 /// Represents an alternative piece of advice.
-struct AdviceAlternativePayload: Codable, Equatable {
+struct Alternative: Codable, Equatable {
     let player: String
     let reason: String?
 }
@@ -64,7 +64,7 @@ struct StructuredAdviceResponse: Codable, Identifiable, Equatable {
     let mainAdvice: String
     let reasoning: String?
     let confidenceScore: Double?
-    let alternatives: [AdviceAlternativePayload]?
+    let alternatives: [Alternative]?
     let modelIdentifier: String?
     let responseId: String? // Add response ID for future reference
 

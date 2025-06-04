@@ -42,6 +42,31 @@ class SchemaValidator:
                 "required": ["main_advice"]
             }
     
+    def _transform_json_format(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Transform JSON data to match our schema if needed.
+        Maps "message" to "main_advice" and "confidence" to "confidence_score" when appropriate.
+        
+        Args:
+            data: The parsed JSON data to transform
+            
+        Returns:
+            Transformed data that better matches our schema
+        """
+        transformed = data.copy()
+        
+        # Transform message to main_advice if needed
+        if 'message' in transformed and 'main_advice' not in transformed:
+            transformed['main_advice'] = transformed['message']
+            logger.info("Transformed 'message' field to 'main_advice'")
+        
+        # Transform confidence to confidence_score if needed
+        if 'confidence' in transformed and 'confidence_score' not in transformed:
+            transformed['confidence_score'] = transformed['confidence']
+            logger.info("Transformed 'confidence' field to 'confidence_score'")
+            
+        return transformed
+    
     def validate_json(self, json_data: Union[str, Dict[str, Any]]) -> tuple[bool, Optional[str]]:
         """
         Validate JSON data against the schema.
@@ -62,8 +87,11 @@ class SchemaValidator:
             else:
                 data = json_data
             
+            # Apply transformations to better match our schema
+            transformed_data = self._transform_json_format(data)
+            
             # Validate against schema
-            validate(instance=data, schema=self.schema)
+            validate(instance=transformed_data, schema=self.schema)
             return True, None
             
         except ValidationError as e:
@@ -96,12 +124,33 @@ class SchemaValidator:
         # For partial responses, check if it's potentially valid JSON
         try:
             # Try to parse as JSON - if it fails, it might be incomplete
-            json.loads(accumulated_json)
+            data = json.loads(accumulated_json)
+            
+            # Apply transformations for better schema compatibility
+            transformed_data = self._transform_json_format(data)
+            
             # If it parses, validate against schema
-            return self.validate_json(accumulated_json)
+            validate(instance=transformed_data, schema=self.schema)
+            return True, None
         except json.JSONDecodeError:
             # Incomplete JSON is expected during streaming
             return True, None
+        except ValidationError as e:
+            if is_complete:
+                # Only report validation errors for complete responses
+                error_msg = f"Schema validation failed: {e.message}"
+                logger.warning(error_msg)
+                return False, error_msg
+            else:
+                # During streaming, we're lenient with incomplete structures
+                return True, None
+        except Exception as e:
+            if is_complete:
+                error_msg = f"Validation error: {e}"
+                logger.error(error_msg)
+                return False, error_msg
+            else:
+                return True, None
     
     def create_fallback_response(self, original_text: str, error_msg: str) -> Dict[str, Any]:
         """
@@ -114,6 +163,31 @@ class SchemaValidator:
         Returns:
             Valid StructuredAdvice dict
         """
+        # Try to extract useful content from original_text if it's JSON
+        try:
+            if original_text.strip().startswith('{'):
+                data = json.loads(original_text)
+                
+                # Extract message or main_advice
+                main_advice = data.get('main_advice', data.get('message', ''))
+                
+                # Extract confidence or confidence_score
+                confidence = data.get('confidence_score', data.get('confidence', 0.1))
+                
+                # Extract reasoning if available
+                reasoning = data.get('reasoning', f"Response validation failed: {error_msg}")
+                
+                return {
+                    "main_advice": main_advice or "Sorry, I encountered an error generating a response.",
+                    "reasoning": reasoning,
+                    "confidence_score": confidence,
+                    "alternatives": None,
+                    "model_identifier": "validation_fallback"
+                }
+        except Exception:
+            # If parsing fails, use the default fallback
+            pass
+            
         return {
             "main_advice": original_text.strip() or "Sorry, I encountered an error generating a response.",
             "reasoning": f"Response validation failed: {error_msg}",

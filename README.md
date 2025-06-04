@@ -70,6 +70,22 @@ The Genius Project
     - Native iOS design following Apple Human Interface Guidelines.
     - Conversation management and sharing.
 
+    - **Recent ContentView Refinements & Structure (as of latest review):**
+        - **Adaptive UI Core**: `ContentView.swift` implements a sophisticated adaptive UI, distinguishing between compact and regular horizontal size classes.
+            - *Compact (e.g., iPhone)*: Features a ZStack-based slide-out sidebar for navigation and presents settings via a sheet.
+            - *Regular (e.g., iPad)*: Utilizes `NavigationSplitView` for a persistent sidebar and integrates settings into the detail column.
+        - **Modern SwiftUI Practices**:
+            - Extensive use of `async/await` for non-blocking operations, especially in photo selection and processing.
+            - `PhotosPicker` for modern image selection (iOS 16+).
+            - `LazyVStack` for efficient rendering of message lists.
+            - State management primarily through `@State`, `@StateObject` (`ChatViewModel`), and `@EnvironmentObject` (`ConversationManager`).
+            - Component-based approach is evident, with helper views like `InputBar` and `AttachmentPreviewSection` (though `ContentView` itself is comprehensive and manages core chat UI methods).
+        - **Performance & UX**:
+            - Asynchronous image processing includes resizing to optimize memory and performance, with built-in timeouts.
+            - Debounced scrolling in the chat view enhances user experience during rapid message updates.
+            - Custom keyboard dismissal gestures.
+        - **Lifecycle Aware**: Handles application lifecycle events (e.g., going to background) to cancel ongoing tasks like data streaming.
+
 ### 3. Backend API (`/backend`)
 - **Description**: The central server that handles business logic and AI integration.
 - **Technology**: Python, FastAPI.

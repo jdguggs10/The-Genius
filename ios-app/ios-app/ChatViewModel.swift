@@ -9,7 +9,7 @@ import SwiftUI
 
 @MainActor
 class ChatViewModel: ObservableObject {
-    @Published private(set) var messages: [Message] = []
+    @Published private(set) var messages: [ChatMessage] = []
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var isSearching: Bool = false
     @Published private(set) var streamingText: String = ""
@@ -30,10 +30,10 @@ class ChatViewModel: ObservableObject {
     // MARK: - Message Windowing for Performance
     private let maxVisibleMessages = 1000 // Maximum messages to keep in memory
     private let messageBuffer = 50 // Buffer of additional messages to keep
-    private var allMessages: [Message] = [] // Complete conversation history
+    private var allMessages: [ChatMessage] = [] // Complete conversation history
     
     /// Computed property that returns windowed messages for display
-    var displayMessages: [Message] {
+    var displayMessages: [ChatMessage] {
         // For conversations under the limit, return all messages
         guard allMessages.count > maxVisibleMessages else {
             return allMessages
@@ -120,7 +120,7 @@ class ChatViewModel: ObservableObject {
             // Create a new conversation if none exist
             let newConversation = manager.createNewConversation()
             self.currentConversationId = newConversation.id
-            let welcomeMessage = Message(role: .assistant, content: "Welcome to Fantasy Genius! How can I help you today?")
+            let welcomeMessage = ChatMessage(id: UUID().uuidString, createdAt: Date(), role: .assistant, content: "Welcome to Fantasy Genius! How can I help you today?", attachments: [], structuredAdvice: nil)
             self.allMessages = [welcomeMessage]
             self.messages = displayMessages
         }
@@ -137,13 +137,16 @@ class ChatViewModel: ObservableObject {
         guard !trimmedInput.isEmpty || !draftAttachmentData.isEmpty else { return }
         
         let attachments = draftAttachmentData.map { data in
-            ChatAttachment(type: .image, data: data) // Assuming images for now
+            ChatMessage.Attachment(type: .image, data: data) // Assuming images for now
         }
         
-        let userMessage = Message(
+        let userMessage = ChatMessage(
+            id: UUID().uuidString,
+            createdAt: Date(),
             role: .user,
             content: trimmedInput,
-            attachments: attachments
+            attachments: attachments,
+            structuredAdvice: nil
         )
         
         // Add to complete message history
@@ -201,7 +204,14 @@ class ChatViewModel: ObservableObject {
             self.statusMessage = nil
             self.currentErrorMessage = nil
             
-            let assistantMessagePlaceholder = Message(role: .assistant, content: "")
+            let assistantMessagePlaceholder = ChatMessage(
+                id: UUID().uuidString,
+                createdAt: Date(),
+                role: .assistant,
+                content: "",
+                attachments: [],
+                structuredAdvice: nil
+            )
             
             // Add to both allMessages and displayed messages with windowing
             self.allMessages.append(assistantMessagePlaceholder)
@@ -470,12 +480,12 @@ class ChatViewModel: ObservableObject {
             let responseId = finalJson["response_id"] as? String
             
             // Parse alternatives array
-            var alternatives: [AdviceAlternativePayload] = []
+            var alternatives: [Alternative] = []
             if let alternativesArray = finalJson["alternatives"] as? [[String: Any]] {
-                alternatives = alternativesArray.compactMap { altDict -> AdviceAlternativePayload? in
+                alternatives = alternativesArray.compactMap { altDict -> Alternative? in
                     guard let player = altDict["player"] as? String else { return nil }
                     let reason = altDict["reason"] as? String
-                    return AdviceAlternativePayload(player: player, reason: reason)
+                    return Alternative(player: player, reason: reason)
                 }
             }
             
@@ -647,7 +657,7 @@ class ChatViewModel: ObservableObject {
         currentConversationId = newConversation.id
         
         // Reset conversation state with message windowing
-        let welcomeMessage = Message(role: .assistant, content: "Welcome to Fantasy Genius! How can I help you today?")
+        let welcomeMessage = ChatMessage(id: UUID().uuidString, createdAt: Date(), role: .assistant, content: "Welcome to Fantasy Genius! How can I help you today?", attachments: [], structuredAdvice: nil)
         allMessages = [welcomeMessage]
         messages = displayMessages
         
@@ -683,7 +693,7 @@ class ChatViewModel: ObservableObject {
     }
     
     /// Add a message to the conversation
-    func addMessage(_ message: Message) {
+    func addMessage(_ message: ChatMessage) {
         allMessages.append(message)
         messages = displayMessages
         updateCurrentConversation()

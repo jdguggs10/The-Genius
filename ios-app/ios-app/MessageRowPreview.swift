@@ -10,7 +10,7 @@ import SwiftUI
 #Preview {
     VStack(spacing: 20) {
         // User message with text
-        MessageRow(message: Message(
+        MessageRow(message: ChatMessage(
             id: UUID().uuidString,
             createdAt: Date(),
             role: .user,
@@ -41,7 +41,7 @@ import SwiftUI
         let jsonData = adviceJSON.data(using: .utf8)!
         let advice = try! JSONDecoder().decode(StructuredAdviceResponse.self, from: jsonData)
         
-        MessageRow(message: Message(
+        MessageRow(message: ChatMessage(
             id: UUID().uuidString,
             createdAt: Date(),
             role: .assistant,
@@ -52,12 +52,12 @@ import SwiftUI
         
         // User message with image
         if let image = UIImage(named: "Image"), let imageData = image.jpegData(compressionQuality: 0.8) {
-            MessageRow(message: Message(
+            MessageRow(message: ChatMessage(
                 id: UUID().uuidString,
                 createdAt: Date(),
                 role: .user,
                 content: "Check out this image",
-                attachments: [Message.Attachment(type: .image, data: imageData)]
+                attachments: [ChatMessage.Attachment(type: .image, data: imageData)]
             ))
         }
     }

@@ -9,7 +9,7 @@ import SwiftUI
 // This file is now a simple wrapper for backward compatibility
 // New code should use MessageRow directly
 struct MessageBubble: View {
-    let message: Message
+    let message: ChatMessage
     
     var body: some View {
         MessageRow(message: message)
