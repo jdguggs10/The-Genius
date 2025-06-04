@@ -10,8 +10,10 @@ import SwiftUI
 // New code should use MessageRow directly
 struct MessageBubble: View {
     let message: ChatMessage
-    
+    @EnvironmentObject private var viewModel: ChatViewModel
+
     var body: some View {
         MessageRow(message: message)
+            .environmentObject(viewModel)
     }
 }

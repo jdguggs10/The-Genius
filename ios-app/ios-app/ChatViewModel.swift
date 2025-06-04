@@ -13,6 +13,7 @@ class ChatViewModel: ObservableObject {
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var isSearching: Bool = false
     @Published private(set) var streamingText: String = ""
+    @Published private(set) var streamingMessageId: String? = nil
     @Published private(set) var statusMessage: String? = nil
     @Published var draftAttachmentData: [Data] = []
     
@@ -212,10 +213,11 @@ class ChatViewModel: ObservableObject {
                 attachments: [],
                 structuredAdvice: nil
             )
-            
+
             // Add to both allMessages and displayed messages with windowing
             self.allMessages.append(assistantMessagePlaceholder)
             self.messages = self.displayMessages
+            self.streamingMessageId = assistantMessagePlaceholder.id
             
             // Find the placeholder in the displayed messages (not allMessages)
             guard let assistantMessageIndex = self.messages.lastIndex(where: { $0.id == assistantMessagePlaceholder.id }) else {
@@ -417,6 +419,7 @@ class ChatViewModel: ObservableObject {
             
             self.setLoadingState(false)
             self.streamingText = ""
+            self.streamingMessageId = nil
             self.saveConversation()
             
             // Clean up task reference when complete
@@ -432,6 +435,7 @@ class ChatViewModel: ObservableObject {
     // Cancel any active streaming request
     func cancelStreamingRequest() {
         activeStreamingTask?.cancel()
+        streamingMessageId = nil
     }
     
     // MARK: - Async JSON Parsing Functions
@@ -545,6 +549,7 @@ class ChatViewModel: ObservableObject {
         } else if eventType == "text_delta" {
             if let delta = await parseTextDelta(data) {
                 accumulatedText += delta
+                streamingText = accumulatedText
 
                 // Update both allMessages and displayed messages
                 let messageId = messages[messageIndex].id
@@ -576,6 +581,8 @@ class ChatViewModel: ObservableObject {
                 updatedMessage.content = responseData.advice.mainAdvice
                 updatedMessage.structuredAdvice = responseData.advice
 
+                streamingText = responseData.advice.mainAdvice
+
                 // Signal change before updating
                 objectWillChange.send()
                 messages[messageIndex] = updatedMessage
@@ -593,11 +600,12 @@ class ChatViewModel: ObservableObject {
                 if let allMessageIndex = allMessages.lastIndex(where: { $0.id == messageId }) {
                     allMessages[allMessageIndex].content = "Error: \(errorMessage)"
                 }
-                
+
                 var updatedMessage = messages[messageIndex]
                 updatedMessage.content = "Error: \(errorMessage)"
                 messages[messageIndex] = updatedMessage
                 currentErrorMessage = "Error: \(errorMessage)"
+                streamingMessageId = nil
             }
         } else if eventType == "response_created" {
             // Handle response creation event to potentially extract response ID early
@@ -620,6 +628,7 @@ class ChatViewModel: ObservableObject {
             // Handle official Responses API text delta format
             if let delta = await parseTextDelta(data) {
                 accumulatedText += delta
+                streamingText = accumulatedText
 
                 // Update both allMessages and displayed messages
                 let messageId = messages[messageIndex].id
@@ -640,6 +649,7 @@ class ChatViewModel: ObservableObject {
             // Handle official completion event
             statusMessage = nil
             isSearching = false
+            streamingMessageId = nil
         }
         // Note: Unhandled event types are silently ignored per Responses API best practices
         return nil
@@ -667,6 +677,7 @@ class ChatViewModel: ObservableObject {
         isLoading = false
         isSearching = false
         streamingText = ""
+        streamingMessageId = nil
         statusMessage = nil
     }
     
@@ -718,5 +729,6 @@ class ChatViewModel: ObservableObject {
     private func setError(_ message: String) {
         currentErrorMessage = message
         setLoadingState(false)
+        streamingMessageId = nil
     }
 }
