@@ -15,6 +15,7 @@ from app.services.web_search_discipline import web_search_discipline, SearchDeci
 from app.services.response_logger import response_logger # Step 5: Import response logger
 from app.services.confidence_scoring import confidence_scoring_service # Step 5: Import confidence service
 from app.services.confidence_phrase_tuner import confidence_phrase_tuner # Step 5: Import phrase tuner
+from app.services.pybaseball_service import pybaseball_service # Import the PyBaseball service
 
 # from app.services.chat_service import (
 #     handle_advice_request,
@@ -22,7 +23,6 @@ from app.services.confidence_phrase_tuner import confidence_phrase_tuner # Step 
 #     get_current_openai_model_from_env  # Assuming this might be useful or refactored
 # )
 #from app.services.espn_api_service import get_espn_api_data_sync
-# from app.services.pybaseball_service import get_pybaseball_data_sync
 # from app.utils.logging_config import get_logger
 # from app.utils.rate_limiter import get_limiter_key 
 
@@ -545,6 +545,64 @@ async def get_default_openai_model_endpoint(): # Renamed to avoid conflict if ge
 # Make sure to include your main api_router if it contains other endpoints like /advice
 # Example: app.include_router(api_router, prefix="/api/v1") 
 app.include_router(settings_router)
+
+# Add a new endpoint to test PyBaseball service connection
+@app.get("/pybaseball/health")
+async def pybaseball_health_check():
+    """Check if the PyBaseball service is accessible."""
+    try:
+        # Test the connection by searching for a player
+        result = await pybaseball_service.search_players("Trout")
+        return {"status": "ok", "message": "Successfully connected to PyBaseball service", "sample_data": result[:100] + "..." if len(result) > 100 else result}
+    except Exception as e:
+        logger.error(f"Error connecting to PyBaseball service: {e}")
+        return {"status": "error", "message": f"Error connecting to PyBaseball service: {str(e)}"}
+
+# Add baseball data endpoints
+@app.get("/pybaseball/player/{player_name}")
+async def get_player_stats(player_name: str, year: Optional[int] = None):
+    """Get statistics for a specific player."""
+    try:
+        result = await pybaseball_service.get_player_stats(player_name, year)
+        return {"status": "ok", "data": result}
+    except Exception as e:
+        logger.error(f"Error getting player stats: {e}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving player data: {str(e)}")
+
+@app.get("/pybaseball/standings")
+async def get_standings(year: Optional[int] = None):
+    """Get MLB standings."""
+    try:
+        result = await pybaseball_service.get_mlb_standings(year)
+        return {"status": "ok", "data": result}
+    except Exception as e:
+        logger.error(f"Error getting standings: {e}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving standings: {str(e)}")
+
+@app.get("/pybaseball/leaders/{stat}")
+async def get_stat_leaders(
+    stat: str, 
+    year: Optional[int] = None,
+    top_n: int = Query(10, ge=1, le=50),
+    player_type: str = Query("batting", pattern="^(batting|pitching)$")
+):
+    """Get MLB statistical leaders."""
+    try:
+        result = await pybaseball_service.get_stat_leaders(stat, year, top_n, player_type)
+        return {"status": "ok", "data": result}
+    except Exception as e:
+        logger.error(f"Error getting stat leaders: {e}")
+        raise HTTPException(status_code=500, detail=f"Error retrieving stat leaders: {str(e)}")
+
+@app.get("/pybaseball/search/{search_term}")
+async def search_players(search_term: str):
+    """Search for MLB players by name."""
+    try:
+        result = await pybaseball_service.search_players(search_term)
+        return {"status": "ok", "data": result}
+    except Exception as e:
+        logger.error(f"Error searching players: {e}")
+        raise HTTPException(status_code=500, detail=f"Error searching players: {str(e)}")
 
 # To run this app (for development):
 # uvicorn app.main:app --reload

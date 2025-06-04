@@ -17,6 +17,8 @@ services:
           type: redis
           name: genius-redis
           property: connectionString
+      - key: PYBASEBALL_SERVICE_URL
+        value: https://genius-pybaseball.onrender.com
     autoDeploy: true  # Automatically deploy when you push to GitHub
 
   # Redis database for rate limiting (keeps track of how many messages each user has sent)
