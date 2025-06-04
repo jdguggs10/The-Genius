@@ -134,7 +134,6 @@ struct SettingsView: View {
                 Label {
                     Text("Manage Subscription").foregroundColor(.primary)
                 } icon: {
-                    Image(systemName: "creditcard.and.arrow.up").foregroundColor(appPrimaryFontColor)
                 }
                 
                 Spacer()
@@ -161,7 +160,6 @@ struct SettingsView: View {
                 Label {
                     Text("Add Integration").foregroundColor(.primary)
                 } icon: {
-                    Image(systemName: "plus.app.fill").foregroundColor(appPrimaryFontColor)
                 }
                 
                 Spacer()

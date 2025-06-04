@@ -215,6 +215,12 @@ async def get_streaming_response(
         accumulated_content = ""
         response_id_captured = None
         
+        # ------------------------------------------------------------------
+        # State for new-style function-call events (March 2025 API update)
+        # ------------------------------------------------------------------
+        func_call_name: Optional[str] = None          # Captures the tool name
+        func_call_args_buffer: str = ""               # Accumulates argument chunks
+
         async for event in response:
             logger.debug(f"Received event type: {getattr(event, 'type', 'unknown')}, Event: {event}") 
             evt_type = getattr(event, 'type', None)
@@ -252,6 +258,74 @@ async def get_streaming_response(
                 continue
             elif evt_type == "response.web_search_call.completed":
                 yield f"event: status_update\ndata: {json.dumps({'status': 'web_search_completed', 'message': 'Web search completed.'})}\n\n"
+
+            # --------------------------------------------------------------
+            # NEW‑STYLE FUNCTION CALL EVENTS  (Responses API ≥ 2025‑03)
+            # --------------------------------------------------------------
+            elif evt_type in ("response.function_call.name", "response.function_call_name"):
+                # Capture the name of the function/tool being invoked
+                func_call_name = getattr(event, "name", None) or getattr(
+                    getattr(event, "function_call", None), "name", None
+                )
+                if func_call_name:
+                    yield (
+                        "event: status_update\n"
+                        f"data: {json.dumps({'status': 'function_call_started', 'message': f'Calling {func_call_name}...'})}\n\n"
+                    )
+                continue
+
+            elif evt_type == "response.function_call_arguments.delta":
+                # Arguments come in piecemeal; accumulate them
+                func_call_args_buffer += getattr(event, "delta", "")
+                continue
+
+            elif evt_type == "response.function_call_arguments.done":
+                # All arguments received – parse and execute the tool
+                try:
+                    args = json.loads(func_call_args_buffer or "{}")
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse function‑call arguments: {e}")
+                    args = {}
+
+                # Route to appropriate PyBaseball method
+                result = None
+                try:
+                    if func_call_name == "get_mlb_player_stats":
+                        result = await pybaseball_service.get_player_stats(
+                            args.get("player_name"), args.get("year")
+                        )
+                    elif func_call_name == "get_mlb_standings":
+                        result = await pybaseball_service.get_mlb_standings(
+                            args.get("year")
+                        )
+                    elif func_call_name == "search_mlb_players":
+                        result = await pybaseball_service.search_players(
+                            args.get("search_term")
+                        )
+
+                    if result is not None:
+                        # Stream the tool result back to the client
+                        yield (
+                            "event: tool_result\n"
+                            f"data: {json.dumps({'tool': func_call_name, 'result': result})}\n\n"
+                        )
+                        yield (
+                            "event: status_update\n"
+                            f"data: {json.dumps({'status': 'function_call_completed', 'message': f'{func_call_name} completed.'})}\n\n"
+                        )
+                except Exception as e:
+                    logger.error(f"Error executing tool {func_call_name}: {e}")
+                    yield (
+                        "event: tool_error\n"
+                        f"data: {json.dumps({'tool': func_call_name, 'error': str(e)})}\n\n"
+                    )
+
+                # Reset buffers for potential subsequent calls
+                func_call_name = None
+                func_call_args_buffer = ""
+                continue
+
+            # Legacy/old-style function-call event handlers:
             elif evt_type == "response.function_call":
                 # Handle function calls to PyBaseball service
                 if hasattr(event, 'function_call'):
