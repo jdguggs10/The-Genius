@@ -52,6 +52,8 @@ export default function Chat() {
   const inputRef = useRef<HTMLInputElement>(null);
   const currentAssistantMessageIdRef = useRef<string | null>(null);
   const [currentAIMessageText, setCurrentAIMessageText] = useState('');
+  const [tokenQueue, setTokenQueue] = useState<string[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
   const listRef = useRef<FixedSizeList>(null);
   const listContainerRef = useRef<HTMLDivElement>(null);
   const [listHeight, setListHeight] = useState(0);
@@ -158,6 +160,42 @@ export default function Chat() {
     inputRef.current?.focus();
   }, []);
 
+  const enqueueTokens = (text: string) => {
+    if (!text) return;
+    const tokens = text.split(/(\s+)/).filter(t => t.length > 0);
+    setTokenQueue(prev => [...prev, ...tokens]);
+  };
+
+  useEffect(() => {
+    if (tokenQueue.length === 0 || isTyping) return;
+    setIsTyping(true);
+    const interval = setInterval(() => {
+      setTokenQueue(queue => {
+        if (queue.length === 0) {
+          clearInterval(interval);
+          setIsTyping(false);
+          return queue;
+        }
+        const [token, ...rest] = queue;
+        setCurrentAIMessageText(prevText => {
+          const newText = prevText + token;
+          const assistantId = currentAssistantMessageIdRef.current;
+          if (assistantId) {
+            updateMessage(assistantId, { content: newText });
+          }
+          setStreamingText(newText);
+          return newText;
+        });
+        if (rest.length === 0) {
+          clearInterval(interval);
+          setIsTyping(false);
+        }
+        return rest;
+      });
+    }, 40);
+    return () => clearInterval(interval);
+  }, [tokenQueue, isTyping, updateMessage]);
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
     
@@ -181,6 +219,8 @@ export default function Chat() {
     setIsLoading(true);
     setIsSearching(false);
     setCurrentAIMessageText('');
+    setTokenQueue([]);
+    setIsTyping(false);
     setStatusMessage(null);
     
     // Create assistant placeholder
@@ -227,16 +267,15 @@ export default function Chat() {
             }
             setCurrentAIMessageText('');
             setStreamingText('');
+            setTokenQueue([]);
+            setIsTyping(false);
             setIsSearching(eventData.data.status === 'web_search_searching' || eventData.data.status === 'web_search_started');
             break;
           case 'text_delta':
             if (!assistantMessageId) break;
             setStatusMessage(null);
             setIsSearching(false);
-            const newText = currentAIMessageText + (eventData.data.delta || '');
-            setCurrentAIMessageText(newText);
-            updateMessage(assistantMessageId, { content: newText });
-            setStreamingText(newText);
+            enqueueTokens(eventData.data.delta || '');
             break;
           case 'response_complete':
             if (!assistantMessageId) break;
@@ -252,6 +291,8 @@ export default function Chat() {
             if (eventData.data.response_id) setLastResponseId(eventData.data.response_id);
             setCurrentAIMessageText('');
             setStreamingText('');
+            setTokenQueue([]);
+            setIsTyping(false);
             currentAssistantMessageIdRef.current = null;
             break;
           case 'error':
@@ -265,6 +306,8 @@ export default function Chat() {
             else setStatusMessage(errorContent);
             setCurrentAIMessageText('');
             setStreamingText('');
+            setTokenQueue([]);
+            setIsTyping(false);
             if (assistantMessageId) currentAssistantMessageIdRef.current = null;
             break;
           default:
