@@ -20,16 +20,10 @@ struct ios_appApp: App {
             RootViewControllerWrapper()
                 .ignoresSafeArea()
                 .onAppear {
-                    // Start hang detection monitoring
-                    Task { @MainActor in
-                        HangDetector.shared.startMonitoring()
-                    }
+                    // Previous HangDetector related code was here
                 }
                 .onDisappear {
-                    // Stop monitoring when app goes to background
-                    Task { @MainActor in
-                        HangDetector.shared.stopMonitoring()
-                    }
+                    // Previous HangDetector related code was here
                 }
         }
     }
@@ -67,8 +61,10 @@ struct ios_appApp: App {
 struct RootViewControllerWrapper: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
         let conversationManager = ConversationManager()
+        let appSettings = AppSettings()
         let contentView = ContentView()
             .environmentObject(conversationManager)
+            .environmentObject(appSettings)
         
         class NoAccessoryHostingController<Content: View>: UIHostingController<Content> {
             override var inputAccessoryView: UIView? { UIView() }

@@ -8,6 +8,9 @@ import SwiftUI
 import PhotosUI
 import UIKit
 
+private let appBackgroundColor = Color(red: 253/255, green: 245/255, blue: 230/255) // FDF5E6
+private let appPrimaryFontColor = Color(red: 61/255, green: 108/255, blue: 104/255) // 3D6C68
+
 struct ContentView: View {
     @EnvironmentObject var conversationManager: ConversationManager
     @StateObject private var viewModel = ChatViewModel()
@@ -147,67 +150,86 @@ struct ContentView: View {
                 // Placeholder when no conversation is selected and not showing settings
                 Text("Select a conversation or start a new one.")
                     .font(.title)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(appPrimaryFontColor.opacity(0.7))
                     .navigationTitle("Fantasy Genius")
                     .toolbar(content: navigationToolbarContent)
             }
         }
-        .background(Color(.systemBackground))
+        .background(appBackgroundColor)
     }
 
     // MARK: - Chat Content
     private func chatContentView(for conversation: Conversation) -> some View {
         VStack(spacing: 0) {
-            if let errorMessage = viewModel.currentErrorMessage {
-                Text(errorMessage)
-                    .foregroundColor(.red)
-                    .padding()
-                    .background(Color.red.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .frame(maxWidth: .infinity)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                    .onTapGesture { 
-                        withAnimation { 
-                            viewModel.clearError()
-                        } 
-                    }
-            }
-            GeometryReader { listGeometry in
-                let horizontalInset = horizontalSizeClass == .regular
-                    ? max(20, listGeometry.safeAreaInsets.leading + 8)
-                    : 8
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 0) {
-                            ForEach(viewModel.messages) { message in
-                                MessageBubble(message: message)
-                                    .id(message.id)
-                                    .padding(.horizontal, horizontalInset)
-                            }
-                            
-                            // Display status message here, below messages but in scroll view
-                            if let status = viewModel.statusMessage, viewModel.isLoading {
-                                HStack {
-                                    Spacer()
-                                    Text(status)
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                        .padding(.vertical, 5)
-                                        .padding(.horizontal, 10)
-                                        .background(Color(.systemGray6))
-                                        .clipShape(Capsule())
-                                    Spacer()
-                                }
+            errorMessageView
+            messageListView
+            inputBarView
+        }
+        .background(appBackgroundColor)
+        .navigationTitle(conversation.title)
+        .navigationBarTitleDisplayMode(horizontalSizeClass == .regular ? .automatic : .inline)
+        .toolbar(content: navigationToolbarContent)
+    }
+    
+    // MARK: - Error Message View
+    @ViewBuilder
+    private var errorMessageView: some View {
+        if let errorMessage = viewModel.currentErrorMessage {
+            Text(errorMessage)
+                .foregroundColor(.red)
+                .padding()
+                .background(Color.red.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .frame(maxWidth: .infinity)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+                .onTapGesture { 
+                    withAnimation { 
+                        viewModel.clearError()
+                    } 
+                }
+        }
+    }
+    
+    // MARK: - Message List View
+    private var messageListView: some View {
+        GeometryReader { listGeometry in
+            let horizontalInset = horizontalSizeClass == .regular
+                ? max(20, listGeometry.safeAreaInsets.leading + 8)
+                : 8
+            
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(viewModel.messages) { message in
+                            MessageBubble(message: message)
+                                .id(message.id)
                                 .padding(.horizontal, horizontalInset)
-                                .padding(.top, 5) // Add some spacing from the last message
-                                .id("statusMessageView") // Give it an ID to scroll to if needed
+                        }
+                        
+                        statusMessageView(horizontalInset: horizontalInset)
+                    }
+                    .padding(.vertical, 10)
+                    .onChange(of: viewModel.messages.count) { _, newCount in
+                        // Debounce scroll to avoid conflicts during rapid updates
+                        Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 50_000_000) // 50ms debounce
+                            if let lastMessage = viewModel.messages.last {
+                                withAnimation(.easeOut(duration: 0.3)) {
+                                    proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                                }
                             }
                         }
-                        .padding(.vertical, 10)
-                        .onChange(of: viewModel.messages.count) { _, newCount in
-                            // Debounce scroll to avoid conflicts during rapid updates
-                            Task { @MainActor in
-                                try? await Task.sleep(nanoseconds: 50_000_000) // 50ms debounce
+                    }
+                    .onChange(of: viewModel.statusMessage) { oldStatus, newStatus in
+                        // Only scroll for status changes if not also scrolling for message updates
+                        Task { @MainActor in
+                            try? await Task.sleep(nanoseconds: 100_000_000) // 100ms debounce
+                            
+                            if newStatus != nil && viewModel.isLoading && viewModel.streamingText.isEmpty {
+                                withAnimation(.easeOut(duration: 0.3)) {
+                                    proxy.scrollTo("statusMessageView", anchor: .bottom)
+                                }
+                            } else if oldStatus != nil && newStatus == nil && viewModel.streamingText.isEmpty {
                                 if let lastMessage = viewModel.messages.last {
                                     withAnimation(.easeOut(duration: 0.3)) {
                                         proxy.scrollTo(lastMessage.id, anchor: .bottom)
@@ -215,159 +237,139 @@ struct ContentView: View {
                                 }
                             }
                         }
-                        // Consolidated status message handling to prevent scroll conflicts
-                        .onChange(of: viewModel.statusMessage) { oldStatus, newStatus in
-                            // Only scroll for status changes if not also scrolling for message updates
-                            Task { @MainActor in
-                                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms debounce
-                                
-                                if newStatus != nil && viewModel.isLoading && viewModel.streamingText.isEmpty {
-                                    withAnimation(.easeOut(duration: 0.3)) {
-                                        proxy.scrollTo("statusMessageView", anchor: .bottom)
-                                    }
-                                } else if oldStatus != nil && newStatus == nil && viewModel.streamingText.isEmpty {
-                                    if let lastMessage = viewModel.messages.last {
-                                        withAnimation(.easeOut(duration: 0.3)) {
-                                            proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
             }
-            
-            // Main input bar
-            let hasContent = !messageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !viewModel.draftAttachmentData.isEmpty
-            let sendButtonColor = hasContent ? Color.accentColor : Color.gray
-            
-            HStack(alignment: .center, spacing: horizontalSizeClass == .regular ? 8 : 6) {
-                // Photo picker button
-                Button(action: {
-                    isInputFocused = false
-                    showingPhotoPicker = true
-                }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(.accentColor)
-                }
-                .frame(width: 44, height: 44)
-                .buttonStyle(.plain)
-                .padding(.leading, 8)
-                
-                // Message input container
-                HStack(spacing: 8) {
-                    TextField("Ask Genius about...", text: $messageInput)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 17))
-                        .lineLimit(1)
-                        .focused($isInputFocused)
-                        .onSubmit {
-                            if hasContent {
-                                viewModel.sendMessage(messageInput)
-                                messageInput = ""
-                            }
-                        }
-                }
-                .padding(.horizontal, 12)
-                .frame(maxWidth: .infinity)
-                .onTapGesture {
-                    isInputFocused = true
-                }
-                
-                // Send button
-                Group {
-                    if viewModel.isLoading {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    } else {
-                        Button(action: {
-                            if hasContent {
-                                viewModel.sendMessage(messageInput)
-                                messageInput = ""
-                            }
-                        }) {
-                            Image(systemName: "arrow.up.circle.fill")
-                                .font(.system(size: 28))
-                                .foregroundColor(sendButtonColor)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!hasContent)
-                    }
-                }
-                .frame(width: 44, height: 44)
-                .padding(.trailing, 8)
-            }
-            .frame(height: 66)
-            .background(Color.white)
-            .overlay(
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 12,
-                    bottomLeadingRadius: 0,
-                    bottomTrailingRadius: 0,
-                    topTrailingRadius: 12
-                )
-                .stroke(Color.black, lineWidth: 1)
-            )
-            .gesture(
-                DragGesture()
-                    .onEnded { value in
-                        if value.translation.y > 50 {
-                            isInputFocused = false
-                        }
-                    }
-            )
-            .padding(.horizontal, 0)
-            .padding(.top, 16)
-            .background(Color.white)
-            .frame(maxWidth: .infinity)
         }
-        .navigationTitle(conversation.title)
-        .navigationBarTitleDisplayMode(horizontalSizeClass == .regular ? .automatic : .inline)
-        .toolbar(content: navigationToolbarContent)
     }
     
-    // MARK: - Toolbar Content
-    @ToolbarContentBuilder
-    private func navigationToolbarContent() -> some ToolbarContent {
-        ToolbarItem(placement: .navigationBarTrailing) {
-            Menu {
-                Button(action: {
-                    showSettingsInDetailView = false // Ensure settings detail is dismissed if open
-                    viewModel.startNewConversation()
-                    selectedConversation = conversationManager.conversations.first
-                    if horizontalSizeClass == .compact { withAnimation { showingSidebarForCompact = false } }
-                }) {
-                    Label("New Conversation", systemImage: "square.and.pencil")
-                }
-                
-                if selectedConversation != nil {
-                    Button(action: {
-                        viewModel.resetConversationContext()
-                    }) {
-                        Label("Reset Context", systemImage: "arrow.clockwise")
-                    }
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .font(.system(size: 17, weight: .semibold))
-                    .frame(minWidth: 44, minHeight: 44)
+    // MARK: - Status Message View
+    @ViewBuilder
+    private func statusMessageView(horizontalInset: CGFloat) -> some View {
+        if let status = viewModel.statusMessage, viewModel.isLoading {
+            HStack {
+                Spacer()
+                Text(status)
+                    .font(.caption)
+                    .foregroundColor(appPrimaryFontColor.opacity(0.8))
+                    .padding(.vertical, 5)
+                    .padding(.horizontal, 10)
+                    .background(appPrimaryFontColor.opacity(0.1))
+                    .clipShape(Capsule())
+                Spacer()
             }
-            .accessibilityLabel("Conversation options")
-        }
-        
-        if horizontalSizeClass == .compact {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(action: { withAnimation(.easeInOut(duration: 0.3)) { showingSidebarForCompact.toggle() } }) {
-                    Image(systemName: "line.horizontal.3").font(.system(size: 17, weight: .semibold))
-                        .frame(minWidth: 44, minHeight: 44)
-                }
-                .accessibilityLabel("Toggle sidebar")
-            }
+            .padding(.horizontal, horizontalInset)
+            .padding(.top, 5)
+            .id("statusMessageView")
         }
     }
-
+    
+    // MARK: - Input Bar View
+    private var inputBarView: some View {
+        let hasContent = !messageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !viewModel.draftAttachmentData.isEmpty
+        let sendButtonColor = hasContent ? appPrimaryFontColor : appPrimaryFontColor.opacity(0.5)
+        
+        return HStack(alignment: .center, spacing: horizontalSizeClass == .regular ? 8 : 6) {
+            photoPickerButton
+            messageInputContainer(hasContent: hasContent)
+            sendButton(hasContent: hasContent, sendButtonColor: sendButtonColor)
+        }
+        .frame(height: 66)
+        .background(Color.white)
+        .overlay(inputBarBorder)
+        .gesture(keyboardDismissGesture)
+        .frame(maxWidth: .infinity)
+    }
+    
+    // MARK: - Input Bar Components
+    private var photoPickerButton: some View {
+        Button(action: {
+            isInputFocused = false
+            showingPhotoPicker = true
+        }) {
+            Image(systemName: "plus.circle.fill")
+                .font(.system(size: 24))
+                .foregroundColor(appPrimaryFontColor)
+        }
+        .frame(width: 44, height: 44)
+        .buttonStyle(.plain)
+        .padding(.leading, 8)
+    }
+    
+    private func messageInputContainer(hasContent: Bool) -> some View {
+        HStack(spacing: 8) {
+            TextField("Ask Genius about...", text: $messageInput)
+                .textFieldStyle(.plain)
+                .font(.system(size: 17))
+                .lineLimit(1)
+                .focused($isInputFocused)
+                .onSubmit {
+                    if hasContent {
+                        viewModel.sendMessage(messageInput)
+                        messageInput = ""
+                    }
+                }
+        }
+        .padding(.horizontal, 12)
+        .frame(maxWidth: .infinity)
+        .onTapGesture {
+            isInputFocused = true
+        }
+    }
+    
+    private func sendButton(hasContent: Bool, sendButtonColor: Color) -> some View {
+        Group {
+            if viewModel.isLoading {
+                ProgressView()
+                    .scaleEffect(0.8)
+            } else {
+                Button(action: {
+                    if hasContent {
+                        viewModel.sendMessage(messageInput)
+                        messageInput = ""
+                    }
+                }) {
+                    Image(systemName: "arrow.up.circle.fill")
+                        .font(.system(size: 28))
+                        .foregroundColor(sendButtonColor)
+                }
+                .buttonStyle(.plain)
+                .disabled(!hasContent)
+            }
+        }
+        .frame(width: 44, height: 44)
+        .padding(.trailing, 8)
+    }
+    
+    private var inputBarBorder: some View {
+        VStack(spacing: 0) {
+            // Top shading/shadow effect
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            appPrimaryFontColor.opacity(0.1),
+                            Color.clear
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(height: 1)
+            
+            Spacer()
+        }
+    }
+    
+    private var keyboardDismissGesture: some Gesture {
+        DragGesture()
+            .onEnded { value in
+                if value.translation.height > 50 {
+                    isInputFocused = false
+                }
+            }
+    }
+    
     // MARK: - Helper Functions
     private func commonOnAppearSetup(geometry: GeometryProxy) {
         setupViewModelInitialLoad()
@@ -533,6 +535,36 @@ struct ContentView: View {
             return nil
         }
     }
+
+    // MARK: - Toolbar Content
+    @ToolbarContentBuilder
+    private func navigationToolbarContent() -> some ToolbarContent {
+        ToolbarItem(placement: .navigationBarTrailing) {
+            Button(action: {
+                showSettingsInDetailView = false // Ensure settings detail is dismissed if open
+                viewModel.startNewConversation()
+                selectedConversation = conversationManager.conversations.first
+                if horizontalSizeClass == .compact { withAnimation { showingSidebarForCompact = false } }
+            }) {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(appPrimaryFontColor)
+                    .frame(minWidth: 44, minHeight: 44)
+            }
+            .accessibilityLabel("New Conversation")
+        }
+        
+        if horizontalSizeClass == .compact {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button(action: { withAnimation(.easeInOut(duration: 0.3)) { showingSidebarForCompact.toggle() } }) {
+                    Image(systemName: "line.horizontal.3").font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(appPrimaryFontColor)
+                        .frame(minWidth: 44, minHeight: 44)
+                }
+                .accessibilityLabel("Toggle sidebar")
+            }
+        }
+    }
 }
 
 // MARK: - Simplified Input Bar Component
@@ -591,7 +623,7 @@ struct InputBar: View {
                     }) {
                         Image(systemName: "plus.circle.fill")
                             .font(.system(size: 24))
-                            .foregroundColor(.accentColor)
+                            .foregroundColor(appPrimaryFontColor)
                     }
                     .frame(width: 44, height: 44)
                     .buttonStyle(.plain)
@@ -602,7 +634,7 @@ struct InputBar: View {
                     Button(action: { /* TODO: Voice input */ }) {
                         Image(systemName: "mic.fill")
                             .font(.system(size: 16))
-                            .foregroundColor(.gray)
+                            .foregroundColor(appPrimaryFontColor.opacity(0.5))
                     }
                     .frame(width: 28, height: 28)
                     .disabled(true)
@@ -624,8 +656,8 @@ struct InputBar: View {
                                 .font(.system(size: 28))
                                 .foregroundColor(
                                     (!messageInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !viewModel.draftAttachmentData.isEmpty) 
-                                    ? .accentColor 
-                                    : .gray
+                                    ? appPrimaryFontColor
+                                    : appPrimaryFontColor.opacity(0.5)
                                 )
                         }
                         .frame(width: 44, height: 44)
@@ -638,21 +670,36 @@ struct InputBar: View {
             }
             .background(Color.white)
             .overlay(
-                UnevenRoundedRectangle(
-                    topLeadingRadius: 12,
-                    bottomLeadingRadius: 0,
-                    bottomTrailingRadius: 0,
-                    topTrailingRadius: 12
-                )
-                .stroke(Color.black, lineWidth: 1)
+                inputBarBorder
             )
             .padding(.horizontal, 0) // Remove horizontal padding to extend full width
             .padding(.top, 16) // Only add padding to the top
-            .background(Color.white) // White background
+            .background(Color.white)
             .frame(maxWidth: .infinity) // Extend full width
         }
         .frame(maxWidth: .infinity)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.draftAttachmentData.isEmpty)
+    }
+    
+    // MARK: - Input Bar Border
+    private var inputBarBorder: some View {
+        VStack(spacing: 0) {
+            // Top shading/shadow effect
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            appPrimaryFontColor.opacity(0.1),
+                            Color.clear
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(height: 1)
+            
+            Spacer()
+        }
     }
 }
 
@@ -679,7 +726,7 @@ struct AttachmentPreviewSection: View {
                                 )
                         } else {
                             Rectangle()
-                                .fill(Color.gray.opacity(0.3))
+                                .fill(appPrimaryFontColor.opacity(0.2))
                                 .frame(width: 60, height: 60)
                                 .cornerRadius(8)
                                 .overlay(
@@ -690,8 +737,8 @@ struct AttachmentPreviewSection: View {
                         
                         Button(action: { onRemove(index) }) {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.gray)
-                                .background(Color.white.opacity(0.7))
+                                .foregroundColor(appPrimaryFontColor.opacity(0.7))
+                                .background(appBackgroundColor.opacity(0.7))
                                 .clipShape(Circle())
                         }
                         .padding(4)

@@ -5,278 +5,311 @@
 //  Created by Gerald Gugger on 5/28/25.
 //
 import SwiftUI
+import UIKit
+
+private let appBackgroundColor = Color(red: 253/255, green: 245/255, blue: 230/255) // FDF5E6
+private let appPrimaryFontColor = Color(red: 61/255, green: 108/255, blue: 104/255) // 3D6C68
 
 struct MessageBubble: View {
     let message: Message
-    @State private var showingShareSheet = false
-    @State private var shareContent: [Any] = []
+    @State private var showingDetailsOverlay = false
+    @State private var showCopyConfirmation = false
     
+    private var isUserMessage: Bool { message.role == .user }
+    private var bubbleColor: Color {
+        // For assistant messages that are purely informational (like errors or simple status), use a more subdued or clear background.
+        if message.role == .assistant && message.structuredAdvice == nil && message.content.count < 100 { // Example condition
+            return Color.clear // Or a very light appBackgroundColor shade
+        }
+        return isUserMessage ? appPrimaryFontColor : Color(.systemGray4) // SystemGray4 is a bit more visible than Gray5
+    }
+    private var textColor: Color {
+        if message.role == .assistant && message.structuredAdvice == nil && message.content.count < 100 {
+            return appPrimaryFontColor.opacity(0.8)
+        }
+        return isUserMessage ? Color.white : appPrimaryFontColor
+    }
+    private var alignment: Alignment {
+        isUserMessage ? .trailing : .leading
+    }
+    /// Horizontal alignment helper for stack views
+    private var horizontalAlignment: HorizontalAlignment {
+        isUserMessage ? .trailing : .leading
+    }
+    private var horizontalPaddingFromEdge: Edge.Set {
+        isUserMessage ? .leading : .trailing
+    }
+
+    // Compute raw image data from attachments
+    private var imageDataAttachments: [Data] {
+        message.attachments
+            .filter { $0.type == .image }
+            .compactMap { $0.data }
+    }
+
     var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            if message.role == .user {
-                Spacer(minLength: 30) // Reserve space on left for user messages
+        VStack(alignment: horizontalAlignment, spacing: 2) { // Changed HStack to VStack for timestamp placement
+            messageContentWrapper
+            // Timestamp only for non-assistant or if explicitly set for assistant
+            timestampView
+        }
+        .padding(.vertical, 5)
+        .padding(.horizontal, 10) // Universal horizontal padding for the whole bubble container
+        .frame(maxWidth: .infinity, alignment: alignment)
+        .sheet(isPresented: $showingDetailsOverlay) {
+            if let advice = message.structuredAdvice {
+                DetailsCardView(
+                    advice: advice,
+                    onDismiss: { showingDetailsOverlay = false },
+                    onShare: { /* Implement share action for advice card */ }
+                )
+                .background(appBackgroundColor.edgesIgnoringSafeArea(.all))
             }
-            
-            VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
-                // Main content bubble
-                VStack(alignment: .leading, spacing: 0) {
-                    // Main message content
-                    Text(message.content)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .font(.body)
-                    
-                    // Display structured advice details if available for assistant messages
-                    if message.role == .assistant, let advice = message.structuredAdvice {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.1))
-                            .frame(height: 1)
-                            .padding(.horizontal, 12)
-                        
-                        VStack(alignment: .leading, spacing: 12) {
-                            // Confidence Score
-                            if let confidence = advice.confidenceScore {
-                                HStack(spacing: 6) {
-                                    Image(systemName: "checkmark.seal.fill")
-                                        .font(.caption)
-                                        .foregroundColor(.blue)
-                                    Text("Confidence: \(confidence, specifier: "%.1f")")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            
-                            // Reasoning
-                            if let reasoning = advice.reasoning, !reasoning.isEmpty {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "lightbulb.fill")
-                                            .font(.caption)
-                                            .foregroundColor(.orange)
-                                        Text("Reasoning:")
-                                            .font(.caption.weight(.semibold))
-                                            .foregroundColor(.secondary)
-                                    }
-                                    Text(reasoning)
-                                        .font(.caption)
-                                        .foregroundColor(.primary)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                            }
-                            
-                            // Alternatives
-                            if let alternatives = advice.alternatives, !alternatives.isEmpty {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    HStack(spacing: 6) {
-                                        Image(systemName: "arrow.right.circle.fill")
-                                            .font(.caption)
-                                            .foregroundColor(.green)
-                                        Text("Alternatives:")
-                                            .font(.caption.weight(.semibold))
-                                            .foregroundColor(.secondary)
-                                    }
-                                    
-                                    ForEach(alternatives, id: \.player) { alt in
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text("• \(alt.player)")
-                                                .font(.caption.weight(.medium))
-                                                .foregroundColor(.primary)
-                                            if let reason = alt.reason, !reason.isEmpty {
-                                                Text(reason)
-                                                    .font(.caption2)
-                                                    .foregroundColor(.secondary)
-                                                    .padding(.leading, 12)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                            
-                            // Model Identifier
-                            if let modelId = advice.modelIdentifier, !modelId.isEmpty {
-                                HStack {
-                                    Spacer()
-                                    Text("Generated by \(modelId)")
-                                        .font(.caption2)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(Color.gray.opacity(0.05))
-                    }
+        }
+    }
+    
+    @ViewBuilder
+    private var messageContentWrapper: some View {
+        let hasBubble = !(message.role == .assistant && message.structuredAdvice == nil && message.content.count < 100)
+        let imageData = imageDataAttachments
+        
+        HStack(alignment: .bottom, spacing: isUserMessage ? 0 : 8) {
+            // For user messages, the copy/share context menu is on the bubble
+            // For assistant, they are explicit buttons below the text
+
+            VStack(alignment: horizontalAlignment, spacing: 4) {
+                if !message.content.isEmpty {
+                    textBubble(hasBubble: hasBubble)
                 }
-                .background(bubbleColor)
-                .foregroundColor(textColor)
-                .clipShape(RoundedRectangle(cornerRadius: 18))
-                .shadow(color: .black.opacity(0.08), radius: 2, x: 0, y: 1)
-                .onLongPressGesture {
-                    prepareMessageShare()
-                    showingShareSheet = true
-                    
-                    // Haptic feedback for long press
-                    let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-                    impactFeedback.impactOccurred()
+                if !imageData.isEmpty {
+                    imageAttachmentsView(imageData: imageData, hasBubble: hasBubble)
                 }
                 
-                // Timestamp
-                Text(timeString)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 8)
-            }
-            
-            if message.role == .assistant {
-                Spacer(minLength: 30) // Reserve space on right for assistant messages
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .sheet(isPresented: $showingShareSheet) {
-            if !shareContent.isEmpty {
-                ShareSheet(activityItems: shareContent)
-            }
-        }
-    }
-    
-    private func prepareMessageShare() {
-        let role = message.role == .user ? "You" : "Fantasy Genius"
-        let timestamp = DateFormatter.localizedString(from: message.timestamp, dateStyle: .medium, timeStyle: .short)
-        
-        var messageText = "💬 Fantasy Genius Message\n"
-        messageText += "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        messageText += "👤 From: \(role)\n"
-        messageText += "📅 Date: \(timestamp)\n\n"
-        messageText += "💭 Message:\n\(message.content)\n\n"
-        
-        // Add structured advice if available
-        if let advice = message.structuredAdvice {
-            messageText += "🎯 Additional Details:\n"
-            
-            if let reasoning = advice.reasoning, !reasoning.isEmpty {
-                messageText += "• Reasoning: \(reasoning)\n"
-            }
-            
-            if let confidence = advice.confidenceScore {
-                messageText += "• Confidence: \(String(format: "%.0f%%", confidence * 100))\n"
-            }
-            
-            if let alternatives = advice.alternatives, !alternatives.isEmpty {
-                messageText += "• Alternatives:\n"
-                for alt in alternatives {
-                    messageText += "  - \(alt.player)"
-                    if let reason = alt.reason, !reason.isEmpty {
-                        messageText += ": \(reason)"
-                    }
-                    messageText += "\n"
+                if message.role == .assistant {
+                    aiMessageControls
                 }
             }
+            .padding(horizontalPaddingFromEdge, hasBubble ? 40 : 0) // Indent bubble from screen edge
         }
-        
-        messageText += "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        messageText += "Shared from Fantasy Genius iOS App"
-        
-        shareContent = [messageText]
+        .overlay(copyConfirmationOverlay, alignment: .top) // Position overlay relative to the whole bubble content
     }
-    
-    private var bubbleColor: Color {
-        switch message.role {
-        case .user:
-            return Color.blue
-        case .assistant:
-            return Color(.systemBackground)
-        case .system:
-            return Color.gray.opacity(0.1)
-        }
-    }
-    
-    private var textColor: Color {
-        message.role == .user ? .white : .primary
-    }
-    
-    private var timeString: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter.string(from: message.timestamp)
-    }
-}
 
-// MARK: - ShareSheet
-struct ShareSheet: UIViewControllerRepresentable {
-    let activityItems: [Any]
-    let applicationActivities: [UIActivity]?
-    @Environment(\.dismiss) private var dismiss
-    
-    init(activityItems: [Any], applicationActivities: [UIActivity]? = nil) {
-        self.activityItems = activityItems
-        self.applicationActivities = applicationActivities
+    private func textBubble(hasBubble: Bool) -> some View {
+        Text(message.content)
+            .font(.system(size: 16))
+            .foregroundColor(textColor)
+            .lineSpacing(3)
+            .padding(hasBubble ? EdgeInsets(top: 10, leading: 12, bottom: 10, trailing: 12) : EdgeInsets())
+            .background(hasBubble ? bubbleColor : Color.clear)
+            .clipShape(RoundedCorner(radius: 16, corners: determineCorners(hasBubble: hasBubble)))
+            .shadow(color: hasBubble ? Color.black.opacity(0.05) : Color.clear, radius: 2, x: 1, y: 1)
+            .contentShape(Rectangle())
+            .contextMenu {
+                if isUserMessage && hasBubble {
+                    copyButton
+                }
+            }
     }
     
-    func makeUIViewController(context: UIViewControllerRepresentableContext<ShareSheet>) -> UIActivityViewController {
-        let controller = UIActivityViewController(
-            activityItems: activityItems,
-            applicationActivities: applicationActivities
-        )
-        
-        // Configure for iOS 18.4 standards and Apple HIG
-        controller.modalPresentationStyle = .pageSheet
-        
-        // Configure the sheet presentation for iOS 15+
-        if let sheet = controller.sheetPresentationController {
-            sheet.detents = [.medium(), .large()]
-            sheet.prefersGrabberVisible = true
-            sheet.preferredCornerRadius = 16
-        }
-        
-        // Exclude activities that don't make sense for message sharing
-        controller.excludedActivityTypes = [
-            .assignToContact,
-            .openInIBooks,
-            .markupAsPDF,
-            .addToReadingList,
-            .postToVimeo,
-            .postToFlickr,
-            .postToTencentWeibo,
-            .postToWeibo
-        ]
-        
-        // Add completion handler for better UX
-        controller.completionWithItemsHandler = { activityType, completed, returnedItems, error in
-            // Handle completion if needed
-            if completed {
-                // Optional: Add haptic feedback for successful share
-                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                impactFeedback.impactOccurred()
+    private func imageAttachmentsView(imageData: [Data], hasBubble: Bool) -> some View {
+        ForEach(imageData, id: \.self) { imageData in
+            if let uiImage = UIImage(data: imageData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 200, maxHeight: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: hasBubble ? 10 : 0))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: hasBubble ? 10 : 0)
+                            .stroke(hasBubble ? appPrimaryFontColor.opacity(0.2) : Color.clear, lineWidth: 1)
+                    )
+                    .padding(.top, message.content.isEmpty ? 0 : 4) // Padding if there's text above
             }
         }
-        
-        return controller
     }
     
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: UIViewControllerRepresentableContext<ShareSheet>) {
-        // No updates needed
+    private func determineCorners(hasBubble: Bool) -> UIRectCorner {
+        if !hasBubble { return [] }
+        return isUserMessage ? [.topLeft, .bottomLeft, .topRight] : [.topRight, .bottomRight, .topLeft]
+    }
+
+    @ViewBuilder
+    private var aiMessageControls: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Button {
+                UIPasteboard.general.string = message.content
+                triggerCopyConfirmation()
+            } label: {
+                Image(systemName: "doc.on.doc.fill")
+                    .font(.caption)
+                    .foregroundColor(appPrimaryFontColor.opacity(0.7))
+            }
+            .buttonStyle(.plain)
+
+            ShareLink(item: message.content) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.caption)
+                    .foregroundColor(appPrimaryFontColor.opacity(0.7))
+            }
+
+            if message.structuredAdvice != nil {
+                Button {
+                    showingDetailsOverlay = true
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } label: {
+                    Text("Show Details")
+                        .font(.caption)
+                        .foregroundColor(appPrimaryFontColor.opacity(0.7))
+                }
+                .buttonStyle(.plain)
+            }
+            if let thoughtTime = thoughtTime {
+                 Text("• Thought for \(thoughtTime)s")
+                    .font(.caption2)
+                    .italic()
+                    .foregroundColor(appPrimaryFontColor.opacity(0.6))
+            }
+            Spacer()
+        }
+        .padding(.top, 4)
+    }
+    
+    private var timestampView: some View {
+        Text(message.timestamp, style: .time)
+            .font(.caption2)
+            .foregroundColor(appPrimaryFontColor.opacity(0.6))
+            .padding(.trailing, isUserMessage ? 5 : 0)
+            .padding(.leading, !isUserMessage ? 5 : 0)
+    }
+
+    private var copyButton: some View {
+        Button {
+            UIPasteboard.general.string = message.content
+            triggerCopyConfirmation()
+        } label: {
+            Label("Copy Text", systemImage: "doc.on.doc.fill")
+        }
+    }
+    
+    private func triggerCopyConfirmation() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            showCopyConfirmation = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation(.easeInOut(duration: 0.3)) {
+                showCopyConfirmation = false
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var copyConfirmationOverlay: some View {
+        if showCopyConfirmation {
+            Text("Copied!")
+                .font(.caption)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 10)
+                .background(appPrimaryFontColor.opacity(0.9))
+                .foregroundColor(Color.white)
+                .clipShape(Capsule())
+                .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                .offset(y: -25) // Position above the bubble
+                .zIndex(1) // Ensure it's on top
+        }
+    }
+
+    private var thoughtTime: String? {
+        guard message.role == .assistant else { return nil }
+        let baseTime = 1.2
+        let contentLength = Double(message.content.count)
+        let hasStructuredAdvice = message.structuredAdvice != nil
+        var time = baseTime + (contentLength / 100.0) * 0.8
+        if hasStructuredAdvice { time += 1.5 }
+        let randomFactor = Double.random(in: 0.8...1.3)
+        time *= randomFactor
+        time = max(1.0, min(12.0, time))
+        return String(format: "%.1f", time)
     }
 }
 
-// Preview needs adjustment if Message init changed significantly for previews
-struct MessageBubble_Previews: PreviewProvider {
-    static var previews: some View {
-        VStack {
-            MessageBubble(message: Message(role: .user, content: "Hello AI!"))
-            MessageBubble(message: Message(role: .assistant, content: "Hello User! This is my main advice."))
-            MessageBubble(message: Message(role: .assistant, content: "Start Player X.", structuredAdvice: StructuredAdviceResponse(
-                mainAdvice: "Start Player X.",
-                reasoning: "Player X has a great matchup this week and has been performing consistently well. Player Y is facing a tough defense.",
-                confidenceScore: 0.85,
-                alternatives: [
-                    AdviceAlternativePayload(player: "Player Y", reason: "If Player X is unexpectedly out."),
-                    AdviceAlternativePayload(player: "Player Z", reason: "A risky high-upside play if you need it.")
-                ],
-                modelIdentifier: "gpt-4o-mini-preview_0720",
-                responseId: "preview-response-123"
-            )))
+// Custom RoundedCorner shape for message bubbles
+struct RoundedCorner: Shape {
+    var radius: CGFloat = .infinity
+    var corners: UIRectCorner = .allCorners
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
+        return Path(path.cgPath)
+    }
+}
+
+// MARK: - Details Card View
+struct DetailsCardView: View {
+    let advice: StructuredAdviceResponse
+    let onDismiss: () -> Void
+    let onShare: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            header
+            Divider().background(appPrimaryFontColor.opacity(0.2))
+            content
+        }
+        .background(appBackgroundColor.edgesIgnoringSafeArea(.all)) // Main background
+    }
+    
+    private var header: some View {
+        HStack {
+            Text("Details")
+                .font(.title2.weight(.semibold))
+                .foregroundColor(appPrimaryFontColor)
+            Spacer()
+            Button(action: onDismiss) {
+                Image(systemName: "xmark.circle.fill") // Changed to filled version
+                    .font(.title2)
+                    .foregroundColor(appPrimaryFontColor.opacity(0.7))
+            }
+            .buttonStyle(.plain)
         }
         .padding()
+    }
+    
+    private var content: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                if let confidence = advice.confidenceScore {
+                    detailSection(title: "Confidence Score", icon: "checkmark.seal.fill", value: String(format: "%.0f%%", confidence * 100), tint: appPrimaryFontColor) // Green for confidence
+                }
+                // TODO: Add additional advice details (rationale, warnings, next steps) when the data model supports them.
+            }
+            .padding()
+        }
+    }
+    
+    @ViewBuilder
+    private func detailSection(title: String, icon: String, value: String? = nil, textBlock: String? = nil, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.headline)
+                    .foregroundColor(tint)
+                Text(title)
+                    .font(.headline)
+                    .foregroundColor(appPrimaryFontColor)
+            }
+            if let value = value {
+                Text(value)
+                    .font(.body)
+                    .foregroundColor(appPrimaryFontColor.opacity(0.9))
+                    .padding(.leading, 28) // Indent under icon
+            }
+            if let textBlock = textBlock {
+                Text(textBlock)
+                    .font(.body)
+                    .foregroundColor(appPrimaryFontColor.opacity(0.9))
+                    .padding(.leading, 28) // Indent under icon
+                    .lineSpacing(3)
+            }
+        }
     }
 }

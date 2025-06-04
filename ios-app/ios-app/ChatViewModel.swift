@@ -181,13 +181,7 @@ class ChatViewModel: ObservableObject {
     }
     
     private func fetchStreamingStructuredAdvice() async {
-        // Measure the entire operation for hang detection
-        await HangDetector.shared.measureAsyncOperation(
-            operation: {
-                await performStreamingRequest()
-            },
-            description: "Streaming advice request"
-        )
+        await performStreamingRequest()
     }
     
     private func performStreamingRequest() async {
@@ -470,62 +464,48 @@ class ChatViewModel: ObservableObject {
         } else if eventType == "text_delta" {
             if let delta = await parseTextDelta(data) {
                 accumulatedText += delta
-                
-                // Since we're already on @MainActor, no need for MainActor.run
-                // Measure UI update performance
-                HangDetector.shared.measureMainThreadOperation(
-                    operation: {
-                        // Update both allMessages and displayed messages
-                        let messageId = messages[messageIndex].id
-                        if let allMessageIndex = allMessages.lastIndex(where: { $0.id == messageId }) {
-                            allMessages[allMessageIndex].content = accumulatedText
-                        }
-                        
-                        // Create a new message instance to ensure SwiftUI detects the change
-                        var updatedMessage = messages[messageIndex]
-                        updatedMessage.content = accumulatedText
-                        
-                        // Signal change before updating
-                        objectWillChange.send()
-                        messages[messageIndex] = updatedMessage
-                        
-                        statusMessage = nil
-                        isSearching = false
-                    },
-                    description: "UI update for streaming text"
-                )
+
+                // Update both allMessages and displayed messages
+                let messageId = messages[messageIndex].id
+                if let allMessageIndex = allMessages.lastIndex(where: { $0.id == messageId }) {
+                    allMessages[allMessageIndex].content = accumulatedText
+                }
+
+                // Create a new message instance to ensure SwiftUI detects the change
+                var updatedMessage = messages[messageIndex]
+                updatedMessage.content = accumulatedText
+
+                // Signal change before updating
+                objectWillChange.send()
+                messages[messageIndex] = updatedMessage
+
+                statusMessage = nil
+                isSearching = false
             }
-        } else if eventType == "response_complete" {
+
             if let responseData = await parseResponseComplete(data, accumulatedText: accumulatedText) {
-                // Since we're already on @MainActor, no need for MainActor.run
-                // Measure UI update performance for completion events
-                HangDetector.shared.measureMainThreadOperation(
-                    operation: {
-                        // Update both allMessages and displayed messages
-                        let messageId = messages[messageIndex].id
-                        if let allMessageIndex = allMessages.lastIndex(where: { $0.id == messageId }) {
-                            allMessages[allMessageIndex].content = responseData.advice.mainAdvice
-                            allMessages[allMessageIndex].structuredAdvice = responseData.advice
-                        }
-                        
-                        var updatedMessage = messages[messageIndex]
-                        updatedMessage.content = responseData.advice.mainAdvice
-                        updatedMessage.structuredAdvice = responseData.advice
-                        
-                        // Signal change before updating
-                        objectWillChange.send()
-                        messages[messageIndex] = updatedMessage
-                        
-                        statusMessage = nil
-                        isSearching = false
-                    },
-                    description: "UI update for response completion"
-                )
-                
+                // Update both allMessages and displayed messages
+                let messageId = messages[messageIndex].id
+                if let allMessageIndex = allMessages.lastIndex(where: { $0.id == messageId }) {
+                    allMessages[allMessageIndex].content = responseData.advice.mainAdvice
+                    allMessages[allMessageIndex].structuredAdvice = responseData.advice
+                }
+
+                var updatedMessage = messages[messageIndex]
+                updatedMessage.content = responseData.advice.mainAdvice
+                updatedMessage.structuredAdvice = responseData.advice
+
+                // Signal change before updating
+                objectWillChange.send()
+                messages[messageIndex] = updatedMessage
+
+                statusMessage = nil
+                isSearching = false
+
                 // Return the response ID for conversation tracking
                 return responseData.responseId
             }
-        } else if eventType == "error" {
+
             if let errorMessage = await parseError(data) {
                 // Update both allMessages and displayed messages
                 let messageId = messages[messageIndex].id
@@ -559,28 +539,21 @@ class ChatViewModel: ObservableObject {
             // Handle official Responses API text delta format
             if let delta = await parseTextDelta(data) {
                 accumulatedText += delta
-                
-                // Since we're already on @MainActor, no need for MainActor.run
-                // Measure UI update performance for official delta events
-                HangDetector.shared.measureMainThreadOperation(
-                    operation: {
-                        // Update both allMessages and displayed messages
-                        let messageId = messages[messageIndex].id
-                        if let allMessageIndex = allMessages.lastIndex(where: { $0.id == messageId }) {
-                            allMessages[allMessageIndex].content = accumulatedText
-                        }
-                        
-                        var updatedMessage = messages[messageIndex]
-                        updatedMessage.content = accumulatedText
-                        
-                        objectWillChange.send()
-                        messages[messageIndex] = updatedMessage
-                        
-                        statusMessage = nil
-                        isSearching = false
-                    },
-                    description: "UI update for official text delta"
-                )
+
+                // Update both allMessages and displayed messages
+                let messageId = messages[messageIndex].id
+                if let allMessageIndex = allMessages.lastIndex(where: { $0.id == messageId }) {
+                    allMessages[allMessageIndex].content = accumulatedText
+                }
+
+                var updatedMessage = messages[messageIndex]
+                updatedMessage.content = accumulatedText
+
+                objectWillChange.send()
+                messages[messageIndex] = updatedMessage
+
+                statusMessage = nil
+                isSearching = false
             }
         } else if eventType == "response.completed" {
             // Handle official completion event

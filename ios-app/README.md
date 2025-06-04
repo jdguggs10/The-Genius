@@ -215,16 +215,6 @@ if let lastResponseId = conversation.lastResponseId {
 - **Console Logging**: SSE events and response ID tracking
 - **Error Handling**: Comprehensive error display and recovery
 
-## 🔬 Debugging and Diagnostics
-
-The app includes a `HangDetector` utility to help identify and debug performance issues or UI hangs.
-
-- **Initialization**: The `HangDetector` is started when the app appears and stopped when it goes to the background, as configured in `ios_appApp.swift`.
-- **Usage**:
-    - It's used in `ChatViewModel.swift` to measure the duration of critical asynchronous operations like the main streaming network request (`performStreamingRequest()`).
-    - It also measures main thread operations related to UI updates when processing Server-Sent Events (SSE), specifically for text deltas and response completion.
-- **Purpose**: This helps in identifying long-running tasks that might block the main thread or delay responses, contributing to a more stable and responsive user experience. Logs from the `HangDetector` (if it outputs any, or if integrated with a logging framework) can be valuable for diagnosing slowdowns.
-
 ## 📈 Performance Metrics
 
 - **Token Reduction**: 60-80% fewer tokens using `previous_response_id`

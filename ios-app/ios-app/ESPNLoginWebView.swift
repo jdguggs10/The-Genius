@@ -1,6 +1,9 @@
 import SwiftUI
 import WebKit // Required for HTTPCookie
 
+private let appBackgroundColor = Color(red: 253/255, green: 245/255, blue: 230/255) // FDF5E6
+private let appPrimaryFontColor = Color(red: 61/255, green: 108/255, blue: 104/255) // 3D6C68
+
 struct ESPNLoginWebView: View {
     @Environment(\.dismiss) var dismiss
     // @State private var espnS2: String? // Removed, using ESPNCookieManager
@@ -46,21 +49,38 @@ struct ESPNLoginWebView: View {
                         Button("Cancel") { // Changed "Done" to "Cancel" as "Done" implies completion
                             dismiss()
                         }
+                        .foregroundColor(appPrimaryFontColor) // Apply theme color
                     }
                 }
             } else {
-                Text("Error: Invalid Login URL")
-                    .navigationTitle("Error")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button("Done") {
-                                dismiss()
-                            }
+                VStack {
+                    Spacer()
+                    Image(systemName: "exclamationmark.triangle.fill") // SF Symbol for error
+                        .font(.largeTitle)
+                        .foregroundColor(.orange) // Keep orange for warning/error
+                        .padding(.bottom)
+                    Text("Error: Invalid Login URL")
+                        .foregroundColor(appPrimaryFontColor.opacity(0.8))
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(appBackgroundColor.edgesIgnoringSafeArea(.all))
+                .navigationTitle("Error")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("Done") { // "Done" makes sense if an error page is shown
+                            dismiss()
                         }
+                        .foregroundColor(appPrimaryFontColor) // Apply theme color
                     }
+                }
             }
         }
+        // It's often better to set the background on the content inside NavigationStack if conditional
+        // or on the NavigationStack itself if it should always apply.
+        // For this case, error view gets its own background.
+        // The WebView will dominate if URL is valid.
     }
 }
 

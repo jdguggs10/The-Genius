@@ -6,15 +6,18 @@
 //
 import SwiftUI
 
+private let appBackgroundColor = Color(red: 253/255, green: 245/255, blue: 230/255) // FDF5E6
+private let appPrimaryFontColor = Color(red: 61/255, green: 108/255, blue: 104/255) // 3D6C68
+
 struct SettingsView: View {
     @Binding var isPresented: Bool // Added for controlling presentation in detail view
     let onDismiss: (() -> Void)? // Callback for custom dismiss behavior
     @Environment(\.dismiss) private var dismiss
     @State private var showingLoginView = false // State to present LoginView
     @State private var showingESPNLoginWebView = false // State to present ESPNLoginWebView
-    @State private var isNotificationsEnabled = true
-    @State private var isDarkModeEnabled = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    @EnvironmentObject var appSettings: AppSettings
+    @EnvironmentObject var conversationManager: ConversationManager
     
     // Default initializer for compatibility
     init(isPresented: Binding<Bool>, onDismiss: (() -> Void)? = nil) {
@@ -31,6 +34,7 @@ struct SettingsView: View {
                     Text("Profile")
                         .font(horizontalSizeClass == .regular ? .title2 : .headline) // Adaptive header font
                         .fontWeight(.semibold) // Bolder headers
+                        .foregroundColor(appPrimaryFontColor)
                 }
                 
                 Section {
@@ -39,6 +43,7 @@ struct SettingsView: View {
                     Text("Account")
                         .font(horizontalSizeClass == .regular ? .title2 : .headline)
                         .fontWeight(.semibold)
+                        .foregroundColor(appPrimaryFontColor)
                 }
                 
                 Section {
@@ -47,6 +52,7 @@ struct SettingsView: View {
                     Text("Integrations")
                         .font(horizontalSizeClass == .regular ? .title2 : .headline)
                         .fontWeight(.semibold)
+                        .foregroundColor(appPrimaryFontColor)
                 }
                 
                 Section {
@@ -55,14 +61,7 @@ struct SettingsView: View {
                     Text("Usage")
                         .font(horizontalSizeClass == .regular ? .title2 : .headline)
                         .fontWeight(.semibold)
-                }
-                
-                Section {
-                    preferencesSection
-                } header: {
-                    Text("Preferences")
-                        .font(horizontalSizeClass == .regular ? .title2 : .headline)
-                        .fontWeight(.semibold)
+                        .foregroundColor(appPrimaryFontColor)
                 }
                 
                 Section {
@@ -71,6 +70,7 @@ struct SettingsView: View {
                     Text("About The Genius")
                         .font(horizontalSizeClass == .regular ? .title2 : .headline)
                         .fontWeight(.semibold)
+                        .foregroundColor(appPrimaryFontColor)
                 }
             }
             .listStyle(.insetGrouped) // Standard iOS settings style
@@ -85,6 +85,7 @@ struct SettingsView: View {
                     }
                     .font(.headline) // Make "Done" more prominent
                     .frame(minWidth: 44, minHeight: 44) // Ensure touch target
+                    .foregroundColor(appPrimaryFontColor)
                 }
             }
             .sheet(isPresented: $showingESPNLoginWebView) {
@@ -94,6 +95,7 @@ struct SettingsView: View {
         // Apply a maximum width for the settings view on iPad if it's not meant to be full screen
         // This is often handled by how it's presented (e.g. .sheet or .popover)
         // .frame(maxWidth: horizontalSizeClass == .regular ? 600 : .infinity) // Example constraint
+        .background(appBackgroundColor)
     }
     
     // MARK: - Profile Section
@@ -109,6 +111,7 @@ struct SettingsView: View {
                 Text("John Doe")
                     .font(horizontalSizeClass == .regular ? .title : .headline) // Larger name on iPad
                     .fontWeight(.medium)
+                    .foregroundColor(appPrimaryFontColor)
                 
                 Text("john.doe@example.com")
                     .font(horizontalSizeClass == .regular ? .headline : .subheadline) // Larger email on iPad
@@ -118,7 +121,7 @@ struct SettingsView: View {
                     showingLoginView = true   // Present LoginView
                 }
                 .font(horizontalSizeClass == .regular ? .body : .caption) // Larger button text on iPad
-                .foregroundColor(.accentColor) // Use accent color for actions
+                .foregroundColor(appPrimaryFontColor) // Use accent color for actions
                 .padding(.top, horizontalSizeClass == .regular ? 4 : 2)
                 .frame(minHeight: 44) // Ensure touch target
             }
@@ -236,37 +239,6 @@ struct SettingsView: View {
         .font(horizontalSizeClass == .regular ? .headline : .body)
     }
     
-    // MARK: - Preferences Section
-    private var preferencesSection: some View {
-        Group {
-            HStack {
-                Label("Notifications", systemImage: "bell.fill").foregroundColor(.red)
-                Spacer()
-                Toggle("", isOn: $isNotificationsEnabled).labelsHidden()
-                    .scaleEffect(horizontalSizeClass == .regular ? 1.0 : 0.9) // Adjust toggle size
-            }
-            .padding(.vertical, horizontalSizeClass == .regular ? 4 : 2)
-
-            HStack {
-                Label("Dark Mode", systemImage: "moon.fill").foregroundColor(.indigo)
-                Spacer()
-                Toggle("", isOn: $isDarkModeEnabled).labelsHidden()
-                    .scaleEffect(horizontalSizeClass == .regular ? 1.0 : 0.9)
-            }
-            .padding(.vertical, horizontalSizeClass == .regular ? 4 : 2)
-
-            HStack {
-                Label("Privacy Settings", systemImage: "hand.raised.fill").foregroundColor(.purple)
-                Spacer()
-                Image(systemName: "chevron.right").foregroundColor(.secondary.opacity(0.7))
-            }
-            .contentShape(Rectangle())
-            .onTapGesture { /* Privacy settings action */ }
-            .padding(.vertical, horizontalSizeClass == .regular ? 6 : 4)
-        }
-        .font(horizontalSizeClass == .regular ? .headline : .body)
-    }
-    
     // MARK: - About Section
     private var aboutSection: some View {
         Group {
@@ -317,6 +289,18 @@ struct SettingsView: View {
     }
 }
 
-#Preview {
-    SettingsView(isPresented: .constant(true))
+// MARK: - Preview
+struct SettingsView_Previews: PreviewProvider {
+    static var previews: some View {
+        SettingsView(isPresented: .constant(true))
+            .environmentObject(AppSettings())
+            .environmentObject(ConversationManager())
+            .previewDisplayName("Settings Light")
+        
+        SettingsView(isPresented: .constant(true))
+            .environmentObject(AppSettings())
+            .environmentObject(ConversationManager())
+            .preferredColorScheme(.dark)
+            .previewDisplayName("Settings Dark (Reference)")
+    }
 }
