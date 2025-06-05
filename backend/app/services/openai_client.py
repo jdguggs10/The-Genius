@@ -624,7 +624,7 @@ async def get_streaming_response(
         yield f"event: error\ndata: {json.dumps({'error': 'NOT_FOUND', 'message': str(e)})}\n\n"
     except Exception as e:
         logger.error(f"An unexpected error occurred while streaming: {type(e).__name__}: {e}")
-        yield f"event: error\ndata: {json.dumps({'error': 'UNEXPECTED_ERROR', 'message': f"{type(e).__name__}: {str(e)}"})}\n\n"
+        yield f"event: error\ndata: {json.dumps({'error': 'UNEXPECTED_ERROR', 'message': f'{type(e).__name__}: {str(e)}'})}\n\n"
 
 
 # Existing get_response function (non-streaming, uses synchronous client.responses.create)
