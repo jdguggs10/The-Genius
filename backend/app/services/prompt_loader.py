@@ -83,6 +83,7 @@ class PromptLoader:
             'legacy_base_instructions': 'base-instructions@1.1.0.md',  # Fallback for non-Step 2
             'response_format': 'response-format@1.0.0.md',
             'confidence_guidelines': 'confidence-guidelines@1.0.0.md',
+            'assistant_workflow': 'assistant-workflow@1.0.0.md',
             'runtime_workflow': 'runtime-workflow@1.0.0.md',
             'web_search_guidelines': 'web-search-guidelines@1.2.0.md'  # Updated to latest version
         }
