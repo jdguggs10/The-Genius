@@ -30,11 +30,19 @@ from app.services.pybaseball_service import pybaseball_service # Import the PyBa
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 app = FastAPI(
     title="Fantasy AI Backend",
     description="AI-powered fantasy sports advice, delivered via OpenAI's Responses API with streaming JSON.",
     version="1.1.0"
 )
+
+# --- health probe ----------------------------------------------------------
+@app.get("/healthz", tags=["infra"])
+async def healthz():
+    """Lightweight liveness probe for orchestrators and test scripts."""
+    return {"status": "ok"}
+# --------------------------------------------------------------------------
 
 # CORS configuration
 origins = [
