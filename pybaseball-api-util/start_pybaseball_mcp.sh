@@ -31,4 +31,4 @@ lsof -ti:$PORT | xargs kill -9 2>/dev/null || echo "No existing process found on
 
 # Run the server
 echo "Starting server on port $PORT..."
-python pybaseball_mcp_server.py
+python pybaseball_nativemcp_server.py

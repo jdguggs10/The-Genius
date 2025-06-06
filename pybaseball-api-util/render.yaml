@@ -9,7 +9,7 @@ services:
       paths:
       - pybaseball-api-util/**
     buildCommand: pip install -r requirements.txt
-    startCommand: python pybaseball_mcp_server_v2.py
+    startCommand: python pybaseball_nativemcp_server.py
     healthCheckPath: /health # The server script provides a /health endpoint for FastAPI mode
     envVars:
       - key: PYTHON_VERSION

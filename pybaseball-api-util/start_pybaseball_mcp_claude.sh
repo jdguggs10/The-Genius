@@ -15,7 +15,7 @@ cd "$SCRIPT_DIR"
 
 # Define paths
 VENV_PATH="$SCRIPT_DIR/venv"
-SERVER_SCRIPT="$SCRIPT_DIR/pybaseball_mcp_server_v2.py"
+SERVER_SCRIPT="$SCRIPT_DIR/pybaseball_nativemcp_server.py"
 
 # Check if virtual environment exists
 if [ ! -f "$VENV_PATH/bin/activate" ]; then
@@ -39,7 +39,7 @@ if ! python -c "import mcp" 2>/dev/null; then
 fi
 
 # Verify our modules are available
-if ! python -c "import pybaseball_mcp_server_v2" 2>/dev/null; then
+if ! python -c "import pybaseball_nativemcp_server" 2>/dev/null; then
     echo "Error: PyBaseball MCP server module not found" >&2
     exit 1
 fi

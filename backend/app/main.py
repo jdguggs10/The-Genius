@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, HTTPException, Response, Request, APIRouter
+from fastapi import FastAPI, Query, HTTPException, Response, Request, APIRouter, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 import os
@@ -15,7 +15,15 @@ from app.services.web_search_discipline import web_search_discipline, SearchDeci
 from app.services.response_logger import response_logger # Step 5: Import response logger
 from app.services.confidence_scoring import confidence_scoring_service # Step 5: Import confidence service
 from app.services.confidence_phrase_tuner import confidence_phrase_tuner # Step 5: Import phrase tuner
-from app.services.pybaseball_service import pybaseball_service # Import the PyBaseball service
+from app.services.pybaseball_service import PyBaseballService # Import the PyBaseball service
+
+# Dependency for PyBaseballService
+async def get_pybaseball_service():
+    # In a real application, you might have more complex setup here,
+    # like connection pooling or configuration.
+    # For now, we just instantiate it.
+    # Ensure PYBASEBALL_MCP_URL is set in your environment.
+    return PyBaseballService()
 
 # from app.services.chat_service import (
 #     handle_advice_request,
@@ -577,40 +585,153 @@ async def get_player_stats(player_name: str, year: Optional[int] = None):
         logger.error(f"Error getting player stats: {e}")
         raise HTTPException(status_code=500, detail=f"Error retrieving player data: {str(e)}")
 
-@app.get("/pybaseball/standings")
-async def get_standings(year: Optional[int] = None):
-    """Get MLB standings."""
-    try:
-        result = await pybaseball_service.get_mlb_standings(year)
-        return {"status": "ok", "data": result}
-    except Exception as e:
-        logger.error(f"Error getting standings: {e}")
-        raise HTTPException(status_code=500, detail=f"Error retrieving standings: {str(e)}")
-
-@app.get("/pybaseball/leaders/{stat}")
-async def get_stat_leaders(
-    stat: str, 
-    year: Optional[int] = None,
-    top_n: int = Query(10, ge=1, le=50),
-    player_type: str = Query("batting", pattern="^(batting|pitching)$")
+@app.get("/pybaseball/player/{player_name}/stats")
+async def get_player_stats(
+    player_name: str,
+    year: Optional[int] = Query(None, description="Season year (defaults to current year)"),
+    pybaseball_service: PyBaseballService = Depends(get_pybaseball_service) # Corrected
 ):
-    """Get MLB statistical leaders."""
+    """
+    Get season statistics for a specific MLB player.
+    - **player_name**: Full name of the player (e.g., 'Shohei Ohtani').
+    - **year**: Optional season year.
+    """
     try:
-        result = await pybaseball_service.get_stat_leaders(stat, year, top_n, player_type)
-        return {"status": "ok", "data": result}
+        # Example of how the service would be called:
+        # result = await pybaseball_service.get_player_stats(player_name, year)
+        # return result
+        return await pybaseball_service.get_player_stats(player_name, year)
     except Exception as e:
-        logger.error(f"Error getting stat leaders: {e}")
-        raise HTTPException(status_code=500, detail=f"Error retrieving stat leaders: {str(e)}")
+        logger.error(f"Error in get_player_stats endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/pybaseball/search/{search_term}")
-async def search_players(search_term: str):
-    """Search for MLB players by name."""
+@app.get("/pybaseball/player/search/{search_term}")
+async def search_players(
+    search_term: str,
+    pybaseball_service: PyBaseballService = Depends(get_pybaseball_service) # Corrected
+):
+    """
+    Search for MLB players by name.
+    - **search_term**: Partial name to search for.
+    """
     try:
-        result = await pybaseball_service.search_players(search_term)
-        return {"status": "ok", "data": result}
+        # Example of how the service would be called:
+        # result = await pybaseball_service.search_players(search_term)
+        # return result
+        return await pybaseball_service.search_players(search_term)
     except Exception as e:
-        logger.error(f"Error searching players: {e}")
-        raise HTTPException(status_code=500, detail=f"Error searching players: {str(e)}")
+        logger.error(f"Error in search_players endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/pybaseball/standings")
+async def get_mlb_standings(
+    year: Optional[int] = Query(None, description="Season year (defaults to current year)"),
+    pybaseball_service: PyBaseballService = Depends(get_pybaseball_service) # Corrected
+):
+    """
+    Get current MLB standings by division.
+    - **year**: Optional season year.
+    """
+    try:
+        return await pybaseball_service.get_mlb_standings(year)
+    except Exception as e:
+        logger.error(f"Error in get_mlb_standings endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/pybaseball/stat_leaders/{stat}")
+async def get_stat_leaders(
+    stat: str,
+    year: Optional[int] = Query(None, description="Season year (defaults to current year)"),
+    top_n: Optional[int] = Query(10, description="Number of top players to return (default 10)"),
+    player_type: Optional[str] = Query("batting", description="Type of player statistics (batting or pitching)"),
+    pybaseball_service: PyBaseballService = Depends(get_pybaseball_service) # Corrected
+):
+    """
+    Get MLB leaders for a specific statistic.
+    - **stat**: Statistic to rank by (e.g., 'HR', 'AVG', 'ERA', 'SO').
+    - **year**: Optional season year.
+    - **top_n**: Optional number of top players.
+    - **player_type**: Optional player type ('batting' or 'pitching').
+    """
+    if player_type not in ["batting", "pitching"]:
+        raise HTTPException(status_code=400, detail="Invalid player_type. Must be 'batting' or 'pitching'.")
+    try:
+        return await pybaseball_service.get_stat_leaders(stat, year, top_n, player_type)
+    except Exception as e:
+        logger.error(f"Error in get_stat_leaders endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/pybaseball/player/{player_name}/recent_performance")
+async def get_player_recent_performance(
+    player_name: str,
+    days: int = Query(30, description="Number of days to look back (default 30)"),
+    pybaseball_service: PyBaseballService = Depends(get_pybaseball_service) # Corrected
+):
+    """
+    Get recent game performance for an MLB player.
+    - **player_name**: Full name of the player.
+    - **days**: Number of days to look back (default 30).
+    """
+    try:
+        # Example of how the service would be called:
+        # result = await pybaseball_service.get_player_recent_performance(player_name, days)
+        # return result
+        return await pybaseball_service.get_player_recent_performance(player_name, days)
+    except Exception as e:
+        logger.error(f"Error in get_player_recent_performance endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/pybaseball/team/{team_name}/statistics")
+async def get_team_statistics(
+    team_name: str,
+    year: Optional[int] = Query(None, description="Season year (defaults to current year)"),
+    pybaseball_service: PyBaseballService = Depends(get_pybaseball_service) # Corrected
+):
+    """
+    Get aggregate statistics for an MLB team.
+    - **team_name**: Team name or abbreviation (e.g., 'Yankees', 'NYY').
+    - **year**: Optional season year.
+    """
+    try:
+        # Example of how the service would be called:
+        # result = await pybaseball_service.get_team_statistics(team_name, year)
+        # return result
+        return await pybaseball_service.get_team_statistics(team_name, year)
+    except Exception as e:
+        logger.error(f"Error in get_team_statistics endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/pybaseball/cache/clear")
+async def clear_pybaseball_cache(
+    pybaseball_service: PyBaseballService = Depends(get_pybaseball_service) # Corrected
+):
+    """
+    Clear the PyBaseball statistics cache.
+    """
+    try:
+        # Example of how the service would be called:
+        # result = await pybaseball_service.clear_pybaseball_cache()
+        # return result
+        return await pybaseball_service.clear_pybaseball_cache()
+    except Exception as e:
+        logger.error(f"Error in clear_pybaseball_cache endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/pybaseball/service_health")
+async def check_pybaseball_service_health(
+    pybaseball_service: PyBaseballService = Depends(get_pybaseball_service) # Corrected
+):
+    """
+    Check the health of the PyBaseball MCP service.
+    """
+    try:
+        # Example of how the service would be called:
+        # result = await pybaseball_service.check_pybaseball_service_health()
+        # return result
+        return await pybaseball_service.check_pybaseball_service_health()
+    except Exception as e:
+        logger.error(f"Error in check_pybaseball_service_health endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Add this endpoint near the health endpoint
 @app.get("/api/test-openai", response_model=dict)
@@ -626,6 +747,19 @@ async def test_openai_api(model: str = None):
 # uvicorn app.main:app --reload
 
 if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    import uvicorn  # Import uvicorn here
+    
+    # Remove or comment out any direct service calls that might have been here for testing.
+    # For example, ensure lines like these are NOT present or are commented out:
+    # # temp_service = PyBaseballService()
+    # # loop = asyncio.get_event_loop()
+    # # result = loop.run_until_complete(temp_service.search_players("Trout"))
+    # # print(result)
+
+    logger.info("Starting FastAPI server with Uvicorn...")
+    uvicorn.run(
+        "main:app",  # Or app if main.py is in the root and run as python main.py
+        host="0.0.0.0", 
+        port=int(os.getenv("PORT", 8000)),
+        reload=True # Added reload for development convenience, can be removed for production
+    )

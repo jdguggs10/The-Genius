@@ -2,7 +2,7 @@ import os
 import logging
 import httpx
 import json
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional, List
 
 logger = logging.getLogger(__name__)
 
@@ -31,35 +31,65 @@ class PyBaseballService:
             return f"Error retrieving data: {str(e)}"
     
     # Tool wrapper functions
-    async def get_player_stats(self, player_name: str, year: Optional[int] = None) -> str:
-        """Get season statistics for an MLB player."""
-        params = {"player_name": player_name}
+    async def get_player_stats(self, player_name: str, year: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Retrieves season statistics for a specific MLB player.
+        """
+        payload = {"player_name": player_name}
+        if year is not None:
+            payload["year"] = year
+        return await self._call_tool("player_stats", payload)
+
+    async def search_players(self, search_term: str) -> Dict[str, Any]:
+        """
+        Searches for MLB players by name.
+        """
+        payload = {"search_term": search_term}
+        return await self._call_tool("search_players", payload)
+
+    async def get_mlb_standings(self, year: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Retrieves current MLB standings by division.
+        """
+        payload = {}
+        if year is not None:
+            payload["year"] = year
+        return await self._call_tool("mlb_standings", payload)
+
+    async def get_stat_leaders(
+        self, stat: str, year: Optional[int] = None, top_n: Optional[int] = 10, player_type: Optional[str] = "batting"
+    ) -> Dict[str, Any]:
+        """
+        Retrieves MLB leaders for a specific statistic.
+        """
+        payload = {"stat": stat}
+        if year is not None:
+            payload["year"] = year
+        if top_n is not None:
+            payload["top_n"] = top_n
+        if player_type is not None:
+            payload["player_type"] = player_type
+        return await self._call_tool("stat_leaders", payload)
+    
+    async def get_player_recent_performance(self, player_name: str, days: int = 30) -> str:
+        """Get recent game performance for an MLB player."""
+        params = {"player_name": player_name, "days": days}
+        return await self._call_tool("player_recent_performance", params)
+
+    async def get_team_statistics(self, team_name: str, year: Optional[int] = None) -> str:
+        """Get aggregate statistics for an MLB team."""
+        params = {"team_name": team_name}
         if year:
             params["year"] = year
-        return await self._call_tool("player_stats", params)
-    
-    async def get_mlb_standings(self, year: Optional[int] = None) -> str:
-        """Get current MLB standings."""
-        params = {}
-        if year:
-            params["year"] = year
-        return await self._call_tool("mlb_standings", params)
-    
-    async def get_stat_leaders(self, stat: str, year: Optional[int] = None, 
-                               top_n: int = 10, player_type: str = "batting") -> str:
-        """Get MLB statistical leaders."""
-        params = {
-            "stat": stat,
-            "top_n": top_n,
-            "player_type": player_type
-        }
-        if year:
-            params["year"] = year
-        return await self._call_tool("stat_leaders", params)
-    
-    async def search_players(self, search_term: str) -> str:
-        """Search for MLB players by name."""
-        return await self._call_tool("search_players", {"search_term": search_term})
+        return await self._call_tool("team_statistics", params)
+
+    async def clear_pybaseball_cache(self) -> str:
+        """Clear the statistics cache on the PyBaseball service."""
+        return await self._call_tool("clear_stats_cache", {})
+
+    async def check_pybaseball_service_health(self) -> str:
+        """Check the health of the PyBaseball MCP service itself."""
+        return await self._call_tool("health_check", {})
     
     async def get_schedule_and_record(self, season: int, team: str) -> str:
         """Get team-by-team game results & upcoming schedule."""

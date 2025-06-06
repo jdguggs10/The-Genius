@@ -11,7 +11,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-def get_standings(year: int = None, league: str = "all") -> str:
+def get_standings(year: int = None, league: str = "all") -> dict:
     """
     Get current MLB standings.
     
@@ -20,7 +20,7 @@ def get_standings(year: int = None, league: str = "all") -> str:
         league: "AL", "NL", or "all"
         
     Returns:
-        JSON string with standings
+        Dictionary with standings data (not a JSON string)
     """
     try:
         if year is None:
@@ -28,30 +28,60 @@ def get_standings(year: int = None, league: str = "all") -> str:
             
         # Get standings
         standings_data = standings(year)
-        
         result = {"year": year, "standings": {}}
         
-        # Process each division
-        for division, df in standings_data.items():
-            division_name = division.replace('_', ' ').title()
-            
-            teams = []
-            for _, team in df.iterrows():
-                teams.append({
-                    "team": team['Tm'],
-                    "wins": int(team['W']),
-                    "losses": int(team['L']),
-                    "win_pct": round(float(team['W-L%']), 3),
-                    "games_back": team.get('GB', '0')
-                })
+        # Handle different return types from the pybaseball standings function
+        if isinstance(standings_data, dict):
+            # Process each division in dictionary format
+            for division, df in standings_data.items():
+                division_name = division.replace('_', ' ').title()
                 
-            result["standings"][division_name] = teams
+                teams = []
+                for _, team in df.iterrows():
+                    teams.append({
+                        "team": team['Tm'],
+                        "wins": int(team['W']),
+                        "losses": int(team['L']),
+                        "win_pct": round(float(team['W-L%']), 3),
+                        "games_back": team.get('GB', '0')
+                    })
+                    
+                result["standings"][division_name] = teams
+        elif isinstance(standings_data, list):
+            # Handle list format (this is likely what's causing the bug)
+            # In this case, each item in the list is a dataframe for a division
+            for i, df in enumerate(standings_data):
+                # Try to determine division name from the dataframe
+                # If division name can't be determined, use a generic name based on index
+                division_name = f"Division {i+1}"
+                
+                teams = []
+                for _, team in df.iterrows():
+                    teams.append({
+                        "team": team['Tm'],
+                        "wins": int(team['W']),
+                        "losses": int(team['L']),
+                        "win_pct": round(float(team['W-L%']), 3),
+                        "games_back": team.get('GB', '0')
+                    })
+                
+                result["standings"][division_name] = teams
+        else:
+            # Handle unexpected return type
+            logger.error(f"Unexpected standings data type: {type(standings_data)}")
+            return {
+                "error": f"Unexpected standings data type: {type(standings_data)}",
+                "year": year
+            }
             
-        return json.dumps(result, indent=2)
+        return result
         
     except Exception as e:
         logger.error(f"Error fetching standings: {str(e)}")
-        return f"Error retrieving standings: {str(e)}"
+        return {
+            "error": f"Error retrieving standings: {str(e)}",
+            "year": year if year else datetime.now().year
+        }
 
 
 def get_league_leaders(stat: str, year: int = None, top_n: int = 10, player_type: str = "batting") -> str:

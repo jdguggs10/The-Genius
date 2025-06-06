@@ -1,6 +1,6 @@
 # PyBaseball MCP Server
 
-This server, `pybaseball_mcp_server_v2.py`, provides Major League Baseball (MLB) statistics through the Model Context Protocol (MCP). It allows AI assistants and other tools to access real-time and historical baseball data using the powerful `pybaseball` library. It runs as a FastAPI + fastapi-mcp service, with endpoints automatically exposed as MCP tools.
+This server, `pybaseball_nativemcp_server.py`, provides Major League Baseball (MLB) statistics through the Model Context Protocol (MCP). It allows AI assistants and other tools to access real-time and historical baseball data using the powerful `pybaseball` library. It implements the Native MCP pattern with full support for Streamable HTTP transport as specified in the March 2025 MCP specification. The server can operate in both local STDIO mode for Claude Desktop integration and remote Streamable HTTP mode for web deployments.
 
 ## Features
 
@@ -97,19 +97,19 @@ The server also employs a small, short-lived (5 minutes TTL) in-memory cache for
 
 ## Running the Server
 
-The server is designed to be run in MCP STDIO mode, especially when used with tools like Claude Desktop.
+The server supports multiple transport protocols as defined in the March 2025 MCP specification. It can run in either STDIO mode for local development and Claude Desktop integration, or in Streamable HTTP mode for web deployments.
+
+### Local Development with STDIO Mode
 
 **Using the provided script (recommended):**
 
-The `start_pybaseball_mcp_claude.sh` script handles activating the virtual environment, setting necessary environment variables (`MCP_STDIO_MODE=1`, `PYTHONPATH`), and running `pybaseball_mcp_server_v2.py`.
+The `start_pybaseball_mcp_claude.sh` script handles activating the virtual environment, setting necessary environment variables (`MCP_STDIO_MODE=1`, `PYTHONPATH`), and running `pybaseball_nativemcp_server.py`.
 
 ```bash
 ./start_pybaseball_mcp_claude.sh
 ```
 
-**Manual Execution (for development/debugging):**
-
-If you need to run it manually:
+**Manual Execution:**
 
 ```bash
 # Ensure venv is activated
@@ -117,22 +117,41 @@ source venv/bin/activate
 
 # Set environment variables
 export MCP_STDIO_MODE=1
-export PYTHONPATH=\"$(pwd):$(pwd)/pybaseball_mcp:${PYTHONPATH:-}\" # Ensure both current dir and pybaseball_mcp are on path
+export PYTHONPATH=\"$(pwd):$(pwd)/pybaseball_mcp:${PYTHONPATH:-}\"
 
 # Run the server
-python pybaseball_mcp_server_v2.py
+python pybaseball_nativemcp_server.py
 ```
 
-If MCP libraries are not found, the server will attempt to start a FastAPI server on port 8002 (or as specified by the `PORT` environment variable).
+### Web Deployment with Streamable HTTP
 
-## Core Logic
+To run the server with Streamable HTTP transport (replacing the deprecated HTTP+SSE from previous versions):
 
-The core data fetching and processing logic resides in the `pybaseball_mcp` subdirectory:
-- `pybaseball_mcp/players.py`: Handles player-specific data (seasonal stats, recent performance, search).
-- `pybaseball_mcp/teams.py`: Handles team data (standings, league leaders, team stats).
-- `pybaseball_mcp/utils.py`: Provides caching utilities, data formatting, and other helpers, including `pybaseball` cache configuration.
+```bash
+# Standard web deployment
+./start_pybaseball_mcp.sh
+```
 
-This structure modularizes the data access layer from the server implementation.
+This starts the server on port 8002 (or as specified by the `PORT` environment variable). The server implements the Streamable HTTP protocol as specified in the March 2025 MCP specification, making it compatible with the latest OpenAI and Microsoft AI systems.
+
+## Core Logic and Architecture
+
+The server follows the three-layer Native MCP architecture as recommended in the March 2025 specification:
+
+1. **Protocol Layer**: Handles JSON-RPC 2.0 message framing and request/response linking
+2. **Transport Layer**: Manages communication through either STDIO or Streamable HTTP
+3. **Capability Interfaces**: Provides the core MCP primitives (Tools) for MLB statistics
+
+The implementation is modular with clear separation of concerns:
+
+- **Main Server**: `pybaseball_nativemcp_server.py` - Contains the Native MCP Server implementation with tool definitions
+- **Transport Layer**: `streamable_http.py` - Implements the Streamable HTTP protocol with proper CORS configuration
+- **Data Access Layer**: The core data fetching logic resides in the `pybaseball_mcp` subdirectory:
+  - `pybaseball_mcp/players.py`: Handles player-specific data (seasonal stats, recent performance, search)
+  - `pybaseball_mcp/teams.py`: Handles team data (standings, league leaders, team stats)
+  - `pybaseball_mcp/utils.py`: Provides caching utilities, data formatting, and other helpers
+
+This structure follows the recommended patterns for Native MCP servers, making it highly compatible with both local and remote AI systems.
 
 ## 🤖 AI Reviewer Notes
 

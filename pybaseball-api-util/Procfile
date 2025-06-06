@@ -1,1 +1,1 @@
-web: python pybaseball_mcp_server_v2.py 
+web: python pybaseball_nativemcp_server.py 
