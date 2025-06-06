@@ -1,0 +1,12 @@
+name = "pybaseball-mcp"
+main = "pybaseball_nativemcp_server.py"
+compatibility_date = "2023-06-06"
+
+[build]
+command = "pip install -r requirements.txt"
+
+[build.upload]
+format = "service-worker"
+
+[vars]
+PYTHON_VERSION = "3.11"
