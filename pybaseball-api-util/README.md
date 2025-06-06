@@ -1,170 +1,174 @@
-# PyBaseball MCP Server
+# PyBaseball Native MCP Server
 
-This server, `pybaseball_nativemcp_server.py`, provides Major League Baseball (MLB) statistics through the Model Context Protocol (MCP). It allows AI assistants and other tools to access real-time and historical baseball data using the powerful `pybaseball` library. It implements the Native MCP pattern with full support for Streamable HTTP transport as specified in the March 2025 MCP specification. The server can operate in both local STDIO mode for Claude Desktop integration and remote Streamable HTTP mode for web deployments.
+A modular, production-ready Model Context Protocol (MCP) server for delivering Major League Baseball (MLB) statistics to AI assistants and tools, with robust support for the March 2025 **Streaming HTTP** transport and Native MCP architecture.
 
-## Features
+---
 
-The server exposes the following tools via MCP and REST API:
+## 🚀 Key Features
 
-- **`player_stats`**: Get season statistics (batting or pitching) for a specific MLB player by name and year.
-- **`player_recent_performance`**: Retrieve recent game performance for an MLB player over a specified number of days, utilizing Statcast data.
-- **`search_players`**: Search for MLB players by full or partial name.
-- **`mlb_standings`**: Get current MLB standings by division for a given year.
-- **`stat_leaders`**: Find MLB leaders for a specific statistic (e.g., HR, AVG, ERA, SO) for a given year and player type (batting/pitching).
-- **`team_statistics`**: Get aggregate batting and pitching statistics for an MLB team for a specified year.
-- **`clear_stats_cache`**: Clear the `pybaseball` library's local cache to force fresh data retrieval.
-- **`get_cache_info`**: Get information about the `pybaseball` cache status and location.
-- **`health_check`**: A simple endpoint to confirm the server is operational.
+- **Streaming HTTP Protocol**: Implements the March 2025 MCP-compliant Streamable HTTP protocol, enabling scalable, low-latency remote access for modern AI platforms.
+- **STDIO & Web Modes**: Operates natively in both STDIO (local/desktop) and Streaming HTTP (web/cloud) modes.
+- **Rich MLB Data Tools**: Exposes a suite of tools for player stats, recent performances, standings, leaders, team stats, and more.
+- **FastAPI Fallback**: If MCP is unavailable, serves tools as a FastAPI REST API.
+- **Extensible & Modular**: Clean separation of protocol, transport, and capability layers for easy maintenance and extension.
+- **Robust Caching**: Combines pybaseball’s disk cache with a fast in-memory layer for optimal performance.
 
-## API Endpoints
+---
 
-All tools are exposed as REST API endpoints at:
+## 🛠️ Available Tools
+
+Each tool is accessible via MCP and REST API endpoints.
+
+| Tool Name                  | Description                                              |
+|----------------------------|---------------------------------------------------------|
+| `player_stats`             | Season stats (batting/pitching) for a player/year       |
+| `player_recent_performance`| Recent game stats for a player (Statcast)               |
+| `search_players`           | Look up players by name                                 |
+| `mlb_standings`            | Current/season standings by division                    |
+| `stat_leaders`             | Top players for a stat (HR, AVG, ERA, SO, etc.)         |
+| `team_statistics`          | Batting/pitching stats for a team                       |
+| `clear_stats_cache`        | Clear pybaseball’s local cache                          |
+| `get_cache_info`           | Inspect cache status/config                             |
+| `health_check`             | Server operational check                                |
+
+See the **API Reference** below for full endpoint details and parameters.
+
+---
+
+## 🧑‍💻 Getting Started
+
+### 1. Clone & Setup
+
+```bash
+git clone https://github.com/jdguggs10/The-Genius.git
+cd The-Genius/pybaseball-api-util
+```
+
+### 2. Python Environment
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 3. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+# Or for full MCP/pybaseball tools:
+pip install -r pybaseball_mcp/requirements.txt
+```
+
+### 4. Running the Server
+
+#### Local STDIO (for desktop/Claude integration)
+
+```bash
+./start_pybaseball_mcp_claude.sh
+# Or manually:
+export MCP_STDIO_MODE=1
+export PYTHONPATH="$(pwd):$(pwd)/pybaseball_mcp:${PYTHONPATH:-}"
+python pybaseball_nativemcp_server.py
+```
+
+#### Web/Cloud (Streaming HTTP)
+
+```bash
+./start_pybaseball_mcp.sh
+# Server listens on port 8002 by default
+```
+
+The server will automatically use the **Streamable HTTP** protocol, replacing legacy HTTP+SSE. Full CORS support is included.
+
+---
+
+## 🌐 API Reference
+
+All tools are available as REST endpoints:
 
 ```
 POST https://genius-pybaseball.onrender.com/tools/{tool_name}
 ```
+- `{tool_name}`: Name of the tool (no `get_` prefix).
 
-Where `{tool_name}` is the function name without any leading `get_` prefix. For example, `mlb_standings` instead of `get_mlb_standings`.
+### Example: Get MLB Standings
 
-### Core MLB Data Endpoints
+```bash
+curl -X POST https://genius-pybaseball.onrender.com/tools/mlb_standings \
+     -H "Content-Type: application/json" \
+     -d '{"year": 2025}'
+```
 
-| Endpoint (tool_name) | Parameters | What it returns | Underlying pybaseball call |
-|----------------------|------------|-----------------|----------------------------|
-| `mlb_standings` | `{"year": 2025}` (year optional ⇒ current season) | Division and league standings for the season | `standings()` |
-| `schedule_and_record` | `{"season": 2024, "team": "NYY"}` | Team-by-team game results & upcoming schedule | `schedule_and_record()` |
-| `statcast` | `{"start_dt": "2025-04-01", "end_dt": "2025-04-07"}` | All Statcast pitches in the date window | `statcast()` |
-| `statcast_pitcher` | `{"player_id": 518886, "start_dt": "2025-05-01", "end_dt": "2025-05-31"}` | Pitch-level Statcast for one pitcher | `statcast_pitcher()` |
-| `statcast_batter` | `{"player_id": 664058, "start_dt": "2025-05-01", "end_dt": "2025-05-31"}` | Batter-level Statcast | `statcast_batter()` |
-| `pitching_stats` | `{"start_season": 2024, "end_season": 2024}` | Season-level FanGraphs pitching metrics | `pitching_stats()` |
-| `batting_stats` | `{"start_season": 2024, "end_season": 2024}` | Season-level FanGraphs batting metrics | `batting_stats()` |
-| `playerid_lookup` | `{"last_name": "Ohtani", "first_name": "Shohei"}` | MLBAM, FanGraphs, B-Ref IDs, etc. | `playerid_lookup()` |
-| `team_ids` | `{}` | Master lookup of MLB team IDs & abbreviations | `team_ids()` |
+### Example: List All Tools
 
-### API Usage Examples
-
-#### List Available Tools
 ```bash
 curl -s https://genius-pybaseball.onrender.com/mcp | jq '.all_tools[].name'
 ```
 
-#### Get Current Standings
-```bash
-curl -X POST https://genius-pybaseball.onrender.com/tools/mlb_standings \
-     -H "Content-Type: application/json" \
-     -d '{}'
-```
+**Troubleshooting:**  
+- Ensure tool names match (no `get_` prefix).
+- POST JSON bodies with required parameters as per pybaseball’s API.
+- 404 errors usually indicate a mismatch in tool name or parameters.
 
-#### Get Pitcher Statcast Data
-```bash
-curl -X POST https://genius-pybaseball.onrender.com/tools/statcast_pitcher \
-     -H "Content-Type: application/json" \
-     -d '{"player_id": 477132, "start_dt":"2025-05-01", "end_dt":"2025-05-31"}'
-```
+---
 
-### Troubleshooting
+## ⚡ Streaming HTTP Protocol Overview
 
-If a call returns 404, check that:
-1. You dropped any `get_` prefix.
-2. You're posting to `/tools/{name}`, not `/tools/get_{name}`.
-3. The JSON body keys match the parameter names in pybaseball.
+- **Streaming HTTP** is the official March 2025 MCP transport, replacing HTTP+SSE.
+- Enables robust, bidirectional, chunked communication, ideal for LLMs and AI agents.
+- See `streamable_http.py` for protocol implementation details and CORS configuration.
 
-## Caching
+---
 
-The server leverages `pybaseball`'s built-in caching mechanism to improve performance and reduce redundant data fetching.
-- The cache is typically stored in `~/.pybaseball/cache/`.
-- Cache expiry is configured (e.g., to 24 hours).
-The server also employs a small, short-lived (5 minutes TTL) in-memory cache for its own processed results.
+## 🏛️ Architecture Overview
 
-## Setup and Installation
+- **Protocol Layer**: JSON-RPC 2.0 framing, request/response correlation.
+- **Transport Layer**: Handles STDIO or Streaming HTTP as per environment.
+- **Capability Layer**: Implements core MCP tools for MLB statistics.
 
-1.  **Clone the repository (if you haven't already).**
-2.  **Navigate to the `pybaseball-api-util` directory:**
-    ```bash
-    cd pybaseball-api-util
-    ```
-3.  **Create and activate a Python virtual environment:**
-    It's recommended to create it in the current directory named `venv`, as expected by the startup scripts.
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
-4.  **Install dependencies:**
-    The primary list of dependencies for this utility is located in `pybaseball-api-util/pybaseball_mcp/requirements.txt`.
-    ```bash
-    pip install -r pybaseball_mcp/requirements.txt
-    ```
-    Ensure that `mcp>=1.5.0` is installed as part of these dependencies for full MCP functionality.
+**Key Modules:**
+- `pybaseball_nativemcp_server.py`: Main server and tool registry.
+- `streamable_http.py`: Streamable HTTP server.
+- `pybaseball_mcp/`: Data access and business logic.
+  - `players.py`, `teams.py`, `utils.py`: Modular stat providers and utilities.
 
-## Running the Server
+---
 
-The server supports multiple transport protocols as defined in the March 2025 MCP specification. It can run in either STDIO mode for local development and Claude Desktop integration, or in Streamable HTTP mode for web deployments.
+## 🧠 AI Reviewer Notes
 
-### Local Development with STDIO Mode
+- This server is a drop-in Native MCP provider for MLB stats, with pybaseball as its backend.
+- Full compatibility with March 2025 MCP and Streaming HTTP.
+- Designed for easy extension with new tools and data sources.
+- For test cases and usage patterns, see the `tests/` directory.
 
-**Using the provided script (recommended):**
+---
 
-The `start_pybaseball_mcp_claude.sh` script handles activating the virtual environment, setting necessary environment variables (`MCP_STDIO_MODE=1`, `PYTHONPATH`), and running `pybaseball_nativemcp_server.py`.
+## 🔒 Caching
 
-```bash
-./start_pybaseball_mcp_claude.sh
-```
+- Uses both pybaseball’s disk cache (`~/.pybaseball/cache/`) and a 5-minute in-memory cache.
+- Caching logic resides in `pybaseball_mcp/utils.py`.
+- Tools like `clear_stats_cache` and `get_cache_info` are provided for cache management.
 
-**Manual Execution:**
+---
 
-```bash
-# Ensure venv is activated
-source venv/bin/activate
+## 🤝 Contributing
 
-# Set environment variables
-export MCP_STDIO_MODE=1
-export PYTHONPATH=\"$(pwd):$(pwd)/pybaseball_mcp:${PYTHONPATH:-}\"
+Contributions, suggestions, and bug reports are welcome!
 
-# Run the server
-python pybaseball_nativemcp_server.py
-```
+1. Fork this repo.
+2. Create a feature branch.
+3. Submit a pull request with a clear description.
 
-### Web Deployment with Streamable HTTP
+---
 
-To run the server with Streamable HTTP transport (replacing the deprecated HTTP+SSE from previous versions):
+## 📚 References
 
-```bash
-# Standard web deployment
-./start_pybaseball_mcp.sh
-```
+- [pybaseball documentation](https://github.com/jldbc/pybaseball)
+- [Model Context Protocol (MCP) Spec, March 2025](https://github.com/mcp-protocol/spec)
+- [Streaming HTTP (MCP) Details](https://github.com/mcp-protocol/streaming-http)
 
-This starts the server on port 8002 (or as specified by the `PORT` environment variable). The server implements the Streamable HTTP protocol as specified in the March 2025 MCP specification, making it compatible with the latest OpenAI and Microsoft AI systems.
+---
 
-## Core Logic and Architecture
+## 📄 License
 
-The server follows the three-layer Native MCP architecture as recommended in the March 2025 specification:
-
-1. **Protocol Layer**: Handles JSON-RPC 2.0 message framing and request/response linking
-2. **Transport Layer**: Manages communication through either STDIO or Streamable HTTP
-3. **Capability Interfaces**: Provides the core MCP primitives (Tools) for MLB statistics
-
-The implementation is modular with clear separation of concerns:
-
-- **Main Server**: `pybaseball_nativemcp_server.py` - Contains the Native MCP Server implementation with tool definitions
-- **Transport Layer**: `streamable_http.py` - Implements the Streamable HTTP protocol with proper CORS configuration
-- **Data Access Layer**: The core data fetching logic resides in the `pybaseball_mcp` subdirectory:
-  - `pybaseball_mcp/players.py`: Handles player-specific data (seasonal stats, recent performance, search)
-  - `pybaseball_mcp/teams.py`: Handles team data (standings, league leaders, team stats)
-  - `pybaseball_mcp/utils.py`: Provides caching utilities, data formatting, and other helpers
-
-This structure follows the recommended patterns for Native MCP servers, making it highly compatible with both local and remote AI systems.
-
-## 🤖 AI Reviewer Notes
-
-For AI agents reviewing this utility, the following points are key for understanding its design and operation:
-
--   **MCP Server for MLB Statistics**: This utility acts as a Model Context Protocol (MCP) server, providing tools to access Major League Baseball statistics. Its primary data source is the `pybaseball` Python library.
--   **Key Server Script**: The main server script is `pybaseball_mcp_server_v2.py`. This script initializes the MCP tools and handles communication.
--   **Core Logic Modules**: The data fetching and processing logic is predominantly located within the `pybaseball_mcp` directory, specifically in:
-    -   `players.py`: For player-related statistics and searches.
-    -   `teams.py`: For team-related statistics and standings.
-    -   `utils.py`: Contains helper functions, data formatting, and critically, the configuration and management of `pybaseball`'s caching features.
--   **Caching Strategy**: The `pybaseball` library's own caching mechanism is a vital aspect of this utility, configured in `pybaseball_mcp/utils.py`. This helps in reducing redundant API calls and speeding up responses. An additional short-term in-memory cache is also used by the server for its processed results. Understanding the cache behavior (location: `~/.pybaseball/cache/`, expiry) is important for data freshness considerations.
--   **Operating Mode (MCP STDIO)**: When launched using the `start_pybaseball_mcp_claude.sh` script, the server operates in MCP STDIO mode. This script sets essential environment variables like `MCP_STDIO_MODE=1` and modifies `PYTHONPATH` to ensure correct module resolution.
--   **Fallback to FastAPI**: If MCP libraries are not detected (e.g., `mcp` package not installed or `MCP_STDIO_MODE` not set), the server is designed to fall back to running as a FastAPI-based REST API on port 8002 by default.
--   **`pybaseball` Library Familiarity**: A good understanding of the `pybaseball` library's functions and data structures will be highly beneficial when analyzing the tool implementations, as this utility serves as a wrapper around it.
--   **Tool Definitions**: The available MCP tools (like `player_stats`, `mlb_standings`, etc.) are defined within `pybaseball_mcp_server_v2.py`, mapping to functions in the core logic modules.
+MIT License. See [LICENSE](../LICENSE) for details.
